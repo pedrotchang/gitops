@@ -1,0 +1,126 @@
+apiVersion: headscale.infrado.cloud/v1beta1
+kind: HeadscaleUser
+metadata:
+  name: subnet-router
+  namespace: headscale
+spec:
+  headscaleRef: headscale
+  username: subnet-router
+---
+apiVersion: headscale.infrado.cloud/v1beta1
+kind: HeadscalePreAuthKey
+metadata:
+  name: subnet-router-key
+  namespace: headscale
+spec:
+  headscaleRef: headscale
+  headscaleUserRef: subnet-router
+  reusable: true
+  expiration: "8760h"
+  tags:
+    - "tag:subnet-router"
+  secretName: subnet-router-key
+---
+apiVersion: headscale.infrado.cloud/v1beta1
+kind: HeadscaleAutoApprover
+metadata:
+  name: subnet-router
+  namespace: headscale
+spec:
+  headscaleRef: headscale
+  routes:
+    - cidr: 10.244.0.0/16
+      tags: ["tag:subnet-router"]
+    - cidr: 10.96.0.0/12
+      tags: ["tag:subnet-router"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tailscale-subnet-router
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tailscale-subnet-router
+  namespace: headscale
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "update", "patch"]
+    resourceNames: ["tailscale-subnet-router-state"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tailscale-subnet-router
+  namespace: headscale
+subjects:
+  - kind: ServiceAccount
+    name: tailscale-subnet-router
+    namespace: headscale
+roleRef:
+  kind: Role
+  name: tailscale-subnet-router
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tailscale-subnet-router
+  namespace: headscale
+  labels:
+    app: tailscale-subnet-router
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tailscale-subnet-router
+  template:
+    metadata:
+      labels:
+        app: tailscale-subnet-router
+        policy-type: "app"
+    spec:
+      serviceAccountName: tailscale-subnet-router
+      containers:
+        - name: tailscale
+          image: ghcr.io/tailscale/tailscale:v1.98.3
+          env:
+            - name: TS_LOGIN_SERVER
+              value: https://headscale.seyzahl.com
+            - name: TS_ROUTES
+              value: "10.244.0.0/16,10.96.0.0/12"
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: subnet-router-key
+                  key: key
+            - name: TS_STATE_DIR
+              value: /var/lib/tailscale
+            - name: TS_USERSPACE
+              value: "false"
+            - name: TS_HOSTNAME
+              value: tachtit-subnet-router
+            - name: TS_KUBE_SECRET
+              value: tailscale-subnet-router-state
+            - name: TS_EXTRA_ARGS
+              value: "--advertise-routes=10.244.0.0/16,10.96.0.0/12"
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+          volumeMounts:
+            - name: tun
+              mountPath: /dev/net/tun
+            - name: state
+              mountPath: /var/lib/tailscale
+      volumes:
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+        - name: state
+          emptyDir: {}

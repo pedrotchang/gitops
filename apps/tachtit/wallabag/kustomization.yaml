@@ -4,5 +4,5 @@ namespace: wallabag
 resources:
   - configmap.yaml
   - ../../base/wallabag/
-  - cloudflare.yaml
   - authentik-outpost.yaml
+  - httproute.yaml

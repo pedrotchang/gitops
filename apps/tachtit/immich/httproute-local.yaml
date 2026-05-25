@@ -3,14 +3,12 @@ kind: HTTPRoute
 metadata:
   name: immich-local
   namespace: immich
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: immich.local.seyzahl.com
 spec:
   parentRefs:
     - name: cilium-gateway
       namespace: default
   hostnames:
-    - immich.local.seyzahl.com
+    - immich.seyzahl.com
   rules:
     - matches:
         - path:

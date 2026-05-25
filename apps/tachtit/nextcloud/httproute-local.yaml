@@ -3,14 +3,12 @@ kind: HTTPRoute
 metadata:
   name: nextcloud-local
   namespace: nextcloud
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: nextcloud.local.seyzahl.com
 spec:
   parentRefs:
     - name: cilium-gateway
       namespace: default
   hostnames:
-    - nextcloud.local.seyzahl.com
+    - nextcloud.seyzahl.com
   rules:
     - matches:
         - path:

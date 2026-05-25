@@ -5,5 +5,4 @@ resources:
   - ../../base/n8n/
   - httproute-local.yaml
   - httproute.yaml
-  - cloudflare.yaml
   - configmap.yaml

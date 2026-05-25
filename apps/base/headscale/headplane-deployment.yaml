@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headplane
+  namespace: headscale
+  labels:
+    app: headplane
+    app.kubernetes.io/name: headplane
+    app.kubernetes.io/instance: headscale
+    app.kubernetes.io/component: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headplane
+  template:
+    metadata:
+      labels:
+        app: headplane
+        app.kubernetes.io/name: headplane
+        app.kubernetes.io/instance: headscale
+        app.kubernetes.io/component: ui
+        policy-type: "app"
+    spec:
+      containers:
+        - name: headplane
+          image: ghcr.io/tale/headplane:0.6.3
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/headplane/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/headplane
+            - name: cookie-secret
+              mountPath: /etc/headplane/cookie-secret
+              readOnly: true
+            - name: api-key
+              mountPath: /etc/headplane/api-key
+              readOnly: true
+            - name: oidc-secret
+              mountPath: /etc/headplane/oidc-secret
+              readOnly: true
+          livenessProbe:
+            exec:
+              command: ["/bin/hp_healthcheck"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /admin
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: headplane-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: headplane-data-pvc
+        - name: cookie-secret
+          secret:
+            secretName: headplane-cookie-secret
+        - name: api-key
+          secret:
+            secretName: headscale-api-key
+        - name: oidc-secret
+          secret:
+            secretName: headscale-oidc-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headplane
+  namespace: headscale
+  labels:
+    app: headplane
+    app.kubernetes.io/name: headplane
+    app.kubernetes.io/instance: headscale
+    app.kubernetes.io/component: ui
+spec:
+  selector:
+    app: headplane
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: headplane-data-pvc
+  namespace: headscale
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

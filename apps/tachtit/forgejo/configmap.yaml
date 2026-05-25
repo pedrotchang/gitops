@@ -27,6 +27,9 @@ data:
   FORGEJO__actions__ENABLED: "true"
   FORGEJO__actions__DEFAULT_ACTIONS_URL: https://data.forgejo.org
 
+  # Packages / container registry
+  FORGEJO__packages__ENABLED: "true"
+
   # Storage paths
   FORGEJO__repository__ROOT: /data/git
   FORGEJO__attachment__PATH: /data/app/attachments

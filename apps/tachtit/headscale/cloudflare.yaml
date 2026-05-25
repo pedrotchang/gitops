@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: headscale
+spec:
+  selector:
+    matchLabels:
+      app: cloudflared
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+        policy-type: "app"
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.5.1
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - --protocol
+            - http2
+            - run
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          ports:
+            - containerPort: 2000
+              name: http-metrics
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: creds
+          secret:
+            secretName: cloudflare-tunnel
+        - name: config
+          configMap:
+            name: cloudflared
+            items:
+              - key: config.yaml
+                path: config.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared
+  namespace: headscale
+data:
+  config.yaml: |
+    tunnel: headscale
+    credentials-file: /etc/cloudflared/creds/credentials.json
+
+    metrics: 0.0.0.0:2000
+
+    no-autoupdate: true
+
+    ingress:
+    - hostname: headscale.seyzahl.com
+      path: /admin
+      service: http://headplane.headscale.svc.cluster.local:3000
+    - hostname: headscale.seyzahl.com
+      service: http://headscale.headscale.svc.cluster.local:8080
+
+    - service: http_status:404

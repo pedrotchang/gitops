@@ -14,14 +14,11 @@ spec:
         name: nextcloud
   values:
     image:
-      repository: nextcloud
+      repository: forgejo.seyzahl.com/seyza/nextcloud
       tag: stable
 
-    lifecycle:
-      postStartCommand:
-        - sh
-        - -c
-        - apt-get update -qq && apt-get install -y -qq ffmpeg > /dev/null 2>&1 &
+    imagePullSecrets:
+      - name: forgejo-registry
 
     nextcloud:
       host: nextcloud.seyzahl.com
@@ -42,6 +39,14 @@ spec:
           $CONFIG = array (
             'trusted_proxies' => ['10.0.0.0/8'],
             'overwriteprotocol' => 'https',
+          );
+        oidc.config.php: |-
+          <?php
+          $CONFIG = array (
+            'user_oidc' => array (
+              'single_logout' => false,
+              'auto_provision' => true,
+            ),
           );
 
     internalDatabase:

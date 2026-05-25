@@ -4,4 +4,4 @@ namespace: forgejo
 resources:
   - ../../base/forgejo
   - configmap.yaml
-  - cloudflare.yaml
+  - httproute.yaml

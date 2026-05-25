@@ -1,0 +1,77 @@
+apiVersion: headscale.infrado.cloud/v1beta1
+kind: Headscale
+metadata:
+  name: headscale
+  namespace: headscale
+spec:
+  version: "v0.25.1"
+  replicas: 1
+  config:
+    server_url: https://headscale.seyzahl.com
+    listen_addr: 0.0.0.0:8080
+    grpc_listen_addr: 0.0.0.0:50443
+    grpc_allow_insecure: true
+    disable_check_updates: true
+    database:
+      type: sqlite
+    dns:
+      magic_dns: true
+      base_domain: vpn.seyzahl.com
+      nameservers:
+        global:
+          - 1.1.1.1
+          - 8.8.8.8
+      extra_records:
+        - name: nextcloud.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: immich.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: forgejo.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: n8n.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: commafeed.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: wallabag.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: pgadmin.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+    oidc:
+      only_start_if_oidc_is_available: true
+      issuer: https://auth.seyzahl.com/application/o/headscale/
+      client_id: headscale
+      client_secret_path: /etc/headscale/oidc-secret/client_secret
+      scope:
+        - openid
+        - profile
+        - email
+      expiry: "180d"
+      strip_email_domain: true
+    policy:
+      mode: database
+  acl_policy:
+    tag_owners:
+      "tag:subnet-router": ["autogroup:admin"]
+    inline: |
+      {
+        "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}]
+      }
+  api_key:
+    auto_manage: true
+    expiration: "2160h"
+    rotation_buffer: "240h"
+  extra_volumes:
+    - name: oidc-secret
+      secret:
+        secretName: headscale-oidc-secret
+  extra_volume_mounts:
+    - name: oidc-secret
+      mountPath: /etc/headscale/oidc-secret
+      readOnly: true

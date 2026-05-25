@@ -1,0 +1,9 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: headscale-operator
+  namespace: headscale-operator
+spec:
+  type: oci
+  url: oci://ghcr.io/infradohq/headscale-operator/charts
+  interval: 1h
