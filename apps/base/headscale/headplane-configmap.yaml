@@ -22,6 +22,7 @@ data:
       issuer: "https://auth.seyzahl.com/application/o/headscale/"
       client_id: "headscale"
       client_secret_path: "/etc/headplane/oidc-secret/client_secret"
+      headscale_api_key_path: "/etc/headplane/api-key/api-key"
       use_pkce: true
       scope: "openid email profile"
       disable_api_key_login: false
@@ -31,5 +32,6 @@ data:
         enabled: false
       kubernetes:
         enabled: false
+        pod_name: "headplane"
       proc:
         enabled: false
