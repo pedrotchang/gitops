@@ -71,6 +71,6 @@ data:
 
     ingress:
     - hostname: wallabag.seyzahl.com
-      service: http://wallabag.wallabag.svc.cluster.local:8083
+      service: http://authentik-outpost-wallabag.wallabag.svc.cluster.local:9000
 
     - service: http_status:404

@@ -69,7 +69,7 @@ data:
 
     ingress:
     - hostname: auto.seyzahl.com
-      service: http://n8n:3008
+      service: http://authentik-outpost-n8n.n8n.svc.cluster.local:9000
 
     - service: http_status:404
 ---

@@ -17,3 +17,6 @@ bootstrap
 credentials.json
 CLAUDE.md
 ta/
+
+# Multi-Team Chat — local agent config (never commit)
+.pi/

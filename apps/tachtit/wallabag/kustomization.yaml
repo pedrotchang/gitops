@@ -5,3 +5,4 @@ resources:
   - configmap.yaml
   - ../../base/wallabag/
   - cloudflare.yaml
+  - authentik-outpost.yaml

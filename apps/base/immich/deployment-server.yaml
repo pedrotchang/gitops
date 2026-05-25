@@ -39,6 +39,8 @@ spec:
                 name: immich-configmap
             - secretRef:
                 name: immich-container-env
+            - secretRef:
+                name: immich-oidc
           ports:
             - name: http
               containerPort: 2283

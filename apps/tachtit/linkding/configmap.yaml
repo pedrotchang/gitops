@@ -8,3 +8,8 @@ data:
   LD_DB_DATABASE: linkding
   LD_DB_PORT: "5432"
   LD_DB_HOST: linkding-pg.seyzahl.com
+  LD_OIDC_OP_DISCOVERY_DOCUMENT_URL: "https://auth.seyzahl.com/application/o/linkding/.well-known/openid-configuration"
+  LD_OIDC_RP_CLIENT_ID: "VFrSSahKwR4tiBcyHXRb7N2rDuqCGzpWwBVo9yxz"
+  LD_OIDC_RP_SIGN_ALGO: "RS256"
+  LD_OIDC_USE_PKCE: "True"
+  LD_OIDC_CREATE_USER: "True"

@@ -32,6 +32,28 @@ grafana:
   grafana.ini:
     date_formats:
       default_week_start: sunday
+    server:
+      root_url: https://grafana.seyzahl.com
+    auth.generic_oauth:
+      enabled: true
+      name: Authentik
+      icon: signin
+      client_id: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_ID}
+      client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+      scopes: openid profile email
+      auth_url: https://auth.seyzahl.com/application/o/authorize/
+      token_url: https://auth.seyzahl.com/application/o/token/
+      api_url: https://auth.seyzahl.com/application/o/userinfo/
+      role_attribute_path: contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'
+      role_attribute_strict: false
+      allow_sign_up: true
+      auto_login: false
+      use_pkce: true
+    auth:
+      disable_login_form: false
+      oauth_auto_login: false
+
+  envFromSecret: grafana-oidc
 
   sidecar:
     datasources:
