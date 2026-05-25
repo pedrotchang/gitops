@@ -53,7 +53,6 @@ spec:
         - profile
         - email
       expiry: "180d"
-      strip_email_domain: true
     policy:
       mode: database
   acl_policy:
