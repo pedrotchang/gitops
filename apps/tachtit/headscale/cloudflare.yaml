@@ -21,8 +21,6 @@ spec:
             - tunnel
             - --config
             - /etc/cloudflared/config/config.yaml
-            - --protocol
-            - http2
             - run
           livenessProbe:
             httpGet:
