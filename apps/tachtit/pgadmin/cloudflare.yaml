@@ -71,6 +71,6 @@ data:
 
     ingress:
     - hostname: pgadmin.seyzahl.com
-      service: http://authentik-outpost-pgadmin.pgadmin.svc.cluster.local:9000
+      service: http://pgadmin.pgadmin.svc.cluster.local:80
 
     - service: http_status:404

@@ -73,7 +73,7 @@ data:
 
     ingress:
     - hostname: commafeed.seyzahl.com
-      service: http://authentik-outpost-commafeed.commafeed.svc.cluster.local:9000
+      service: http://commafeed.commafeed.svc.cluster.local:8082
 
     # This rule matches any traffic which didn't match a previous rule, and responds with HTTP 404.
     - service: http_status:404
