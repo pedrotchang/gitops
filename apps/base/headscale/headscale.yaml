@@ -13,7 +13,13 @@ spec:
     grpc_allow_insecure: true
     disable_check_updates: true
     database:
-      type: sqlite
+      type: postgres
+      postgres:
+        host: headscale-pg.seyzahl.com
+        port: 5432
+        name: headscale
+        user: headscale
+        ssl_mode: disable
     dns:
       magic_dns: true
       base_domain: vpn.seyzahl.com
@@ -58,12 +64,24 @@ spec:
   acl_policy:
     inline: |
       {
-        "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}]
+        "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}],
+        "autoApprovers": {
+          "routes": {
+            "10.244.0.0/16": ["tag:subnet-router"],
+            "10.96.0.0/12": ["tag:subnet-router"]
+          }
+        }
       }
   api_key:
     auto_manage: true
     expiration: "2160h"
     rotation_buffer: "240h"
+  extra_env:
+    - name: HEADSCALE_DATABASE_POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: headscale-db-creds
+          key: password
   extra_volumes:
     - name: oidc-secret
       secret:

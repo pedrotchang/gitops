@@ -1,0 +1,58 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: headscale-db-tachtit-cnpg-v0
+spec:
+  description: Postgres cluster for the headscale application
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  instances: 2
+
+  inheritedMetadata:
+    labels:
+      app: headscale-database
+      policy-type: "database"
+
+  monitoring:
+    enablePodMonitor: true
+
+  storage:
+    size: 1Gi
+
+  bootstrap:
+    initdb:
+      database: headscale
+      owner: headscale
+      secret:
+        name: headscale-db-creds
+
+  backup:
+    barmanObjectStore:
+      destinationPath: https://seyzahldata.blob.core.windows.net/headscale
+      azureCredentials:
+        connectionString:
+          name: azure-creds
+          key: headscale-connection-string
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "14d"
+
+  resources:
+    requests:
+      memory: 320Mi
+
+  managed:
+    services:
+      disabledDefaultServices: ["ro", "r"]
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: "headscale-db-lb"
+              labels:
+                cilium-lb-pool: postgres-pool
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: headscale-pg.seyzahl.com
+            spec:
+              type: LoadBalancer

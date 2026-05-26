@@ -8,4 +8,5 @@ resources:
   - headplane-configmap.yaml
   - headplane-deployment.yaml
   - secrets.yaml
+  - db-secret.yaml
   - istio-gateway.yaml
