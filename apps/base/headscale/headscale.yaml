@@ -65,7 +65,7 @@ spec:
     inline: |
       {
         "groups": {
-          "group:routers": ["subnet-router"]
+          "group:routers": ["subnet-router@"]
         },
         "tagOwners": {
           "tag:subnet-router": ["group:routers"]
