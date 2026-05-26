@@ -56,8 +56,6 @@ spec:
     policy:
       mode: database
   acl_policy:
-    tag_owners:
-      "tag:subnet-router": ["autogroup:admin"]
     inline: |
       {
         "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}]
