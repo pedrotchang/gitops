@@ -89,7 +89,11 @@ spec:
     - name: oidc-secret
       secret:
         secretName: headscale-oidc-secret
+    - name: run-headscale
+      emptyDir: {}
   extra_volume_mounts:
     - name: oidc-secret
       mountPath: /etc/headscale/oidc-secret
       readOnly: true
+    - name: run-headscale
+      mountPath: /var/run/headscale
