@@ -48,7 +48,10 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["create", "get", "update", "patch"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "update", "patch"]
     resourceNames: ["tailscale-subnet-router-state"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
