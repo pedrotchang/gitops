@@ -19,7 +19,7 @@ spec:
         port: 5432
         name: headscale
         user: headscale
-        ssl_mode: disable
+        ssl: false
     dns:
       magic_dns: true
       base_domain: vpn.seyzahl.com
