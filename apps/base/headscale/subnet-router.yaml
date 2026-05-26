@@ -105,8 +105,6 @@ spec:
               value: tachtit-subnet-router
             - name: TS_KUBE_SECRET
               value: tailscale-subnet-router-state
-            - name: TS_EXTRA_ARGS
-              value: "--advertise-routes=10.244.0.0/16,10.96.0.0/12"
           securityContext:
             capabilities:
               add:
