@@ -73,9 +73,7 @@ spec:
         }
       }
   api_key:
-    auto_manage: true
-    expiration: "2160h"
-    rotation_buffer: "240h"
+    auto_manage: false
   extra_env:
     - name: HEADSCALE_DATABASE_POSTGRES_PASSWORD
       valueFrom:
