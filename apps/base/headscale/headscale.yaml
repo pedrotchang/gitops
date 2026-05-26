@@ -82,6 +82,11 @@ spec:
         secretKeyRef:
           name: headscale-db-creds
           key: password
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: headscale-db-creds
+          key: password
   extra_volumes:
     - name: oidc-secret
       secret:
