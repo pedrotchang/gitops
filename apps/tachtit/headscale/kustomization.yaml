@@ -3,4 +3,3 @@ kind: Kustomization
 namespace: headscale
 resources:
   - ../../base/headscale
-  - cloudflare.yaml

@@ -11,4 +11,5 @@ resources:
   - gateway-api
   - cert-manager
   - headscale-operator
+  - istio
   # - newt
