@@ -64,6 +64,12 @@ spec:
   acl_policy:
     inline: |
       {
+        "groups": {
+          "group:routers": ["subnet-router"]
+        },
+        "tagOwners": {
+          "tag:subnet-router": ["group:routers"]
+        },
         "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}],
         "autoApprovers": {
           "routes": {
