@@ -33,6 +33,8 @@ spec:
       tags: ["tag:subnet-router"]
     - cidr: 10.96.0.0/12
       tags: ["tag:subnet-router"]
+    - cidr: 192.168.4.0/24
+      tags: ["tag:subnet-router"]
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -94,7 +96,7 @@ spec:
             - name: TS_EXTRA_ARGS
               value: "--login-server=https://headscale.seyzahl.com"
             - name: TS_ROUTES
-              value: "10.244.0.0/16,10.96.0.0/12"
+              value: "10.244.0.0/16,10.96.0.0/12,192.168.4.0/24"
             - name: TS_AUTHKEY
               valueFrom:
                 secretKeyRef:
