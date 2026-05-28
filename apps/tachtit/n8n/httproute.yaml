@@ -15,28 +15,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /outpost.goauthentik.io/
-      backendRefs:
-        - name: authentik-outpost-n8n
-          port: 9000
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /webhook/
-      backendRefs:
-        - name: n8n
-          port: 3008
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /webhook-test/
-      backendRefs:
-        - name: n8n
-          port: 3008
-    - matches:
-        - path:
-            type: PathPrefix
             value: /
       backendRefs:
-        - name: authentik-outpost-n8n
-          port: 9000
+        - name: n8n
+          port: 3008
