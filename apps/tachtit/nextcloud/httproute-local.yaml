@@ -3,6 +3,8 @@ kind: HTTPRoute
 metadata:
   name: nextcloud-local
   namespace: nextcloud
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - name: cilium-gateway
