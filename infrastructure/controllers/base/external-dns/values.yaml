@@ -3,6 +3,15 @@ provider:
 
 policy: upsert-only
 
+excludeDomains:
+  - immich.seyzahl.com
+  - forgejo.seyzahl.com
+  - nextcloud.seyzahl.com
+  - wallabag.seyzahl.com
+  - pgadmin.seyzahl.com
+  - n8n.seyzahl.com
+  - suwayomi.seyzahl.com
+
 sources:
   - service
   - ingress
