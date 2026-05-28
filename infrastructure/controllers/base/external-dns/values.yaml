@@ -11,6 +11,7 @@ excludeDomains:
   - pgadmin.seyzahl.com
   - n8n.seyzahl.com
   - suwayomi.seyzahl.com
+  - git.seyzahl.com
 
 sources:
   - service
