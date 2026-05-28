@@ -8,8 +8,8 @@ spec:
     matchLabels:
       policy-type: app
   ingress:
-    - fromEndpoints:
-        - {}
+    - fromEntities:
+        - cluster
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
