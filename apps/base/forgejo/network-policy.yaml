@@ -28,6 +28,12 @@ spec:
         - ports:
             - port: "2222"
               protocol: TCP
+    - fromCIDR:
+        - 100.64.0.0/10
+      toPorts:
+        - ports:
+            - port: "2222"
+              protocol: TCP
   egress:
     - toEndpoints:
         - matchLabels:
