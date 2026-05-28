@@ -88,8 +88,6 @@ spec:
         app: tailscale-subnet-router
         policy-type: "app"
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: tailscale-subnet-router
       containers:
         - name: tailscale

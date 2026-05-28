@@ -54,7 +54,7 @@ spec:
           value: "10.104.130.214"
         - name: git.seyzahl.com
           type: A
-          value: "192.168.4.209"
+          value: "10.111.51.228"
     oidc:
       only_start_if_oidc_is_available: true
       issuer: https://auth.seyzahl.com/application/o/headscale/
