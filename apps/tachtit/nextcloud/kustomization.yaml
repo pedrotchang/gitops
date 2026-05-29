@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - ../../base/nextcloud
   - httproute-local.yaml
+  - cloudflare.yaml
