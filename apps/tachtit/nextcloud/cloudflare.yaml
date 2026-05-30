@@ -69,7 +69,11 @@ data:
 
     ingress:
     - hostname: nextcloud.seyzahl.com
+      path: ^/(s/|index\.php/s/|dist/|js/|core/|apps/theming/|apps/text/|custom_apps/integration_forgejo/|remote\.php/dav/public-files/|ocs/)
       service: http://nextcloud.nextcloud.svc.cluster.local:8080
+
+    - hostname: nextcloud.seyzahl.com
+      service: http_status:403
 
     - service: http_status:404
 ---
