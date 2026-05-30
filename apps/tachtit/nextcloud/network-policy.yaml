@@ -14,14 +14,14 @@ spec:
             io.kubernetes.pod.namespace: kube-system
       toPorts:
         - ports:
-            - port: "8080"
+            - port: "80"
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
       toPorts:
         - ports:
-            - port: "8080"
+            - port: "80"
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
@@ -29,7 +29,7 @@ spec:
             io.kubernetes.pod.namespace: nextcloud
       toPorts:
         - ports:
-            - port: "8080"
+            - port: "80"
               protocol: TCP
           rules:
             http:
