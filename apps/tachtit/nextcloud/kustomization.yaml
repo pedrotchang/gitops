@@ -4,4 +4,3 @@ resources:
   - ../../base/nextcloud
   - httproute-local.yaml
   - cloudflare.yaml
-  - network-policy.yaml
