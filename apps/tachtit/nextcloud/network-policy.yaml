@@ -1,0 +1,57 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: nextcloud-app
+  namespace: nextcloud
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: nextcloud
+  ingress:
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app: cloudflared
+            io.kubernetes.pod.namespace: nextcloud
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"
+                path: "/s/.*"
+              - method: "POST"
+                path: "/s/.*"
+              - method: "HEAD"
+                path: "/s/.*"
+              - method: "GET"
+                path: "/index.php/s/.*"
+              - method: "POST"
+                path: "/index.php/s/.*"
+              - method: "HEAD"
+                path: "/index.php/s/.*"
+              - method: "GET"
+                path: "/apps/theming/.*"
+              - method: "GET"
+                path: "/core/.*"
+              - method: "GET"
+                path: "/remote.php/dav/public-files/.*"
+              - method: "PROPFIND"
+                path: "/remote.php/dav/public-files/.*"
+              - method: "GET"
+                path: "/ocs/.*"
+              - method: "POST"
+                path: "/ocs/.*"
