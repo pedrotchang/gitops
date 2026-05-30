@@ -8,8 +8,10 @@ spec:
     matchLabels:
       app.kubernetes.io/name: nextcloud
   ingress:
-    - fromEntities:
-        - ingress
+    - fromEndpoints:
+        - matchLabels:
+            k8s-app: cilium-envoy
+            io.kubernetes.pod.namespace: kube-system
       toPorts:
         - ports:
             - port: "8080"
