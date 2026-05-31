@@ -28,7 +28,7 @@ spec:
 
       containers:
         - name: pgadmin
-          image: dpage/pgadmin4:9.11
+          image: dpage/pgadmin4:9.15
 
           securityContext:
             allowPrivilegeEscalation: false
