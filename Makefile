@@ -1,5 +1,5 @@
 NAMESPACE := cka-labs
-KUBEVIRT_VERSION := v1.4.0
+KUBEVIRT_VERSION := v1.8.3
 CDI_VERSION      := v1.65.0
 
 KUBEVIRT_OPERATOR_URL := https://github.com/kubevirt/kubevirt/releases/download/$(KUBEVIRT_VERSION)/kubevirt-operator.yaml
