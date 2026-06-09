@@ -10,8 +10,6 @@ On bare metal with VT-x/AMD-V enabled in BIOS, `kvm_intel`/`kvm_amd` loads autom
 talosctl read /proc/modules -n <worker-node-ip> | grep kvm
 ```
 
-KubeVirt's device plugin detects `/dev/kvm` automatically. If the module is missing, check BIOS virtualization settings.
-
 ### 2. Azure Key Vault secret
 
 Create the SSH public key secret in Azure KV (`seyzahl.vault.azure.net`):
@@ -24,8 +22,6 @@ az keyvault secret set \
 ```
 
 ### 3. Fetch vendor manifests
-
-KubeVirt and CDI release manifests are not in their git trees — they must be downloaded and committed. Operator YAMLs are already vendored in this repo. To upgrade versions, update `Makefile` and re-run:
 
 ```bash
 make fetch-manifests
@@ -51,8 +47,6 @@ cka-labs (separate Kustomization, dependsOn: infra-controllers)
     └── VirtualMachine  cka-worker-2  (2 vCPU, 2Gi, runStrategy: Manual)
 ```
 
-The operator + CR being in the same Flux reconciliation means the CR will fail on first apply (CRD not yet ready), then succeed on retry (`retryInterval: 2m` from infra-controllers). This is expected.
-
 Monitor convergence:
 ```bash
 flux get kustomizations -A
@@ -71,37 +65,99 @@ make ssh-w1      # SSH into worker-1
 make ssh-w2      # SSH into worker-2
 ```
 
-VMs use `runStrategy: Manual` — Flux reconciliation does NOT restart or stop them. Start/stop is fully manual via `virtctl`.
+VMs use `runStrategy: Manual` — Flux does NOT restart or stop them.
 
-Wait for the Ubuntu DataVolume import to complete before first `lab-up`:
+Wait for DataVolumes before first `lab-up`:
 ```bash
-kubectl get dv ubuntu-22-04-base -n cka-labs -w
+kubectl get dv -n cka-labs -w  # wait for all Succeeded
 ```
 
-## kubeadm setup (inside the VMs)
+## First-time VM setup (run on EACH VM)
 
-On `cka-cp`:
+Cloud-init installs the tooling but containerd config must be reset before kubeadm works. Run on `cka-cp`, `cka-worker-1`, `cka-worker-2`:
+
+```bash
+# Fix DNS
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+# Fix containerd (default config disables CRI plugin)
+sudo rm /etc/containerd/config.toml
+sudo systemctl restart containerd
+
+# Switch to k8s v1.35 repo and pin version
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update && sudo apt-get install -yq --allow-change-held-packages kubelet=1.35.5-1.1 kubeadm=1.35.5-1.1 kubectl=1.35.5-1.1
+sudo apt-mark hold kubelet kubeadm kubectl
+```
+
+## kubeadm setup
+
+### Control plane (`cka-cp`)
+
 ```bash
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16
-mkdir -p $HOME/.kube && sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
-kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
-kubeadm token create --print-join-command  # copy for workers
+mkdir -p $HOME/.kube
+sudo cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-On `cka-worker-1` and `cka-worker-2`:
+Install Cilium CNI:
+```bash
+CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-amd64.tar.gz{,.sha256sum}
+sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
+sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+rm cilium-linux-amd64.tar.gz{,.sha256sum}
+cilium install --version 1.19.4
+```
+
+Wait for node Ready:
+```bash
+kubectl get nodes -w
+```
+
+Get join command for workers:
+```bash
+kubeadm token create --print-join-command
+```
+
+### Workers (`cka-worker-1`, `cka-worker-2`)
+
+Run the first-time VM setup above, then:
 ```bash
 sudo kubeadm join <cp-ip>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
 ```
 
+### Verify
+
+Back on `cka-cp`:
+```bash
+kubectl get nodes
+# NAME           STATUS   ROLES           VERSION
+# cka-cp         Ready    control-plane   v1.35.5
+# cka-worker-1   Ready    <none>          v1.35.5
+# cka-worker-2   Ready    <none>          v1.35.5
+```
+
+## Reset lab
+
+To wipe and start fresh (e.g. after exam practice):
+```bash
+make lab-down
+kubectl delete dv cka-cp-disk cka-worker-1-disk cka-worker-2-disk ubuntu-22-04-base -n cka-labs
+make lab-up  # re-provisions from base image
+```
+
 ## VPN access
 
-VMs are accessible only via `virtctl` (through the Kubernetes API). The Kubernetes API is reachable only via Headscale VPN. No external Istio Gateway or LoadBalancer is created for this namespace. The `cka-labs-restrict-external` NetworkPolicy blocks non-cluster ingress.
+VMs accessible only via `virtctl` → Kubernetes API → Headscale VPN. No external Gateway created. `cka-labs-restrict-external` NetworkPolicy blocks non-cluster ingress.
 
 ## Upgrading KubeVirt/CDI versions
 
-1. Update `KUBEVIRT_VERSION` and `CDI_VERSION` in `Makefile`
+1. Update `KUBEVIRT_VERSION` / `CDI_VERSION` in `Makefile`
 2. `make fetch-manifests`
-3. Commit and push — Flux reconciles automatically
+3. Commit and push — Flux reconciles automatically, live VMs unaffected
 
 ## Versions
 
