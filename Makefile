@@ -26,13 +26,13 @@ lab-down:
 	virtctl stop cka-worker-2 -n $(NAMESPACE)
 
 ssh-cp:
-	virtctl ssh cka-cp -n $(NAMESPACE) --username ubuntu
+	virtctl ssh ubuntu@vm/cka-cp -n $(NAMESPACE)
 
 ssh-w1:
-	virtctl ssh cka-worker-1 -n $(NAMESPACE) --username ubuntu
+	virtctl ssh ubuntu@vm/cka-worker-1 -n $(NAMESPACE)
 
 ssh-w2:
-	virtctl ssh cka-worker-2 -n $(NAMESPACE) --username ubuntu
+	virtctl ssh ubuntu@vm/cka-worker-2 -n $(NAMESPACE)
 
 lab-status:
 	kubectl get vm,vmi,dv -n $(NAMESPACE)
