@@ -52,5 +52,5 @@ spec:
             name: cka-cp-disk
         - name: cloudinit
           cloudInitNoCloud:
-            userDataSecretRef:
+            secretRef:
               name: cka-labs-cloud-init

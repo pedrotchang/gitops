@@ -52,7 +52,7 @@ spec:
             name: cka-worker-1-disk
         - name: cloudinit
           cloudInitNoCloud:
-            userDataSecretRef:
+            secretRef:
               name: cka-labs-cloud-init
 ---
 apiVersion: kubevirt.io/v1
@@ -109,5 +109,5 @@ spec:
             name: cka-worker-2-disk
         - name: cloudinit
           cloudInitNoCloud:
-            userDataSecretRef:
+            secretRef:
               name: cka-labs-cloud-init
