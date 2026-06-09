@@ -4,7 +4,4 @@ metadata:
   name: cdi
   namespace: cdi
 spec:
-  config:
-    featureGates:
-      - HonorWaitForFirstConsumer
   imagePullPolicy: IfNotPresent
