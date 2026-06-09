@@ -1,0 +1,58 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cka-labs-cloud-init
+  namespace: cka-labs
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-kv-store
+    kind: ClusterSecretStore
+  target:
+    name: cka-labs-cloud-init
+    template:
+      engineVersion: v2
+      data:
+        userdata: |
+          #cloud-config
+          users:
+            - name: ubuntu
+              sudo: ALL=(ALL) NOPASSWD:ALL
+              groups: [sudo]
+              shell: /bin/bash
+              ssh_authorized_keys:
+                - {{ .sshPublicKey }}
+          write_files:
+            - path: /etc/modules-load.d/k8s.conf
+              content: |
+                overlay
+                br_netfilter
+            - path: /etc/sysctl.d/k8s.conf
+              content: |
+                net.bridge.bridge-nf-call-iptables  = 1
+                net.bridge.bridge-nf-call-ip6tables = 1
+                net.ipv4.ip_forward                 = 1
+          runcmd:
+            - modprobe overlay
+            - modprobe br_netfilter
+            - sysctl --system
+            - apt-get update -q
+            - apt-get install -yq apt-transport-https ca-certificates curl gpg
+            - install -m 0755 -d /etc/apt/keyrings
+            - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            - chmod a+r /etc/apt/keyrings/docker.asc
+            - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list
+            - apt-get update -q && apt-get install -yq containerd.io
+            - mkdir -p /etc/containerd
+            - containerd config default | tee /etc/containerd/config.toml
+            - sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+            - systemctl enable --now containerd
+            - curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            - echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list
+            - apt-get update -q && apt-get install -yq kubelet kubeadm kubectl
+            - apt-mark hold kubelet kubeadm kubectl
+            - systemctl enable kubelet
+  data:
+    - secretKey: sshPublicKey
+      remoteRef:
+        key: cka-labs-ssh-public-key

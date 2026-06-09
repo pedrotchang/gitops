@@ -1,0 +1,56 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: cka-cp
+  namespace: cka-labs
+spec:
+  runStrategy: Manual
+  dataVolumeTemplates:
+    - metadata:
+        name: cka-cp-disk
+      spec:
+        storage:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+        source:
+          pvc:
+            namespace: cka-labs
+            name: ubuntu-22-04-base
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: cka-cp
+        role: control-plane
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 4Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinit
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: cka-cp-disk
+        - name: cloudinit
+          cloudInitNoCloud:
+            userDataSecretRef:
+              name: cka-labs-cloud-init
