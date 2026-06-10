@@ -5,7 +5,7 @@ CDI_VERSION      := v1.65.0
 KUBEVIRT_OPERATOR_URL := https://github.com/kubevirt/kubevirt/releases/download/$(KUBEVIRT_VERSION)/kubevirt-operator.yaml
 CDI_OPERATOR_URL      := https://github.com/kubevirt/containerized-data-importer/releases/download/$(CDI_VERSION)/cdi-operator.yaml
 
-.PHONY: fetch-manifests lab-up lab-down ssh-cp ssh-w1 ssh-w2 lab-status
+.PHONY: fetch-manifests lab-up lab-down ssh-cp ssh-w1 ssh-w2 lab-status cluster-setup
 
 fetch-manifests:
 	curl -L $(KUBEVIRT_OPERATOR_URL) -o infrastructure/controllers/base/kubevirt/kubevirt-operator.yaml
@@ -36,3 +36,6 @@ ssh-w2:
 
 lab-status:
 	kubectl get vm,vmi,dv -n $(NAMESPACE)
+
+cluster-setup:
+	bash scripts/cluster-setup.sh
