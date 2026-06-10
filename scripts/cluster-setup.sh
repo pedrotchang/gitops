@@ -17,7 +17,7 @@ log() { echo "==> $*"; }
 # Workers must reach the CP via its pod IP instead.
 log "Resolving cka-cp VMI IP..."
 CP_IP=$(kubectl get vmi cka-cp -n "$NAMESPACE" -o jsonpath='{.status.interfaces[0].ipAddress}')
-[[ -z "$CP_IP" ]] && { echo "ERROR: cka-cp VMI not running — run 'make lab-up' first"; exit 1; }
+[[ -z "$CP_IP" ]] && { echo "ERROR: cka-cp VMI not running — run 'just lab-up' first"; exit 1; }
 log "CP_IP=$CP_IP"
 
 reset_node() {
