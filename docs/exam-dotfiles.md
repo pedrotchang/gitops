@@ -24,8 +24,6 @@ export now='--force --grace-period=0'
 
 export ETCDCTL_API=3
 
-source <(kubectl completion bash)
-complete -o default -F __start_kubectl k
 ```
 
 ## ~/.vimrc
@@ -36,10 +34,4 @@ set expandtab
 set number ruler
 set autoindent
 syntax enable
-```
-
-## Apply
-
-```bash
-source ~/.bashrc
 ```
