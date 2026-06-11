@@ -14,26 +14,29 @@ fetch-manifests:
     @echo "Then commit and push."
 
 lab-up:
-    virtctl start cka-cp       -n {{namespace}}
-    virtctl start cka-worker-1 -n {{namespace}}
-    virtctl start cka-worker-2 -n {{namespace}}
+    virtctl start cp       -n {{namespace}}
+    virtctl start worker-1 -n {{namespace}}
+    virtctl start worker-2 -n {{namespace}}
 
 lab-down:
-    virtctl stop cka-cp       -n {{namespace}}
-    virtctl stop cka-worker-1 -n {{namespace}}
-    virtctl stop cka-worker-2 -n {{namespace}}
+    virtctl stop cp       -n {{namespace}}
+    virtctl stop worker-1 -n {{namespace}}
+    virtctl stop worker-2 -n {{namespace}}
 
 ssh-cp:
-    virtctl ssh ubuntu@vm/cka-cp -n {{namespace}}
+    virtctl ssh ubuntu@vm/cp -n {{namespace}}
 
 ssh-w1:
-    virtctl ssh ubuntu@vm/cka-worker-1 -n {{namespace}}
+    virtctl ssh ubuntu@vm/worker-1 -n {{namespace}}
 
 ssh-w2:
-    virtctl ssh ubuntu@vm/cka-worker-2 -n {{namespace}}
+    virtctl ssh ubuntu@vm/worker-2 -n {{namespace}}
 
 lab-status:
     kubectl get vm,vmi,dv -n {{namespace}}
 
 cluster-setup:
     bash scripts/cluster-setup.sh
+
+ckx-env-setup:
+    bash scripts/ckx-env-setup.sh
