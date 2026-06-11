@@ -23,6 +23,11 @@ log "etcd version: $ETCD_VERSION"
 # ---------------------------------------------------------------------------
 # cp — install etcdctl
 # ---------------------------------------------------------------------------
+# resolv.conf reverts to the broken cluster.local systemd stub on reboot, so
+# external DNS fails. Point at 8.8.8.8 before fetching the etcdctl release.
+log "[cp] Ensuring external DNS for the etcdctl download..."
+vssh cp "getent hosts github.com >/dev/null 2>&1 || echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf >/dev/null"
+
 log "[cp] Installing etcdctl v${ETCD_VERSION} (skip if already installed)..."
 vssh cp "etcdctl version 2>/dev/null | grep -q 'etcdctl version: ${ETCD_VERSION}' || { \
   curl -fsSL https://github.com/etcd-io/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-amd64.tar.gz \
@@ -30,9 +35,10 @@ vssh cp "etcdctl version 2>/dev/null | grep -q 'etcdctl version: ${ETCD_VERSION}
   etcd-v${ETCD_VERSION}-linux-amd64/etcdctl; }"
 
 # cp — set ETCDCTL_* env vars in /etc/bash.bashrc (idempotent)
+# The etcd certs are root-owned, so etcdctl must run via `sudo -E etcdctl ...`.
+# ETCDCTL_API is intentionally omitted — etcd 3.6 removed it and warns if set.
 log "[cp] Configuring ETCDCTL env vars in /etc/bash.bashrc..."
-vssh cp 'grep -qF "ETCDCTL_API" /etc/bash.bashrc || {
-  echo "export ETCDCTL_API=3"
+vssh cp 'grep -qF "ETCDCTL_CACERT" /etc/bash.bashrc || {
   echo "export ETCDCTL_CACERT=/etc/kubernetes/pki/etcd/ca.crt"
   echo "export ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt"
   echo "export ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key"
@@ -52,4 +58,4 @@ done
 
 # ---------------------------------------------------------------------------
 log "=== ckx-env-setup complete ==="
-log "Verify: just ssh-cp, then: etcdctl member list"
+log "Verify: just ssh-cp, then: sudo -E etcdctl member list -w table"
