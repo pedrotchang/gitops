@@ -11,6 +11,18 @@ vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -c "${@:2}"; }
 log() { echo "==> $*"; }
 
 # ---------------------------------------------------------------------------
+# All nodes — fix DNS and restart containerd
+# resolv.conf is a symlink to the systemd-resolved stub which resets to
+# 127.0.0.53 on reboot. Break the symlink so the static file survives.
+# Restart containerd after so it picks up the new resolver for image pulls.
+# ---------------------------------------------------------------------------
+for node in cp worker-1 worker-2; do
+  log "[$node] Fixing DNS..."
+  vssh "$node" "sudo rm -f /etc/resolv.conf && printf 'nameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf >/dev/null"
+  vssh "$node" "sudo systemctl restart containerd"
+done
+
+# ---------------------------------------------------------------------------
 # Detect etcd version from the static pod running on cp
 # Image tag format: registry.k8s.io/etcd:3.5.21-0 — strip the -N build suffix
 # ---------------------------------------------------------------------------
@@ -23,11 +35,6 @@ log "etcd version: $ETCD_VERSION"
 # ---------------------------------------------------------------------------
 # cp — install etcdctl
 # ---------------------------------------------------------------------------
-# resolv.conf reverts to the broken cluster.local systemd stub on reboot, so
-# external DNS fails. Point at 8.8.8.8 before fetching the etcdctl release.
-log "[cp] Ensuring external DNS for the etcdctl download..."
-vssh cp "getent hosts github.com >/dev/null 2>&1 || echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf >/dev/null"
-
 log "[cp] Installing etcdctl v${ETCD_VERSION} (skip if already installed)..."
 vssh cp "etcdctl version 2>/dev/null | grep -q 'etcdctl version: ${ETCD_VERSION}' || { \
   curl -fsSL https://github.com/etcd-io/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-amd64.tar.gz \
