@@ -97,7 +97,10 @@ The VMI pod IP of `cp` changes on restart. Re-run `just cluster-setup` to rebuil
 
 KubeVirt masquerade networking gives every VM the same internal IP (`10.0.2.2`). This means workers cannot reach the control plane via `10.0.2.2` — it resolves to themselves.
 
-**Workaround:** each worker gets an iptables DNAT rule that redirects `10.0.2.2:6443` → `<cp vmi pod IP>:6443`. The `cluster-setup` script applies this automatically. The rule is ephemeral (lost on VM reboot); re-running `cluster-setup` reapplies it.
+**Workaround:** each worker gets two iptables DNAT rules, both applied automatically by `cluster-setup` (ephemeral — lost on VM reboot, reapplied on re-run):
+
+1. `10.0.2.2:6443` → `<cp vmi pod IP>:6443` — fixes the direct apiserver address baked into `kubelet.conf`.
+2. `10.96.0.1:443` → `<cp vmi pod IP>:6443`, inserted at the **top** of nat `OUTPUT` (before `KUBE-SERVICES`) — fixes the kubernetes ClusterIP. kube-proxy DNATs `10.96.0.1` → `10.0.2.2:6443` and that DNAT *terminates* the nat pass, so rule 1 never fires for ClusterIP traffic; the packet would loop back to the worker and get `connection refused`. This breaks cilium and every in-cluster pod, so rule 2 must win first.
 
 To inspect the current VMI pod IP:
 ```bash

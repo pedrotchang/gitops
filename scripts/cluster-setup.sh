@@ -84,6 +84,12 @@ for worker in worker-1 worker-2; do
   # Redirect 10.0.2.2:6443 → CP_IP:6443 so kubelet can reach the apiserver
   # after join (kubelet.conf uses 10.0.2.2 which loops back to itself otherwise)
   vssh "$worker" "sudo iptables -t nat -A OUTPUT -d 10.0.2.2 -p tcp --dport 6443 -j DNAT --to-destination ${CP_IP}:6443 || true"
+  # Redirect the kubernetes ClusterIP 10.96.0.1:443 → CP_IP:6443. kube-proxy DNATs
+  # 10.96.0.1 → 10.0.2.2:6443 (the apiserver endpoint) and that DNAT terminates the
+  # nat OUTPUT pass, so the rule above never fires for ClusterIP traffic. Insert at
+  # the top of OUTPUT (before KUBE-SERVICES) so it wins first — otherwise cilium and
+  # every pod on the worker get "connection refused" reaching the apiserver.
+  vssh "$worker" "sudo iptables -t nat -I OUTPUT 1 -d 10.96.0.1 -p tcp --dport 443 -j DNAT --to-destination ${CP_IP}:6443 || true"
   vssh "$worker" "sudo $JOIN_CMD --ignore-preflight-errors=Hostname"
 done
 
