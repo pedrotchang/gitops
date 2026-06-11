@@ -7,6 +7,7 @@ set -euo pipefail
 
 NAMESPACE=cka-labs
 K8S_VERSION="1.35.1-1.1"
+K8S_SEMVER="v${K8S_VERSION%%-*}"   # 1.35.1-1.1 → v1.35.1
 CILIUM_VERSION="1.19.4"
 POD_CIDR="10.244.0.0/16"
 
@@ -31,6 +32,7 @@ bootstrap_node() {
   local vm=$1
   log "[$vm] bootstrapping..."
   vssh "$vm" "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf >/dev/null"
+  vssh "$vm" "grep -qF \"\$(hostname)\" /etc/hosts || echo \"127.0.1.1 \$(hostname)\" | sudo tee -a /etc/hosts >/dev/null"
   vssh "$vm" "sudo rm -f /etc/containerd/config.toml && sudo systemctl restart containerd"
   vssh "$vm" "sudo rm -f /etc/apt/sources.list.d/kubernetes.list /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
   vssh "$vm" "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
@@ -52,7 +54,7 @@ bootstrap_node worker-2
 log "=== Initializing control plane ==="
 # kubeadm init may time out on the RBAC bootstrap step but the apiserver will
 # still be running. We catch the exit code and run remaining phases manually.
-vssh cp "sudo kubeadm init --pod-network-cidr=$POD_CIDR --apiserver-advertise-address=10.0.2.2 --apiserver-cert-extra-sans=$CP_IP || true"
+vssh cp "sudo kubeadm init --kubernetes-version=$K8S_SEMVER --pod-network-cidr=$POD_CIDR --apiserver-advertise-address=10.0.2.2 --apiserver-cert-extra-sans=$CP_IP || true"
 # super-admin.conf always has full cluster-admin access regardless of RBAC state
 vssh cp "mkdir -p ~/.kube && sudo cp /etc/kubernetes/super-admin.conf ~/.kube/config && sudo chown \$(id -u):\$(id -g) ~/.kube/config"
 
