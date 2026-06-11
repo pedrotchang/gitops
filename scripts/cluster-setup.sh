@@ -81,6 +81,7 @@ JOIN_CMD="${JOIN_CMD/10.0.2.2/$CP_IP}"
 
 for worker in worker-1 worker-2; do
   log "[$worker] joining..."
+  WORKER_IP=$(kubectl get vmi "$worker" -n "$NAMESPACE" -o jsonpath='{.status.interfaces[0].ipAddress}')
   # Redirect 10.0.2.2:6443 → CP_IP:6443 so kubelet can reach the apiserver
   # after join (kubelet.conf uses 10.0.2.2 which loops back to itself otherwise)
   vssh "$worker" "sudo iptables -t nat -A OUTPUT -d 10.0.2.2 -p tcp --dport 6443 -j DNAT --to-destination ${CP_IP}:6443 || true"
@@ -91,6 +92,11 @@ for worker in worker-1 worker-2; do
   # every pod on the worker get "connection refused" reaching the apiserver.
   vssh "$worker" "sudo iptables -t nat -I OUTPUT 1 -d 10.96.0.1 -p tcp --dport 443 -j DNAT --to-destination ${CP_IP}:6443 || true"
   vssh "$worker" "sudo $JOIN_CMD --ignore-preflight-errors=Hostname"
+  # Pin kubelet --node-ip to the routable VMI pod IP. Without this every node
+  # registers InternalIP 10.0.2.2 (masquerade), so the apiserver on cp dials
+  # 10.0.2.2:10250 and loops back to cp's own kubelet — breaking exec/logs/
+  # port-forward to worker pods with "pod does not exist".
+  vssh "$worker" "echo 'KUBELET_EXTRA_ARGS=--node-ip=${WORKER_IP}' | sudo tee /etc/default/kubelet >/dev/null && sudo systemctl restart kubelet"
 done
 
 log "=== Cluster ready ==="
