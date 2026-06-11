@@ -107,6 +107,42 @@ To inspect the current VMI pod IP:
 kubectl get vmi cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}'
 ```
 
+### Routable node IP (exec/logs/DNS)
+
+Because every VM's only local address is `10.0.2.2`, all nodes register
+`InternalIP = 10.0.2.2` by default. The apiserver then dials `10.0.2.2:10250`
+for `kubectl exec`/`logs`/`port-forward` and always hits cp's own kubelet —
+`pod does not exist` for any pod not on cp. Cilium also uses the InternalIP as
+its VXLAN tunnel endpoint, so cross-node pod traffic and worker→coredns DNS loop
+back to the sender.
+
+**Workaround (all three nodes, applied by `cluster-setup`, ephemeral):** pin
+`--node-ip` to the node's routable VMI pod IP. kubelet rejects a `--node-ip` not
+present on a local interface, so the IP is also added as a `/32` alias on `lo`:
+```bash
+sudo ip addr add <vmi pod IP>/32 dev lo
+echo 'KUBELET_EXTRA_ARGS=--node-ip=<vmi pod IP>' | sudo tee /etc/default/kubelet
+sudo systemctl restart kubelet
+```
+Inbound masquerade still DNATs `<vmi pod IP>:10250` → `10.0.2.2:10250`, so the
+apiserver reaches the kubelet. VMI pod IPs change on VM restart — re-run
+`cluster-setup` (or re-pin) afterward.
+
+### Cilium VXLAN port collision
+
+The host (talos) cluster runs Cilium with VXLAN on the default UDP port `8472`.
+The VMs share the host network via masquerade, so the host's vxlan socket
+swallows the inner cluster's `8472` packets — cross-node pod networking and DNS
+silently break (raw UDP on any other port traverses fine; only `8472` is eaten).
+
+**Workaround:** the inner cluster's Cilium runs VXLAN on `8473`
+(`cilium install --set tunnelPort=8473`, applied by `cluster-setup`). To fix a
+live cluster:
+```bash
+kubectl -n kube-system patch cm cilium-config --type merge -p '{"data":{"tunnel-port":"8473"}}'
+kubectl -n kube-system rollout restart ds/cilium
+```
+
 ## Known issues
 
 ### kubeadm init timeout

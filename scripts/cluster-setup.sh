@@ -65,11 +65,24 @@ vssh cp "sudo kubeadm init phase bootstrap-token                         || true
 vssh cp "sudo kubeadm init phase kubelet-finalize all                    || true"
 vssh cp "sudo kubeadm init phase addon all --pod-network-cidr=$POD_CIDR  || true"
 
+# Pin cp's kubelet --node-ip to its routable VMI pod IP, same as the workers
+# below. cp hosts coredns, so without a routable InternalIP the workers' pods
+# can't reach DNS (worker→cp tunnels to 10.0.2.2, which loops back to the worker).
+# kubelet rejects a --node-ip not on a local interface, so add it as a /32 on lo.
+log "=== Pinning cp node-ip ($CP_IP) ==="
+vssh cp "sudo ip addr add ${CP_IP}/32 dev lo 2>/dev/null || true"
+vssh cp "echo 'KUBELET_EXTRA_ARGS=--node-ip=${CP_IP}' | sudo tee /etc/default/kubelet >/dev/null && sudo systemctl restart kubelet"
+
 log "=== Installing Cilium CLI ==="
 vssh cp "command -v cilium >/dev/null 2>&1 || { CILIUM_CLI_VERSION=\$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt) && curl -fsSL https://github.com/cilium/cilium-cli/releases/download/\${CILIUM_CLI_VERSION}/cilium-linux-amd64.tar.gz | sudo tar xz -C /usr/local/bin; }"
 
 log "=== Installing Cilium ==="
-vssh cp "cilium install --version $CILIUM_VERSION 2>/dev/null || cilium status"
+# The host (talos) cluster also runs Cilium with VXLAN on the default UDP port
+# 8472. These VMs share the host's network via masquerade, so the host's vxlan
+# socket swallows the inner cluster's 8472 traffic and cross-node pod networking
+# silently breaks (pods on different nodes can't talk, DNS to coredns fails).
+# Move the inner cluster's tunnel to 8473 to dodge the collision.
+vssh cp "cilium install --version $CILIUM_VERSION --set tunnelProtocol=vxlan --set tunnelPort=8473 2>/dev/null || cilium status"
 
 log "=== Waiting for control plane Ready ==="
 vssh cp "kubectl wait --for=condition=Ready node/cp --timeout=300s"
