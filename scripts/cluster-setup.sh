@@ -63,6 +63,9 @@ vssh cp "sudo kubeadm init phase bootstrap-token                         || true
 vssh cp "sudo kubeadm init phase kubelet-finalize all                    || true"
 vssh cp "sudo kubeadm init phase addon all --pod-network-cidr=$POD_CIDR  || true"
 
+log "=== Installing Cilium CLI ==="
+vssh cp "command -v cilium >/dev/null 2>&1 || { CILIUM_CLI_VERSION=\$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt) && curl -fsSL https://github.com/cilium/cilium-cli/releases/download/\${CILIUM_CLI_VERSION}/cilium-linux-amd64.tar.gz | sudo tar xz -C /usr/local/bin; }"
+
 log "=== Installing Cilium ==="
 vssh cp "cilium install --version $CILIUM_VERSION 2>/dev/null || cilium status"
 
