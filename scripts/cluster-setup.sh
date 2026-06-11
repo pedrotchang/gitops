@@ -10,7 +10,7 @@ K8S_VERSION="1.35.1-1.1"
 CILIUM_VERSION="1.19.4"
 POD_CIDR="10.244.0.0/16"
 
-vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -- "${@:2}"; }
+vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -c "${@:2}"; }
 log() { echo "==> $*"; }
 
 # KubeVirt masquerade gives every VM the same internal IP (10.0.2.2).

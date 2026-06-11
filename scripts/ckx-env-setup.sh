@@ -7,7 +7,7 @@ set -euo pipefail
 
 NAMESPACE=cka-labs
 
-vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -- "${@:2}"; }
+vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -c "${@:2}"; }
 log() { echo "==> $*"; }
 
 # ---------------------------------------------------------------------------
