@@ -96,6 +96,13 @@ for worker in worker-1 worker-2; do
   # registers InternalIP 10.0.2.2 (masquerade), so the apiserver on cp dials
   # 10.0.2.2:10250 and loops back to cp's own kubelet — breaking exec/logs/
   # port-forward to worker pods with "pod does not exist".
+  #
+  # kubelet rejects a --node-ip that isn't on a local interface, and the VM only
+  # owns 10.0.2.2 (the VMI pod IP lives on the host-side virt-launcher, not in the
+  # VM). Add it as a /32 alias on lo so kubelet accepts it and registers it as the
+  # InternalIP. Inbound masquerade still DNATs ${WORKER_IP}:10250 → 10.0.2.2:10250,
+  # so the apiserver reaches the kubelet via the routable pod IP.
+  vssh "$worker" "sudo ip addr add ${WORKER_IP}/32 dev lo 2>/dev/null || true"
   vssh "$worker" "echo 'KUBELET_EXTRA_ARGS=--node-ip=${WORKER_IP}' | sudo tee /etc/default/kubelet >/dev/null && sudo systemctl restart kubelet"
 done
 
