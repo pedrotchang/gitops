@@ -40,9 +40,9 @@ cka-labs (separate Kustomization, dependsOn: infra-controllers)
 └── apps/tachtit/cka-labs/
     ├── ExternalSecret  → Azure KV (ssh key → cloud-init Secret)
     ├── DataVolume      → Ubuntu 22.04 cloud image (CDI import)
-    ├── VirtualMachine  cka-cp        (2 vCPU, 4Gi, runStrategy: Manual)
-    ├── VirtualMachine  cka-worker-1  (2 vCPU, 2Gi, runStrategy: Manual)
-    └── VirtualMachine  cka-worker-2  (2 vCPU, 2Gi, runStrategy: Manual)
+    ├── VirtualMachine  cp        (2 vCPU, 4Gi, runStrategy: Manual)
+    ├── VirtualMachine  worker-1  (2 vCPU, 2Gi, runStrategy: Manual)
+    └── VirtualMachine  worker-2  (2 vCPU, 2Gi, runStrategy: Manual)
 ```
 
 Monitor convergence:
@@ -78,11 +78,11 @@ make cluster-setup
 
 ### What the script does
 
-1. Gets `cka-cp`'s current VMI pod IP (changes on every `make lab-up`)
+1. Gets `cp`'s current VMI pod IP (changes on every `make lab-up`)
 2. Resets kubeadm on all three nodes
 3. Fixes DNS (`nameserver 8.8.8.8`) and containerd on each node
-4. Installs kubelet/kubeadm/kubectl v1.35.5 from the official pkgs.k8s.io repo
-5. Runs `kubeadm init` on cka-cp with `--apiserver-cert-extra-sans=<vmi-ip>`
+4. Installs kubelet/kubeadm/kubectl v1.35.1 from the official pkgs.k8s.io repo
+5. Runs `kubeadm init` on cp with `--apiserver-cert-extra-sans=<vmi-ip>`
 6. Copies `super-admin.conf` as the kubeconfig (see [Known issues](#known-issues))
 7. Completes remaining kubeadm phases manually (see [Known issues](#known-issues))
 8. Installs Cilium v1.19.4
@@ -91,17 +91,17 @@ make cluster-setup
 
 ### After every `make lab-up`
 
-The VMI pod IP of `cka-cp` changes on restart. Re-run `make cluster-setup` to rebuild the cluster. The script is idempotent — it resets first.
+The VMI pod IP of `cp` changes on restart. Re-run `make cluster-setup` to rebuild the cluster. The script is idempotent — it resets first.
 
 ## Networking
 
 KubeVirt masquerade networking gives every VM the same internal IP (`10.0.2.2`). This means workers cannot reach the control plane via `10.0.2.2` — it resolves to themselves.
 
-**Workaround:** each worker gets an iptables DNAT rule that redirects `10.0.2.2:6443` → `<cka-cp vmi pod IP>:6443`. The `cluster-setup` script applies this automatically. The rule is ephemeral (lost on VM reboot); re-running `cluster-setup` reapplies it.
+**Workaround:** each worker gets an iptables DNAT rule that redirects `10.0.2.2:6443` → `<cp vmi pod IP>:6443`. The `cluster-setup` script applies this automatically. The rule is ephemeral (lost on VM reboot); re-running `cluster-setup` reapplies it.
 
 To inspect the current VMI pod IP:
 ```bash
-kubectl get vmi cka-cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}'
+kubectl get vmi cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}'
 ```
 
 ## Known issues
@@ -138,18 +138,18 @@ sudo rm -f /etc/containerd/config.toml && sudo systemctl restart containerd
 sudo rm -f /etc/apt/sources.list.d/kubernetes.list /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt-get update && sudo apt-get install -yq --allow-change-held-packages kubelet=1.35.5-1.1 kubeadm=1.35.5-1.1 kubectl=1.35.5-1.1
+sudo apt-get update && sudo apt-get install -yq --allow-change-held-packages kubelet=1.35.1-1.1 kubeadm=1.35.1-1.1 kubectl=1.35.1-1.1
 sudo apt-mark hold kubelet kubeadm kubectl
 ```
 
-### Control plane (cka-cp)
+### Control plane (cp)
 
 Get CP VMI IP from laptop first:
 ```bash
-CP_IP=$(kubectl get vmi cka-cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}')
+CP_IP=$(kubectl get vmi cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}')
 ```
 
-Then on cka-cp:
+Then on cp:
 ```bash
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.2.2 --apiserver-cert-extra-sans=$CP_IP
 mkdir -p ~/.kube
@@ -164,7 +164,7 @@ kubectl get nodes -w   # wait for Ready
 kubeadm token create --print-join-command
 ```
 
-### Workers (cka-worker-1, cka-worker-2)
+### Workers (worker-1, worker-2)
 
 Replace `<CP_IP>` with the VMI pod IP:
 ```bash
@@ -176,10 +176,10 @@ sudo kubeadm join <CP_IP>:6443 --token <token> --discovery-token-ca-cert-hash sh
 
 ```bash
 kubectl get nodes
-# NAME           STATUS   ROLES           VERSION
-# cka-cp         Ready    control-plane   v1.35.5
-# cka-worker-1   Ready    <none>          v1.35.5
-# cka-worker-2   Ready    <none>          v1.35.5
+# NAME       STATUS   ROLES           VERSION
+# cp         Ready    control-plane   v1.35.1
+# worker-1   Ready    <none>          v1.35.1
+# worker-2   Ready    <none>          v1.35.1
 ```
 
 ## Reset lab (full disk wipe)
@@ -187,7 +187,7 @@ kubectl get nodes
 To reprovision from the base Ubuntu image (slower, full reset):
 ```bash
 make lab-down
-kubectl delete dv cka-cp-disk cka-worker-1-disk cka-worker-2-disk -n cka-labs
+kubectl delete dv cp-disk worker-1-disk worker-2-disk -n cka-labs
 make lab-up   # CDI re-imports from ubuntu-22-04-base
 make cluster-setup
 ```
@@ -208,7 +208,7 @@ VMs accessible only via `virtctl` → Kubernetes API → Headscale VPN. No exter
 |-----------|---------|
 | KubeVirt  | v1.8.3  |
 | CDI       | v1.65.0 |
-| Kubernetes | v1.35.5 |
+| Kubernetes | v1.35.1 |
 | Cilium    | v1.19.4 |
 | Ubuntu    | 22.04   |
 
