@@ -31,7 +31,7 @@ reset_node() {
 bootstrap_node() {
   local vm=$1
   log "[$vm] bootstrapping..."
-  vssh "$vm" "echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf >/dev/null"
+  vssh "$vm" "sudo rm -f /etc/resolv.conf && printf 'nameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf >/dev/null"
   vssh "$vm" "grep -qF \"\$(hostname)\" /etc/hosts || echo \"127.0.1.1 \$(hostname)\" | sudo tee -a /etc/hosts >/dev/null"
   vssh "$vm" "sudo rm -f /etc/containerd/config.toml && sudo systemctl restart containerd"
   vssh "$vm" "sudo rm -f /etc/apt/sources.list.d/kubernetes.list /etc/apt/keyrings/kubernetes-apt-keyring.gpg"
