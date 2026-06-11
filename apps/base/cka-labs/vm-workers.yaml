@@ -1,13 +1,13 @@
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  name: cka-worker-1
+  name: worker-1
   namespace: cka-labs
 spec:
   runStrategy: Manual
   dataVolumeTemplates:
     - metadata:
-        name: cka-worker-1-disk
+        name: worker-1-disk
       spec:
         storage:
           storageClassName: local-path
@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        kubevirt.io/domain: cka-worker-1
+        kubevirt.io/domain: worker-1
         role: worker
     spec:
       domain:
@@ -49,7 +49,7 @@ spec:
       volumes:
         - name: rootdisk
           dataVolume:
-            name: cka-worker-1-disk
+            name: worker-1-disk
         - name: cloudinit
           cloudInitNoCloud:
             secretRef:
@@ -58,13 +58,13 @@ spec:
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  name: cka-worker-2
+  name: worker-2
   namespace: cka-labs
 spec:
   runStrategy: Manual
   dataVolumeTemplates:
     - metadata:
-        name: cka-worker-2-disk
+        name: worker-2-disk
       spec:
         storage:
           storageClassName: local-path
@@ -80,7 +80,7 @@ spec:
   template:
     metadata:
       labels:
-        kubevirt.io/domain: cka-worker-2
+        kubevirt.io/domain: worker-2
         role: worker
     spec:
       domain:
@@ -106,7 +106,7 @@ spec:
       volumes:
         - name: rootdisk
           dataVolume:
-            name: cka-worker-2-disk
+            name: worker-2-disk
         - name: cloudinit
           cloudInitNoCloud:
             secretRef:
