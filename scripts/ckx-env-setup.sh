@@ -15,7 +15,7 @@ log() { echo "==> $*"; }
 # Image tag format: registry.k8s.io/etcd:3.5.21-0 — strip the -N build suffix
 # ---------------------------------------------------------------------------
 log "Detecting etcd version from cp static pod..."
-ETCD_IMAGE=$(kubectl get pod -n kube-system etcd-cp -o jsonpath='{.spec.containers[0].image}')
+ETCD_IMAGE=$(vssh cp "kubectl get pod -n kube-system etcd-cp -o jsonpath='{.spec.containers[0].image}'")
 ETCD_TAG="${ETCD_IMAGE##*:}"        # e.g. 3.5.21-0
 ETCD_VERSION="${ETCD_TAG%-*}"       # e.g. 3.5.21
 log "etcd version: $ETCD_VERSION"
