@@ -19,9 +19,9 @@ lab-up:
     virtctl start worker-2 -n {{namespace}}
 
 lab-down:
-    virtctl stop cp       -n {{namespace}}
-    virtctl stop worker-1 -n {{namespace}}
-    virtctl stop worker-2 -n {{namespace}}
+    -virtctl stop cp       -n {{namespace}}
+    -virtctl stop worker-1 -n {{namespace}}
+    -virtctl stop worker-2 -n {{namespace}}
 
 ssh-cp:
     virtctl ssh ubuntu@vm/cp -n {{namespace}}
