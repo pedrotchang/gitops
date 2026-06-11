@@ -23,10 +23,11 @@ log "etcd version: $ETCD_VERSION"
 # ---------------------------------------------------------------------------
 # cp — install etcdctl
 # ---------------------------------------------------------------------------
-log "[cp] Installing etcdctl v${ETCD_VERSION}..."
-vssh cp "curl -fsSL https://github.com/etcd-io/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-amd64.tar.gz \
+log "[cp] Installing etcdctl v${ETCD_VERSION} (skip if already installed)..."
+vssh cp "etcdctl version 2>/dev/null | grep -q 'etcdctl version: ${ETCD_VERSION}' || { \
+  curl -fsSL https://github.com/etcd-io/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-amd64.tar.gz \
   | sudo tar -xz --strip-components=1 -C /usr/local/bin \
-  etcd-v${ETCD_VERSION}-linux-amd64/etcdctl"
+  etcd-v${ETCD_VERSION}-linux-amd64/etcdctl; }"
 
 # cp — set ETCDCTL_* env vars in /etc/bash.bashrc (idempotent)
 log "[cp] Configuring ETCDCTL env vars in /etc/bash.bashrc..."

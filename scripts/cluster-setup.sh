@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tear down and rebuild the kubeadm cluster inside KubeVirt VMs.
-# Run from your laptop after `make lab-up` and VMs are running.
+# Run from your laptop after `just lab-up` and VMs are running.
 #
 # Usage: ./scripts/cluster-setup.sh
 set -euo pipefail

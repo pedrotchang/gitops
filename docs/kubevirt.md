@@ -22,7 +22,7 @@ az keyvault secret set \
 ### 3. Fetch vendor manifests
 
 ```bash
-make fetch-manifests
+just fetch-manifests
 git add infrastructure/controllers/base/kubevirt/kubevirt-operator.yaml \
         infrastructure/controllers/base/cdi/cdi-operator.yaml
 git commit -m "chore(kubevirt): bump operator manifests"
@@ -56,12 +56,12 @@ kubectl get dv -n cka-labs -w   # wait for all DataVolumes Succeeded
 ## Lab session lifecycle
 
 ```bash
-make lab-up      # virtctl start all 3 VMs
-make lab-down    # virtctl stop all 3 VMs
-make lab-status  # show VM/VMI/DataVolume state
-make ssh-cp      # SSH into control plane
-make ssh-w1      # SSH into worker-1
-make ssh-w2      # SSH into worker-2
+just lab-up      # virtctl start all 3 VMs
+just lab-down    # virtctl stop all 3 VMs
+just lab-status  # show VM/VMI/DataVolume state
+just ssh-cp      # SSH into control plane
+just ssh-w1      # SSH into worker-1
+just ssh-w2      # SSH into worker-2
 ```
 
 VMs use `runStrategy: Manual` — Flux does NOT restart or stop them.
@@ -69,16 +69,16 @@ VMs use `runStrategy: Manual` — Flux does NOT restart or stop them.
 ## Cluster setup (first time or after teardown)
 
 ```bash
-make lab-up
+just lab-up
 # wait ~60s for VMs to boot
-make cluster-setup
+just cluster-setup
 ```
 
 `cluster-setup` resets kubeadm on all nodes, re-initializes the cluster, installs Cilium, and joins both workers. See `scripts/cluster-setup.sh` for details.
 
 ### What the script does
 
-1. Gets `cp`'s current VMI pod IP (changes on every `make lab-up`)
+1. Gets `cp`'s current VMI pod IP (changes on every `just lab-up`)
 2. Resets kubeadm on all three nodes
 3. Fixes DNS (`nameserver 8.8.8.8`) and containerd on each node
 4. Installs kubelet/kubeadm/kubectl v1.35.1 from the official pkgs.k8s.io repo
@@ -89,9 +89,9 @@ make cluster-setup
 9. Adds an iptables DNAT rule on each worker (see [Networking](#networking))
 10. Joins both workers
 
-### After every `make lab-up`
+### After every `just lab-up`
 
-The VMI pod IP of `cp` changes on restart. Re-run `make cluster-setup` to rebuild the cluster. The script is idempotent — it resets first.
+The VMI pod IP of `cp` changes on restart. Re-run `just cluster-setup` to rebuild the cluster. The script is idempotent — it resets first.
 
 ## Networking
 
@@ -128,7 +128,7 @@ All VMs lack DNS entries so `kubeadm join` emits hostname warnings. These are no
 
 ## Manual cluster setup (step by step)
 
-If `make cluster-setup` fails, run manually.
+If `just cluster-setup` fails, run manually.
 
 ### On each VM
 
@@ -186,10 +186,10 @@ kubectl get nodes
 
 To reprovision from the base Ubuntu image (slower, full reset):
 ```bash
-make lab-down
+just lab-down
 kubectl delete dv cp-disk worker-1-disk worker-2-disk -n cka-labs
-make lab-up   # CDI re-imports from ubuntu-22-04-base
-make cluster-setup
+just lab-up   # CDI re-imports from ubuntu-22-04-base
+just cluster-setup
 ```
 
 ## VPN access
@@ -198,8 +198,8 @@ VMs accessible only via `virtctl` → Kubernetes API → Headscale VPN. No exter
 
 ## Upgrading KubeVirt/CDI versions
 
-1. Update `KUBEVIRT_VERSION` / `CDI_VERSION` in `Makefile`
-2. `make fetch-manifests`
+1. Update `kubevirt_version` / `cdi_version` in `justfile`
+2. `just fetch-manifests`
 3. Commit and push — Flux reconciles automatically, live VMs unaffected
 
 ## Versions
@@ -212,4 +212,4 @@ VMs accessible only via `virtctl` → Kubernetes API → Headscale VPN. No exter
 | Cilium    | v1.19.4 |
 | Ubuntu    | 22.04   |
 
-Pinned in `Makefile` (`KUBEVIRT_VERSION`, `CDI_VERSION`). Update there and re-run `make fetch-manifests` to upgrade.
+Pinned in `justfile` (`kubevirt_version`, `cdi_version`). Update there and re-run `just fetch-manifests` to upgrade.
