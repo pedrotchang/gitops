@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: forgejo-pkg-migrate
+  namespace: forgejo
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: copy
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              cp -a /old/app/packages/. /new/
+              echo "source files: $(find /old/app/packages -type f | wc -l)"
+              echo "dest files:   $(find /new -type f | wc -l)"
+              du -s /old/app/packages /new
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: old
+              mountPath: /old
+            - name: new
+              mountPath: /new
+      volumes:
+        - name: old
+          nfs:
+            server: 192.168.7.14
+            path: /mnt/tank/git
+        - name: new
+          nfs:
+            server: 192.168.7.14
+            path: /mnt/tank/forgejo-packages
