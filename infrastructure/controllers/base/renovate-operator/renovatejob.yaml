@@ -1,0 +1,20 @@
+apiVersion: renovate-operator.mogenius.com/v1alpha1
+kind: RenovateJob
+metadata:
+  name: forgejo-repos
+  namespace: renovate-operator
+spec:
+  image: renovate/renovate:latest
+  schedule: "0 0 * * 0"
+  parallelism: 1
+  provider:
+    name: gitea
+    endpoint: http://forgejo.forgejo.svc.cluster.local:3000/api/v1
+  discoveryFilters:
+    - "pedrotchang/*"
+  extraEnvFrom:
+    - secretRef:
+        name: renovate-env
+  extraEnv:
+    - name: RENOVATE_GIT_AUTHOR
+      value: "Pedro's Renovate Bot <bot@renovateapp.com>"

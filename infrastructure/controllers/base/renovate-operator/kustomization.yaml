@@ -6,3 +6,4 @@ resources:
   - repository.yaml
   - secrets.yaml
   - release.yaml
+  - renovatejob.yaml
