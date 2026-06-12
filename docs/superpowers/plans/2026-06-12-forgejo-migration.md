@@ -71,7 +71,13 @@ curl -s -X POST -H "Authorization: token $ADMIN" -H "Content-Type: application/j
 
 ### Task 6: Flip tachtit Flux + private-apps
 
-- [ ] Same deploy-key dance for tachtit `flux-system` secret + `clusters/tachtit/flux-system/gotk-sync.yaml`.
+> **Lesson from the data-cluster flip (2026-06-12):** replacing the `flux-system` secret while the
+> GitRepository still points at GitHub deadlocks the source controller (new key can't fetch old URL,
+> so it never fetches the commit that changes the URL). Sequence for tachtit: replace secret AND
+> `kubectl patch gitrepository -n flux-system flux-system --type=merge -p '{"spec":{"url":"ssh://git@git.seyzahl.com:2222/pedrotchang/gitops"}}'`
+> in the same breath, with the gotk-sync.yaml commit already pushed (it just confirms live state on next apply).
+
+- [ ] Same deploy-key dance for tachtit `flux-system` secret + `clusters/tachtit/flux-system/gotk-sync.yaml` (separate deploy key `flux-tachtit-cluster`).
 - [ ] `private-apps` GitRepository (clusters/tachtit/private-apps.yaml or its secretRef): url → `ssh://git@git.seyzahl.com:2222/pedrotchang/homelab-private.git`, new deploy key on that repo.
 - [ ] Verify all 10 tachtit Kustomizations Ready from Forgejo revisions.
 - [ ] **DR runbook entry in docs/backups.md**: "tachtit down → `flux create source git flux-system --url=ssh://git@github.com/pedrotchang/gitops ...` (or kubectl-edit GitRepository back to GitHub mirror) → rebuild → flip back." Exact commands written out.
