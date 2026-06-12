@@ -50,7 +50,7 @@ spec:
       priorityClassName: system-node-critical
     storageClasses:
       - name: truenas-iscsi
-        defaultClass: false
+        defaultClass: true
         reclaimPolicy: Delete
         volumeBindingMode: Immediate
         allowVolumeExpansion: true
