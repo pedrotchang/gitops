@@ -13,8 +13,18 @@ spec:
     template:
       engineVersion: v2
       data:
+        networkdata: |
+          version: 2
+          ethernets:
+            enp1s0:
+              dhcp4: true
         userdata: |
           #cloud-config
+          bootcmd:
+            - |
+              rm -f /etc/netplan/50-cloud-init.yaml
+              printf 'network:\n  version: 2\n  ethernets:\n    enp1s0:\n      dhcp4: true\n' > /etc/netplan/99-kubevirt-net.yaml
+              netplan apply 2>/dev/null || true
           users:
             - name: ubuntu
               sudo: ALL=(ALL) NOPASSWD:ALL
