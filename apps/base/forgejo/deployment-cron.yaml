@@ -40,6 +40,9 @@ spec:
               value: "1000"
             - name: GITEA_CUSTOM
               value: /var/lib/gitea/custom
+            # explicit: this is the only deployment that runs cron jobs
+            - name: FORGEJO__cron__ENABLED
+              value: "true"
 
           envFrom:
             - configMapRef:

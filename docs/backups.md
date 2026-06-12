@@ -6,7 +6,7 @@
 |------|-------------|----------|-----------|---------|
 | Postgres WAL (continuous) | `s3://seyzahl-cnpg-backups/forgejo` | Continuous | 7 days | CNPG barman-cloud plugin v0.13.0 |
 | Postgres base backup | `s3://seyzahl-cnpg-backups/forgejo` | Daily 03:00 UTC | 7 days | CNPG `ScheduledBackup` (method: plugin) |
-| Git data + config volumes | `s3://seyzahl-velero-backups/forgejo` | Daily 10:00 UTC | 7 days (168h) | Velero 12.0.2 + Kopia FSB |
+| Git data (`/data` NFS volume, via `forgejo-cron` pod) | `s3://seyzahl-velero-backups/forgejo` | Daily 10:00 UTC | 7 days (168h) | Velero 12.0.2 + Kopia FSB |
 | ZFS snapshots of `tank/git` | TrueNAS local | Hourly (keep 3d), weekly (keep 2w), monthly (keep 2mo) | See retention | TrueNAS built-in snapshot tasks |
 
 Buckets are in `us-west-1`, S3 Standard (not Standard-IA — 30-day minimum billing makes IA uneconomical at 7-day retention).
@@ -70,6 +70,10 @@ Once the recovery cluster is healthy, promote it or copy data as needed, then de
 ---
 
 ## 2. Restore Git Data
+
+> **Note:** the Velero FSB annotation (`backup.velero.io/backup-volumes: forgejo-data`) lives on the
+> `forgejo-cron` deployment's pod template only — web pods are not annotated (same NFS volume,
+> backing it up once is enough). The `forgejo-config` volume is a disposable emptyDir and is not backed up.
 
 ### Fast path: TrueNAS ZFS rollback / clone
 
