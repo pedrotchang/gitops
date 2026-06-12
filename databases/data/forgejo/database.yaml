@@ -25,18 +25,11 @@ spec:
       secret:
         name: forgejo-db-creds
 
-  backup:
-    barmanObjectStore:
-      destinationPath: https://seyzahldata.blob.core.windows.net/forgejo
-      azureCredentials:
-        connectionString:
-          name: azure-creds
-          key: forgejo-connection-string
-      wal:
-        compression: gzip
-      data:
-        compression: gzip
-    retentionPolicy: "14d"
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: forgejo-aws-store
 
   resources:
     requests:

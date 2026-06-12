@@ -6,5 +6,8 @@ spec:
   immediate: true
   schedule: "0 0 3 * * *"
   backupOwnerReference: cluster
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
   cluster:
     name: forgejo-db-data-cnpg-v0

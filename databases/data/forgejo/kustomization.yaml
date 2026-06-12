@@ -4,5 +4,6 @@ namespace: forgejo
 resources:
   - namespace.yaml
   - database.yaml
+  - objectstore.yaml
   - secrets.yaml
   - scheduled-backups.yaml
