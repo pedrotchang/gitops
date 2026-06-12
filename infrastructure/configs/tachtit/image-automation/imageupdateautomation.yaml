@@ -14,8 +14,8 @@ spec:
         branch: main
     commit:
       author:
-        email: fluxcdbot@users.noreply.github.com
-        name: fluxcdbot
+        email: flux-bot@seyzahl.com
+        name: flux-bot
       messageTemplate: |
         blog: update image to {{range .Changed.Changes}}{{println .}}{{end}}
     push:

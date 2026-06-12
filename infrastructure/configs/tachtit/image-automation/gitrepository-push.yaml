@@ -5,8 +5,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: https://github.com/pedrotchang/homelab
+  url: https://forgejo.seyzahl.com/pedrotchang/gitops.git
   ref:
     branch: main
   secretRef:
-    name: flux-github-token
+    name: flux-forgejo-token
