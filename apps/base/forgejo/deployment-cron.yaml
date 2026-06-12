@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-cron
+  labels:
+    app: forgejo-cron
+    app.kubernetes.io/name: forgejo
+    app.kubernetes.io/instance: forgejo
+    app.kubernetes.io/component: cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forgejo-cron
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: forgejo-cron
+        app.kubernetes.io/name: forgejo
+        app.kubernetes.io/instance: forgejo
+        app.kubernetes.io/component: cron
+        policy-type: app
+      annotations:
+        # requires maproot on the TrueNAS /mnt/tank/git export (kopia runs as root)
+        backup.velero.io/backup-volumes: forgejo-data
+    spec:
+      securityContext:
+        fsGroup: 1000
+
+      containers:
+        - name: forgejo
+          image: data.forgejo.org/forgejo/forgejo:15.0.3-rootless
+
+          env:
+            - name: USER_UID
+              value: "1000"
+            - name: USER_GID
+              value: "1000"
+            - name: GITEA_CUSTOM
+              value: /var/lib/gitea/custom
+
+          envFrom:
+            - configMapRef:
+                name: forgejo-configmap
+            - secretRef:
+                name: forgejo-db-env
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: ssh
+              containerPort: 2222
+              protocol: TCP
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+
+          volumeMounts:
+            - name: forgejo-config
+              mountPath: /var/lib/gitea/custom
+            - name: forgejo-data
+              mountPath: /data
+
+      restartPolicy: Always
+
+      volumes:
+        - name: forgejo-config
+          emptyDir: {}
+        - name: forgejo-data
+          nfs:
+            server: 192.168.7.14
+            path: /mnt/tank/git
+            readOnly: false

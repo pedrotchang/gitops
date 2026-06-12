@@ -4,6 +4,7 @@ namespace: forgejo
 resources:
   - namespace.yaml
   - deployment.yaml
+  - deployment-cron.yaml
   - secrets.yaml
   - service.yaml
   - network-policy.yaml

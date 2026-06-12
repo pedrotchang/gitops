@@ -8,12 +8,15 @@ metadata:
     app.kubernetes.io/instance: forgejo
     app.kubernetes.io/component: server
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: forgejo
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
@@ -22,12 +25,19 @@ spec:
         app.kubernetes.io/instance: forgejo
         app.kubernetes.io/component: server
         policy-type: app
-      annotations:
-        # requires maproot on the TrueNAS /mnt/tank/git export (kopia runs as root)
-        backup.velero.io/backup-volumes: forgejo-data,forgejo-config
     spec:
       securityContext:
         fsGroup: 1000
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: forgejo
+                topologyKey: kubernetes.io/hostname
 
       containers:
         - name: forgejo
@@ -40,6 +50,8 @@ spec:
               value: "1000"
             - name: GITEA_CUSTOM
               value: /var/lib/gitea/custom
+            - name: FORGEJO__cron__ENABLED
+              value: "false"
 
           envFrom:
             - configMapRef:
