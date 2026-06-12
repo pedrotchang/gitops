@@ -1,0 +1,13 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: forgejo-daily
+  namespace: velero
+spec:
+  schedule: "0 10 * * *"
+  template:
+    ttl: 168h0m0s
+    includedNamespaces:
+      - forgejo
+    defaultVolumesToFsBackup: false
+    snapshotVolumes: false

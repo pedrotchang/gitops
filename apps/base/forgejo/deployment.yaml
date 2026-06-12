@@ -22,6 +22,8 @@ spec:
         app.kubernetes.io/instance: forgejo
         app.kubernetes.io/component: server
         policy-type: app
+      annotations:
+        backup.velero.io/backup-volumes: forgejo-data,forgejo-config
     spec:
       securityContext:
         fsGroup: 1000

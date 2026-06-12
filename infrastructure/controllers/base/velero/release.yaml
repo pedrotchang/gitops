@@ -1,0 +1,51 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: velero
+  namespace: velero
+spec:
+  interval: 1h
+  timeout: 10m
+  chart:
+    spec:
+      chart: velero
+      version: "12.0.2"
+      sourceRef:
+        kind: HelmRepository
+        name: vmware-tanzu
+        namespace: velero
+  values:
+    initContainers:
+      - name: velero-plugin-for-aws
+        image: velero/velero-plugin-for-aws:v1.13.1
+        volumeMounts:
+          - mountPath: /target
+            name: plugins
+    credentials:
+      useSecret: true
+      existingSecret: velero-aws-creds
+    configuration:
+      backupStorageLocation:
+        - name: default
+          provider: aws
+          bucket: seyzahl-velero-backups
+          prefix: forgejo
+          config:
+            region: us-west-1
+      volumeSnapshotLocation: []
+      uploaderType: kopia
+      defaultVolumesToFsBackup: false
+    deployNodeAgent: true
+    nodeAgent:
+      podSecurityContext:
+        runAsUser: 0
+    snapshotsEnabled: false
+    backupsEnabled: true
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
