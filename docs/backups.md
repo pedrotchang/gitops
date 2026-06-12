@@ -246,7 +246,7 @@ Azure backups stopped on 2026-06-11. The stale container and the ExternalSecret 
 
 ## 6. Disaster recovery: GitOps source (Forgejo runs ON tachtit)
 
-Both clusters' Flux pull from `ssh://git@git.seyzahl.com:2222/pedrotchang/gitops` (and tachtit
+Both clusters' Flux pull from `ssh://git@git.seyzahl.com:2222/pedrotchang/gitops-platform` (and tachtit
 also `.../homelab-private`). Forgejo itself is a tachtit workload — if tachtit dies, the GitOps
 source dies with it. Every push is auto-mirrored to GitHub (`sync_on_commit` push-mirrors), so
 GitHub is an always-current cold copy for exactly this scenario.
