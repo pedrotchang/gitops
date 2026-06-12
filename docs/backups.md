@@ -241,3 +241,34 @@ Azure backups stopped on 2026-06-11. The stale container and the ExternalSecret 
    Container URL: `https://seyzahldata.blob.core.windows.net/forgejo`
 
 2. Remove the `azure-creds` ExternalSecret from `databases/data/forgejo/secrets.yaml`. The `forgejo-connection-string` Azure KV secret it references can be archived or deleted as well once confirmed no other consumers exist.
+
+---
+
+## 6. Disaster recovery: GitOps source (Forgejo runs ON tachtit)
+
+Both clusters' Flux pull from `ssh://git@git.seyzahl.com:2222/pedrotchang/gitops` (and tachtit
+also `.../homelab-private`). Forgejo itself is a tachtit workload — if tachtit dies, the GitOps
+source dies with it. Every push is auto-mirrored to GitHub (`sync_on_commit` push-mirrors), so
+GitHub is an always-current cold copy for exactly this scenario.
+
+**Tachtit total loss → rebuild procedure:**
+
+1. Re-provision the cluster (Omni/Talos), `flux bootstrap` or restore flux-system from
+   `clusters/tachtit/flux-system/`.
+2. Point Flux at the GitHub mirror until Forgejo is back:
+   ```bash
+   kubectl patch gitrepository -n flux-system flux-system --type=merge \
+     -p '{"spec":{"url":"https://github.com/pedrotchang/gitops"}}'
+   # https avoids deploy-key bootstrap; for private repos create a secret with a GitHub PAT first:
+   # flux create secret git flux-system --url=https://github.com/pedrotchang/gitops --username=pedrotchang --password=<PAT>
+   kubectl patch gitrepository -n flux-system private-apps --type=merge \
+     -p '{"spec":{"url":"https://github.com/pedrotchang/homelab-private"}}'
+   ```
+3. Let Flux rebuild the cluster — including Forgejo (git data on TrueNAS NFS `tank/git` survives
+   independently; DB restores from CNPG S3 backups per section 1 if the data cluster was also lost).
+4. Once Forgejo serves again, flip the URLs back (atomic: replace the flux secret with the Forgejo
+   deploy key AND patch the URL in the same step — doing the secret first deadlocks the source
+   controller; see docs/superpowers/plans/2026-06-12-forgejo-migration.md Task 6).
+
+**Rule during recovery:** never push to GitHub even then — fix forward by restoring Forgejo, or
+accept a frozen config until it's back. Pushing to the mirror diverges it and breaks mirror sync.
