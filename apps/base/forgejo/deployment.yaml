@@ -29,19 +29,6 @@ spec:
       securityContext:
         fsGroup: 1000
 
-      initContainers:
-        - name: fix-permissions
-          image: busybox:1.37
-          command:
-            - sh
-            - -c
-            - chown -R 1000:1000 /var/lib/gitea/custom
-          securityContext:
-            runAsUser: 0
-          volumeMounts:
-            - name: forgejo-config
-              mountPath: /var/lib/gitea/custom
-
       containers:
         - name: forgejo
           image: data.forgejo.org/forgejo/forgejo:13.0.5-rootless
@@ -114,8 +101,7 @@ spec:
 
       volumes:
         - name: forgejo-config
-          persistentVolumeClaim:
-            claimName: forgejo-config
+          emptyDir: {}
         - name: forgejo-data
           nfs:
             server: 192.168.7.14

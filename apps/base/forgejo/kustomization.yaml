@@ -6,6 +6,5 @@ resources:
   - deployment.yaml
   - secrets.yaml
   - service.yaml
-  - storage.yaml
   - network-policy.yaml
   - redis.yaml
