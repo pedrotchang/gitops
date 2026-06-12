@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: https://forgejo.seyzahl.com/pedrotchang/gitops.git
+  url: http://forgejo.forgejo.svc.cluster.local:3000/pedrotchang/gitops.git
   ref:
     branch: main
   secretRef:
