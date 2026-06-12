@@ -1,12 +1,15 @@
-# Welcome to my Home(lab) 🏡
+# GitOps Platform 🏡
 
 <https://www.pedrotchang.dev/>
 
+> **Canonical home:** [forgejo.seyzahl.com/pedrotchang/gitops-platform](https://forgejo.seyzahl.com/pedrotchang/gitops-platform) (self-hosted, VPN-gated).
+> The GitHub copy is an automated read-only mirror for disaster recovery — do not push or open PRs there.
+
 ## Introduction
 
-Here you will find all the documentation of my homelab.
+This repository (formerly `homelab`) is the GitOps platform driving my entire home infrastructure: two Talos Kubernetes clusters reconciled by Flux from this very repo — including the Forgejo instance that hosts it.
 
-This repository is where I do all my testing, tinkering, and all-in-all a space for me to play, and work! It does have a serious note as well, since I will be working with my own personal data and require me to think about the whole process of deployment and maintanence!
+It's where I do all my testing, tinkering, and all-in-all a space for me to play, and work! It does have a serious note as well, since I will be working with my own personal data and require me to think about the whole process of deployment and maintenance!
 
 ## Architecture
 
