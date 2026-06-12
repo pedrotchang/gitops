@@ -5,7 +5,7 @@ resources:
   - external-secrets
   - external-dns
   - local-path
-  - renovate
+  - renovate-operator
   - csi-driver
   - csi-driver-iscsi
   - gateway-api
