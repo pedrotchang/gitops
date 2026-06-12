@@ -8,7 +8,7 @@ spec:
   schedule: "0 0 * * 0"
   parallelism: 1
   provider:
-    name: gitea
+    name: forgejo
     endpoint: http://forgejo.forgejo.svc.cluster.local:3000/api/v1
   discoveryFilters:
     - "pedrotchang/*"
