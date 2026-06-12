@@ -5,7 +5,6 @@ resources:
   - blog
   - commafeed
   - forgejo
-  - forgejo-pkg-migrate
   - forgejo-runner
   - garden
   - homepage

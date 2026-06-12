@@ -74,6 +74,13 @@ Once the recovery cluster is healthy, promote it or copy data as needed, then de
 > **Note:** the Velero FSB annotation (`backup.velero.io/backup-volumes: forgejo-data`) lives on the
 > `forgejo-cron` deployment's pod template only — web pods are not annotated (same NFS volume,
 > backing it up once is enough). The `forgejo-config` volume is a disposable emptyDir and is not backed up.
+>
+> **Packages / container registry are intentionally NOT backed up.** Blobs live on a dedicated
+> volume (`tank/forgejo-packages`, mounted at `/packages`, `[packages] PATH` in app.ini) outside
+> both the Velero annotation and the `tank/git` ZFS snapshots. Package *metadata* is in Postgres
+> (covered by CNPG backups); after a restore, missing blobs surface as broken package downloads —
+> re-push the images from CI. Registry retention (keep last N versions) is a Forgejo *cleanup rule*
+> (owner/admin settings → Packages), executed by the `cleanup_packages` cron on the `forgejo-cron` pod.
 
 ### Fast path: TrueNAS ZFS rollback / clone
 
