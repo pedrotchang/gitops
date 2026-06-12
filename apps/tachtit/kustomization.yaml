@@ -15,3 +15,4 @@ resources:
   - pgadmin
   - wallabag
   - headscale
+  - iscsi-smoke
