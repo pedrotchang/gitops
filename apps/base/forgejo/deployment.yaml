@@ -23,10 +23,8 @@ spec:
         app.kubernetes.io/component: server
         policy-type: app
       annotations:
-        # forgejo-data (inline NFS) omitted: kopia node-agent runs as root which NFS
-        # root-squashes to nobody, causing permission denied. Covered by Task TD (ZFS snapshots).
-        # To re-enable: set no_root_squash on TrueNAS export for Kubernetes node IPs.
-        backup.velero.io/backup-volumes: forgejo-config
+        # requires maproot on the TrueNAS /mnt/tank/git export (kopia runs as root)
+        backup.velero.io/backup-volumes: forgejo-data,forgejo-config
     spec:
       securityContext:
         fsGroup: 1000
