@@ -108,6 +108,8 @@ spec:
               mountPath: /var/lib/gitea/custom
             - name: forgejo-data
               mountPath: /data
+            - name: forgejo-packages
+              mountPath: /packages
 
       restartPolicy: Always
 
@@ -118,4 +120,10 @@ spec:
           nfs:
             server: 192.168.7.14
             path: /mnt/tank/git
+            readOnly: false
+        # separate volume: keeps container-registry blobs out of Velero/ZFS git backups
+        - name: forgejo-packages
+          nfs:
+            server: 192.168.7.14
+            path: /mnt/tank/forgejo-packages
             readOnly: false

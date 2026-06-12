@@ -29,6 +29,10 @@ data:
 
   # Packages / container registry
   FORGEJO__packages__ENABLED: "true"
+  # dedicated volume (tank/forgejo-packages) — excluded from git-data backups;
+  # package metadata is in Postgres (CNPG-backed), blobs are rebuildable
+  FORGEJO__packages__STORAGE_TYPE: local
+  FORGEJO__packages__PATH: /packages
 
   # Storage paths
   FORGEJO__repository__ROOT: /data/git
