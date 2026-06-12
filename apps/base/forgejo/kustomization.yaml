@@ -8,3 +8,4 @@ resources:
   - service.yaml
   - storage.yaml
   - network-policy.yaml
+  - redis.yaml
