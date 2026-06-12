@@ -253,9 +253,6 @@ data:
       - Omni:
             href: https://pedrotchang.omni.siderolabs.io/
             icon: talos.png
-      - pgAdmin:
-            href: https://pgadmin.seyzahl.com
-            icon: pgadmin.png
       - HomeHub:
             href: https://homehub.seyzahl.com
             icon: https://raw.githubusercontent.com/surajverma/homehub/main/app/static/images/homehub.png
