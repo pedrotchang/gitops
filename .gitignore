@@ -18,5 +18,8 @@ credentials.json
 CLAUDE.md
 ta/
 
+# Claude project memory — local-only mental model (internal topology, never publish)
+.claude/
+
 # Multi-Team Chat — local agent config (never commit)
 .pi/
