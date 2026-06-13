@@ -13,5 +13,4 @@ resources:
   - n8n
   - nextcloud
   - pgadmin
-  - wallabag
   - headscale
