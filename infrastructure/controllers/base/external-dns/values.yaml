@@ -5,7 +5,6 @@ policy: upsert-only
 
 excludeDomains:
   - immich.seyzahl.com
-  - forgejo.seyzahl.com
   - nextcloud.seyzahl.com
   - wallabag.seyzahl.com
   - pgadmin.seyzahl.com

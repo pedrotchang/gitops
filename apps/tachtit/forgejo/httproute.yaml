@@ -4,7 +4,9 @@ metadata:
   name: forgejo
   namespace: forgejo
   annotations:
-    external-dns.alpha.kubernetes.io/exclude: "true"
+    # published as an UNPROXIED A record to the LAN gateway IP so Talos nodes and
+    # pods can resolve the registry hostname; the IP is private — not internet-reachable
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
 spec:
   parentRefs:
     - name: cilium-gateway
