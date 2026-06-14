@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: authentik-worker
-          image: ghcr.io/goauthentik/server:2025.10.3
+          image: ghcr.io/goauthentik/server:2025.12.6
           args:
             - worker
           envFrom:
