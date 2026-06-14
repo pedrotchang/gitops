@@ -36,7 +36,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: install-ffmpeg
-          image: alpine:3.21
+          image: alpine:3.24
           command:
             - sh
             - -c
