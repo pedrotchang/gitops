@@ -60,7 +60,7 @@ spec:
               mountPath: /home/node/.n8n
       containers:
         - name: n8n
-          image: docker.n8n.io/n8nio/n8n:2.4.8
+          image: docker.n8n.io/n8nio/n8n:2.26.3
           env:
             - name: PATH
               value: "/home/node/.n8n/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
