@@ -4,5 +4,4 @@ namespace: n8n
 resources:
   - ../../base/n8n/
   - httproute-local.yaml
-  - httproute.yaml
   - configmap.yaml

@@ -228,7 +228,7 @@ data:
 
     - Professional:
       - N8N:
-            href: http://auto.seyzahl.com/
+            href: https://n8n.seyzahl.com/
             icon: n8n.png
       - AWS:
             href: https://us-west-1.console.aws.amazon.com
