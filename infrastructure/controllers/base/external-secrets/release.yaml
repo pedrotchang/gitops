@@ -10,7 +10,7 @@ spec:
   chart:
     spec:
       chart: external-secrets
-      version: 1.3.1  # Use the latest version (chart version now matches app version)
+      version: 1.3.2  # Use the latest version (chart version now matches app version)
       sourceRef:
         kind: HelmRepository
         name: external-secrets
