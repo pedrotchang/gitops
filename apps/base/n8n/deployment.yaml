@@ -35,17 +35,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
-        - name: fix-permissions
-          image: busybox:1.37
-          command:
-            - sh
-            - -c
-            - chown -R 1000:1000 /home/node/.n8n
-          securityContext:
-            runAsUser: 0
-          volumeMounts:
-            - name: n8n-data
-              mountPath: /home/node/.n8n
         - name: install-ffmpeg
           image: alpine:3.21
           command:
