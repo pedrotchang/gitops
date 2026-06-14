@@ -54,7 +54,6 @@ I have them in this structure:
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/prometheus.png" width="30" alt="Prometheus logo"> | [Prometheus](https://prometheus.io/) | An open-source monitoring and alerting toolkit for containers and microservices. |
 | <img src="https://avatars.githubusercontent.com/ml/287?s=82&v=4" width="30" alt="Renovate logo"> | [Renovate](https://www.mend.io/renovate/) | An automated dependency update tool that creates and maintains pull requests for your dependencies. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/authentik.png" width="30" alt="Authentik logo"> | [Authentik](https://goauthentik.io/) | An open-source identity and access management platform providing authentication, authorization, and single sign-on (SSO) capabilities. |
-| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/pgadmin.png" width="30" alt="pgAdmin logo"> | [pgAdmin](https://www.pgadmin.org/) | A web-based administration and development platform for PostgreSQL databases. |
 
 ### End User Applications
 
