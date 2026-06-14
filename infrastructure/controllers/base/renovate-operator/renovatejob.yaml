@@ -11,7 +11,7 @@ spec:
     name: forgejo
     endpoint: http://forgejo.forgejo.svc.cluster.local:3000/api/v1
   discoveryFilters:
-    - "pedrotchang/*"
+    - "pedrotchang/gitops-platform"
   extraEnvFrom:
     - secretRef:
         name: renovate-env
