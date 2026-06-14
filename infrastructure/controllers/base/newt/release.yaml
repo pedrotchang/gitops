@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: newt
-      version: "1.1.0"
+      version: "1.5.0"
       sourceRef:
         kind: HelmRepository
         name: fossorial
