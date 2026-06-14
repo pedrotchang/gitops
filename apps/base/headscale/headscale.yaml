@@ -46,9 +46,6 @@ spec:
         - name: wallabag.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: pgadmin.seyzahl.com
-          type: A
-          value: "10.104.130.214"
         - name: suwayomi.seyzahl.com
           type: A
           value: "10.104.130.214"
