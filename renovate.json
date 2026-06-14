@@ -40,6 +40,18 @@
       "registryUrls": [
         "https://data.forgejo.org"
       ]
+    },
+    {
+      "description": "cilium: single registryUrl (chart defined per-cluster against the same helm repo) to avoid the duplicate-registryUrl warning",
+      "matchDatasources": [
+        "helm"
+      ],
+      "matchPackageNames": [
+        "cilium"
+      ],
+      "registryUrls": [
+        "https://helm.cilium.io"
+      ]
     }
   ]
 }
