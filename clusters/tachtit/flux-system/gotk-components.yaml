@@ -12392,7 +12392,7 @@ spec:
             resourceFieldRef:
               containerName: manager
               resource: limits.memory
-        image: ghcr.io/fluxcd/image-automation-controller:v1.0.4
+        image: ghcr.io/fluxcd/image-automation-controller:v1.1.4
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
