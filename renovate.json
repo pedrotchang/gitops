@@ -28,6 +28,18 @@
       "matchPackageNames": [
         "/^ghcr.io/immich-app//"
       ]
+    },
+    {
+      "description": "forgejo-runner: pin to the Forgejo registry; Renovate inferred an extra registry and failed the docker token lookup",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "data.forgejo.org/forgejo/runner"
+      ],
+      "registryUrls": [
+        "https://data.forgejo.org"
+      ]
     }
   ]
 }
