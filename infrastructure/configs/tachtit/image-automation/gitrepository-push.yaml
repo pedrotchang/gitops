@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: http://forgejo.forgejo.svc.cluster.local:3000/pedrotchang/gitops-platform.git
+  url: http://forgejo.forgejo.svc.cluster.local:3000/platform-infrastructure/gitops-platform.git
   ref:
     branch: main
   secretRef:

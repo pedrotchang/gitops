@@ -9,7 +9,7 @@ spec:
     branch: main
   secretRef:
     name: private-apps
-  url: ssh://git@git.seyzahl.com:2222/pedrotchang/homelab-private
+  url: ssh://git@git.seyzahl.com:2222/platform-infrastructure/homelab-private
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
