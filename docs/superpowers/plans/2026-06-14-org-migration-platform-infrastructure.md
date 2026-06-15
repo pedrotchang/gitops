@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move the infra git repos `gitops-platform` and `homelab-private` from Forgejo user `pedrotchang/` into a new org `platform-infrastructure/`, flipping every live reference, without the GitOps source ever going dead.
+**Goal:** Move the infra git repos `gitops-platform` and `homelab-private` from Forgejo user `pedrotchang/` into a new org `platform-infrastructure/`, flipping every live reference, with no update outage. (Note: Flux keeps serving the last-fetched artifact even if a source briefly becomes unreachable — so the worst case anywhere here is paused updates, not an outage. The redirect just keeps updates flowing during cutover.)
 
 **Architecture:** Forgejo repo *transfer* (not recreate) so an old→new path redirect keeps Flux pulling during cutover. Deploy keys / push-mirror are repo-attached and survive transfer. Flux is repointed by editing each cluster's `gotk-sync.yaml` (committed, self-applied), data cluster first then tachtit (Forgejo runs on tachtit — bootstrap risk). The admin token in Azure KV `forgej-api-token` does all server-side work; the org creator (pedrotchang) becomes owner so existing tokens keep write access.
 
@@ -18,6 +18,7 @@
 - A **Verify gate** step is mandatory: do not proceed to the next task until its expected output appears. This is the runbook's equivalent of a passing test.
 - Commit messages: Conventional Commits, **no `Co-Authored-By` trailer** (project policy).
 - Push goes to Forgejo `origin` only (GitHub is an auto push-mirror — never push it directly).
+- **Token-scope assumption (the "no re-grant" insight):** Forgejo personal access tokens are *user-wide with category scopes* (e.g. `write:repository`), **not** repo/path-scoped like GitHub fine-grained tokens. So once pedrotchang is an org member/owner, his existing tokens (`flux-forgejo-token`, renovate, registry) automatically reach the org repos — **provided their scope categories already suffice**, which they do because the same tokens write these same repos today. The one scope this plan does *not* exercise is `write:package` for a CI registry push — that belongs to the deferred `custom-images` work (`docs/superpowers/plans/2026-06-14-supply-chain-pipeline-repo.md`), since Phase 4's build workflow is dormant. Token scopes can't be introspected via the admin token (Forgejo requires basic-auth for the tokens endpoint), so the **functional gates** — image-automation push (Task 4) and the next Renovate PR (Task 6) — are the verification that the grant actually carried.
 
 ---
 
@@ -84,6 +85,17 @@ curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/orgs/$ORG/members" |
 ```
 Expected: `"platform-infrastructure"`, and `"pedrotchang"` appears in the members list.
 
+- [ ] **Step 3: Suspend tachtit image-automation (close the push-through-redirect gap)**
+
+The Phase 2 redirect gate (Task 2 Step 4) tests `git ls-remote` — a *fetch*, which covers Flux pulls. But the `ImageUpdateAutomation` `blog` *pushes* policy commits via the in-cluster HTTP path; push-through-redirect is a separate, untested code path, and if the automation fires between the transfer (Task 2) and the push-url flip (Task 4 Step 4) it would push to the old path. Suspend it now and resume it after the url is flipped (Task 4).
+
+Run:
+```bash
+flux --kubeconfig ./tachtit-kubeconfig.yaml suspend image update blog -n flux-system
+flux --kubeconfig ./tachtit-kubeconfig.yaml get image update blog -n flux-system
+```
+Expected: `blog` shows `SUSPENDED: True`.
+
 ---
 
 ## Task 2: Transfer both repos + verify safety net + flip this checkout's origin
@@ -126,8 +138,8 @@ Run:
 git ls-remote "$SSH_BASE/pedrotchang/gitops-platform" HEAD
 git ls-remote "$SSH_BASE/pedrotchang/homelab-private" HEAD
 ```
-Expected: each prints a commit SHA + `HEAD` (the old path redirects to the org repo).
-**STOP if either fails** — without the redirect, Flux will break the moment the transfer lands. If it fails, jump straight to Task 3 + Task 4 in one window (flip both clusters immediately) using the new url, and treat the redirect-dependent ordering as void.
+Expected: each prints a commit SHA + `HEAD` (the old path redirects to the org repo). The instance already 307-redirects the old `seyza` username (per the prior forgejo-migration plan), so transfer-redirect is likely — but rename and transfer are distinct ops, so verify rather than assume.
+**If either fails:** there is no outage — Flux keeps serving the last-fetched artifact — but updates from the old path stop. Recover by doing Task 3 + Task 4 in one window (flip both clusters immediately to the new url) and treat the redirect-dependent staging as void.
 
 - [ ] **Step 5: Verify deploy keys survived the transfer**
 
@@ -138,13 +150,15 @@ curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/repos/$ORG/homelab-p
 ```
 Expected: each `>= 1` (the Flux read deploy keys carried over). If `0`, the Flux secrets must be regenerated — see "Deploy-key fallback" at the bottom before continuing.
 
-- [ ] **Step 6: Verify GitHub push-mirror survived**
+- [ ] **Step 6: Verify GitHub push-mirror + any webhooks survived**
 
 Run:
 ```bash
 curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/repos/$ORG/gitops-platform/push_mirrors" | jq '.[].remote_address'
+curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/repos/$ORG/gitops-platform/hooks" | jq '.[] | {type, url: .config.url, active}'
+curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/repos/$ORG/homelab-private/hooks" | jq '.[] | {type, url: .config.url, active}'
 ```
-Expected: the `github.com/pedrotchang/...` mirror address (mirror config carried over).
+Expected: the `github.com/pedrotchang/...` mirror address (mirror config carried over). Webhooks: **none expected** — there is no user-defined Flux `Receiver` and CI is Forgejo Actions (internal, not webhook-driven). If any hook is listed, confirm it survived `active: true`; if a hook is missing that you rely on, recreate it via `POST .../hooks` before relying on it.
 
 - [ ] **Step 7: Flip this checkout's `origin` to the org path and test push round-trip**
 
@@ -271,14 +285,23 @@ flux --kubeconfig ./tachtit-kubeconfig.yaml get sources git -A
 ```
 Expected: `flux-system` → `...platform-infrastructure/gitops-platform`, `private-apps` → `...platform-infrastructure/homelab-private`, both `READY: True`.
 
-- [ ] **Step 8: Verify tachtit reconciles cleanly + image-automation can push to the org repo**
+- [ ] **Step 8: Verify tachtit reconciles cleanly on the new sources**
 
 Run:
 ```bash
 flux --kubeconfig ./tachtit-kubeconfig.yaml get kustomizations -A
-flux --kubeconfig ./tachtit-kubeconfig.yaml get images all -A
 ```
-Expected: all Kustomizations `READY: True`; `ImageUpdateAutomation` shows a recent successful commit/push (or `Ready: True`) against the org repo. If the push fails on auth, confirm `flux-forgejo-token` user `pedrotchang` has write via org ownership (it should, from Task 1).
+Expected: all Kustomizations `READY: True`, no `False`/stalled rows. (`image-automation` is still suspended from Task 1 Step 3 — that's expected here.)
+
+- [ ] **Step 9: Resume image-automation and verify it pushes to the ORG repo**
+
+Now that the push url points at the org (Step 4) and tachtit is healthy, resume:
+```bash
+flux --kubeconfig ./tachtit-kubeconfig.yaml resume image update blog -n flux-system
+flux --kubeconfig ./tachtit-kubeconfig.yaml reconcile image update blog -n flux-system
+flux --kubeconfig ./tachtit-kubeconfig.yaml get image update blog -n flux-system
+```
+Expected: `blog` shows `SUSPENDED: False` and a `Ready: True` status reporting a commit against `platform-infrastructure/gitops-platform` (or "no changes" if nothing to bump). If the push fails on auth, the `flux-forgejo-token` (user pedrotchang) lacks org write — re-check org membership from Task 1 and the token-scope note in Conventions. This is the functional gate for the "no re-grant" insight.
 
 ---
 
@@ -308,14 +331,16 @@ with:
           cache-to: type=registry,ref=forgejo.seyzahl.com/platform-infrastructure/nextcloud:buildcache,mode=max
 ```
 
-- [ ] **Step 2: Audit the registry for any pre-existing nextcloud container package**
+- [ ] **Step 2: Audit the registry to locate the nextcloud package authoritatively (no guessing)**
 
-Run:
+`seyza` is the legacy username, renamed to `pedrotchang` (id 1); old `seyza` URLs 307-redirect to `pedrotchang`. So a container package ever pushed to `seyza/nextcloud` now lives under the `pedrotchang` namespace — there is no separate `seyza` package owner to act on. Determine the exact owner + name + versions that actually exist:
+
 ```bash
-curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/pedrotchang?type=container" | jq '.[].name'
-curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/seyza?type=container" 2>/dev/null | jq '.[].name' || echo "no seyza namespace (expected)"
+# canonical list under the current user namespace:
+curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/pedrotchang?type=container" \
+  | jq '.[] | {owner: .owner.login, type, name, version}'
 ```
-Expected: note whether a `nextcloud` package exists under `pedrotchang` (leftover from when this dir was a standalone repo). Record it; deletion happens in Task 8.
+Expected: record the exact `{owner, name, version}` of any `nextcloud` package (if present). If the list shows no `nextcloud`, there is nothing to delete — record "none" and skip Task 8 Step 3. **Do not** infer a target; Task 8 deletes only what this step printed verbatim.
 
 - [ ] **Step 3: Commit**
 
@@ -443,15 +468,22 @@ flux --kubeconfig ./tachtit-kubeconfig.yaml get kustomizations -A
 ```
 Expected: no `READY: False` rows on either cluster.
 
-- [ ] **Step 3: Delete any stale nextcloud package found in Task 5 Step 2**
+- [ ] **Step 3: Delete the stale nextcloud package — only the exact target from Task 5 Step 2**
 
-Only if Task 5 found a leftover `pedrotchang/nextcloud` (or `seyza/nextcloud`) container package, and after confirming nothing pulls it (the HelmRelease uses upstream `nextcloud:stable`):
+Skip entirely if Task 5 Step 2 recorded "none". Otherwise, this is a destructive `DELETE` — run it only against the exact `{owner, name, version}` that audit printed, and only after confirming nothing consumes the image:
+
 ```bash
-# list versions, then delete each:
-curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/pedrotchang?type=container&q=nextcloud" | jq '.[] | {name, version}'
-curl -fsS -X DELETE -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/pedrotchang/container/nextcloud/<version>"
+# 1. Confirm no manifest references the image (HelmRelease uses upstream nextcloud:stable, so expect no hits):
+grep -rIn "forgejo.seyzahl.com/.*/nextcloud" apps/ infrastructure/ --include=*.yaml || echo "no consumers — safe to delete"
+
+# 2. Delete each version recorded in Task 5 Step 2 (substitute the audited values; do NOT guess):
+#    curl -fsS -X DELETE -H "Authorization: token $ADMIN" \
+#      "$FORGEJO/api/v1/packages/<owner>/container/<name>/<version>"
+
+# 3. Re-list to confirm removal:
+curl -fsS -H "Authorization: token $ADMIN" "$FORGEJO/api/v1/packages/pedrotchang?type=container" | jq '.[] | select(.name=="nextcloud")'
 ```
-Expected: package removed (verify with a re-list returning empty). Skip entirely if no stale package exists.
+Expected: step 1 prints "no consumers"; the re-list returns empty for `nextcloud`. If step 1 finds a consumer, **do not delete** — that means something was wired to the image; reconcile that first.
 
 - [ ] **Step 4: Final ref sweep**
 

@@ -8,7 +8,9 @@
 
 Move the infrastructure git repositories out of the user namespace
 `pedrotchang/` and into a new Forgejo organization `platform-infrastructure/`,
-without ever leaving the GitOps source dead. Personal repos stay under
+without an update outage. (Flux serves the last-fetched artifact if a source
+becomes unreachable, so the failure floor is paused updates, not downtime; the
+redirect keeps updates flowing through cutover.) Personal repos stay under
 `pedrotchang/`.
 
 ## Decisions (user, 2026-06-14)
@@ -82,11 +84,19 @@ re-grant. The only non-API steps are the `docker push` of the nextcloud image
 ## Approach A — transfer + redirect strangler
 
 Forgejo writes an old→new path redirect on repo transfer, honored by both SSH
-and HTTP git operations. Deploy keys, webhooks and push-mirror settings are
-repo-attached and survive transfer. Therefore Flux keeps pulling through the
-redirect during the whole cutover — the GitOps source is never dead. Each
-cluster is moved off the redirect onto the org URL only when its own
-`gotk-sync.yaml` is flipped, as a committed edit.
+and HTTP git operations (the instance already 307-redirects the legacy `seyza`
+username, evidence it honors redirects — but rename and transfer are distinct
+ops, so the plan verifies it). Deploy keys, webhooks and push-mirror settings
+are repo-attached and survive transfer. So Flux keeps pulling through the
+redirect during cutover; if the redirect were to fail, Flux still serves its
+last-fetched artifact (paused updates, not an outage). Each cluster is moved off
+the redirect onto the org URL only when its own `gotk-sync.yaml` is flipped, as
+a committed edit.
+
+One push path the redirect-fetch verification does not cover: the
+`ImageUpdateAutomation` pushes policy commits over in-cluster HTTP, so it is
+suspended from before the transfer until after its push URL is flipped (see
+plan), rather than relying on push-through-redirect.
 
 Forgejo runs as a workload **on tachtit** (bootstrap-deadlock risk), so the
 lower-risk **data** cluster is flipped first and soaked before tachtit.
