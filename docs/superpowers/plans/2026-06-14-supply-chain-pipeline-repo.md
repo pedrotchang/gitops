@@ -12,8 +12,9 @@
 
 ## Prerequisites (verify before Task 1)
 
-- [ ] Forgejo org `platform-infrastructure` exists: `curl -s -H "Authorization: token $FORGEJO_TOKEN" https://forgejo.seyzahl.com/api/v1/orgs/platform-infrastructure | jq .username` → returns `platform-infrastructure`. If 404, create it or pick the correct org name.
-- [ ] `forgej-api-token` (KV) can create repos in the org (has `write:organization`).
+- [ ] Forgejo org `platform-infrastructure` exists (created 2026-06-14 in the org-migration; should already return): `curl -s -H "Authorization: token $FORGEJO_TOKEN" https://forgejo.seyzahl.com/api/v1/orgs/platform-infrastructure | jq .username` → `platform-infrastructure`.
+- [ ] `forgej-api-token` (KV) can create repos in the org (has `write:organization`; pedrotchang is an org owner).
+- [ ] **Token scope caveat:** `forgej-api-token` **lacks `read:package`/`write:package`**. Do NOT use it against `/api/v1/packages/...` — those calls 403. Verify published artifacts with `docker manifest inspect` (registry creds), and delete packages via the Forgejo UI. The registry push/pull uses `forgejo-registry-token` (package scope), provisioned in Task 2.
 - [ ] Mirrored scanner images exist and note their exact refs (used in Task 2 variables): `trivy`, `grype`, `scorecard`, `hipcheck` under `forgejo.seyzahl.com/platform-infrastructure/`.
 - [ ] forgejo-runner online with `ubuntu-latest` label and dind sidecar (per plan verified foundations).
 
@@ -235,11 +236,12 @@ Expected: `204`. Then watch the run in the Forgejo UI Actions tab.
 
 - [ ] **Step 4: Verify the artifact landed**
 
+`forgej-api-token` lacks `read:package`, so verify via the registry directly (uses registry creds, not the package API):
 ```bash
-curl -s -H "Authorization: token $FORGEJO_TOKEN" \
-  "$API/packages/platform-infrastructure?type=container&q=busybox" | jq '.[].name'
+echo "$REG_TOKEN" | docker login forgejo.seyzahl.com -u "$REGISTRY_USER_VALUE" --password-stdin
+docker manifest inspect forgejo.seyzahl.com/platform-infrastructure/busybox:1.37 | jq '.config.digest // .manifests[0].digest'
 ```
-Expected: run succeeds; `busybox` package version `1.37` present at `forgejo.seyzahl.com/platform-infrastructure/busybox:1.37`.
+Expected: run succeeds and `docker manifest inspect` returns a digest — `busybox:1.37` is present at `forgejo.seyzahl.com/platform-infrastructure/busybox:1.37`. (Browse owner → Packages in the UI as a cross-check.)
 
 ---
 
