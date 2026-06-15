@@ -246,10 +246,15 @@ Azure backups stopped on 2026-06-11. The stale container and the ExternalSecret 
 
 ## 6. Disaster recovery: GitOps source (Forgejo runs ON tachtit)
 
-Both clusters' Flux pull from `ssh://git@git.seyzahl.com:2222/pedrotchang/gitops-platform` (and tachtit
-also `.../homelab-private`). Forgejo itself is a tachtit workload — if tachtit dies, the GitOps
-source dies with it. Every push is auto-mirrored to GitHub (`sync_on_commit` push-mirrors), so
-GitHub is an always-current cold copy for exactly this scenario.
+Both clusters' Flux pull from `ssh://git@git.seyzahl.com:2222/platform-infrastructure/gitops-platform`
+(and tachtit also `.../platform-infrastructure/homelab-private`). Forgejo itself is a tachtit workload —
+if tachtit dies, the GitOps source dies with it. Every push is auto-mirrored to GitHub
+(`sync_on_commit` push-mirrors), so GitHub is an always-current cold copy for exactly this scenario.
+
+> Note: Forgejo does **not** redirect the old `pedrotchang/<repo>` paths over SSH after the
+> org transfer (only username *renames* 307-redirect). To repoint Flux, edit the source URL and
+> `kubectl patch gitrepository ... --type=merge -p '{"spec":{"url":"<new>"}}'` to break the
+> fetch deadlock (the dead source can't pull the commit that fixes itself).
 
 **Tachtit total loss → rebuild procedure:**
 

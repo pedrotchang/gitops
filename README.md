@@ -2,7 +2,7 @@
 
 <https://www.pedrotchang.dev/>
 
-> **Canonical home:** [forgejo.seyzahl.com/pedrotchang/gitops-platform](https://forgejo.seyzahl.com/pedrotchang/gitops-platform) (self-hosted, VPN-gated).
+> **Canonical home:** [forgejo.seyzahl.com/platform-infrastructure/gitops-platform](https://forgejo.seyzahl.com/platform-infrastructure/gitops-platform) (self-hosted, VPN-gated).
 > The GitHub copy is an automated read-only mirror for disaster recovery — do not push or open PRs there.
 
 ## Introduction

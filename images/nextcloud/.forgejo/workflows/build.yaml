@@ -34,7 +34,7 @@ jobs:
           context: .
           push: true
           tags: |
-            forgejo.seyzahl.com/seyza/nextcloud:stable
-            forgejo.seyzahl.com/seyza/nextcloud:${{ github.sha }}
-          cache-from: type=registry,ref=forgejo.seyzahl.com/seyza/nextcloud:buildcache
-          cache-to: type=registry,ref=forgejo.seyzahl.com/seyza/nextcloud:buildcache,mode=max
+            forgejo.seyzahl.com/platform-infrastructure/nextcloud:stable
+            forgejo.seyzahl.com/platform-infrastructure/nextcloud:${{ github.sha }}
+          cache-from: type=registry,ref=forgejo.seyzahl.com/platform-infrastructure/nextcloud:buildcache
+          cache-to: type=registry,ref=forgejo.seyzahl.com/platform-infrastructure/nextcloud:buildcache,mode=max
