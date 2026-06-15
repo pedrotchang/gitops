@@ -11,7 +11,7 @@ spec:
     branch: main
   secretRef:
     name: flux-system
-  url: ssh://git@git.seyzahl.com:2222/pedrotchang/gitops-platform
+  url: ssh://git@git.seyzahl.com:2222/platform-infrastructure/gitops-platform
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
