@@ -33,7 +33,7 @@ grafana:
     date_formats:
       default_week_start: sunday
     server:
-      root_url: https://grafana.seyzahl.com
+      root_url: https://grafana-pedrotchang.workload.na-west-1.omni.siderolabs.io
     auth.generic_oauth:
       enabled: true
       name: Authentik
@@ -80,3 +80,4 @@ grafana:
     annotations:
       omni-kube-service-exposer.sidero.dev/port: "50082"
       omni-kube-service-exposer.sidero.dev/label: Grafana
+      omni-kube-service-exposer.sidero.dev/prefix: grafana
