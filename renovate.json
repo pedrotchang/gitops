@@ -71,6 +71,14 @@
       ]
     },
     {
+      "description": "Group all Flux pieces into one PR: the flux2 distribution version (flux manager updates the gotk-components version comment) and the six controller images (kubernetes manager bumps them in gotk-components). They are complementary, not redundant - grouping keeps them coordinated instead of 7 overlapping PRs.",
+      "groupName": "flux",
+      "matchPackageNames": [
+        "fluxcd/flux2",
+        "/^ghcr.io/fluxcd//"
+      ]
+    },
+    {
       "description": "forgejo-runner: pin to the Forgejo registry; Renovate inferred an extra registry and failed the docker token lookup",
       "matchDatasources": [
         "docker"
