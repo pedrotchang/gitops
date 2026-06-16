@@ -31,9 +31,35 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: ghcr.io/goauthentik/server:2026.5.3
+          command:
+            - /bin/bash
+            - -c
+            - |
+              export PROMETHEUS_MULTIPROC_DIR="${PROMETHEUS_MULTIPROC_DIR:-/tmp/authentik_prometheus_tmp}"
+              mkdir -p "${PROMETHEUS_MULTIPROC_DIR}"
+              python -m lifecycle.migrate
+          envFrom:
+            - secretRef:
+                name: authentik-env
+          env:
+            - name: AUTHENTIK_POSTGRESQL__HOST
+              value: authentik-pg.seyzahl.com
+            - name: AUTHENTIK_POSTGRESQL__NAME
+              value: authentik
+            - name: AUTHENTIK_LOG_LEVEL
+              value: info
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
       containers:
         - name: authentik-worker
-          image: ghcr.io/goauthentik/server:2025.10.3
+          image: ghcr.io/goauthentik/server:2026.5.3
           args:
             - worker
           envFrom:
