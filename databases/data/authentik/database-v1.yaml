@@ -44,5 +44,15 @@ spec:
 
   managed:
     services:
-      ## no LoadBalancer yet — added at repoint so v0 stays the live DB until v1 is verified
       disabledDefaultServices: ["ro", "r"]
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: "authentik-db-lb"
+              labels:
+                cilium-lb-pool: postgres-pool
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: authentik-pg.seyzahl.com
+            spec:
+              type: LoadBalancer

@@ -36,16 +36,5 @@ spec:
 
   managed:
     services:
-      ## disable the default services
+      ## LB moved to v1 during the restore cutover
       disabledDefaultServices: ["ro", "r"]
-      additional:
-        - selectorType: rw
-          serviceTemplate:
-            metadata:
-              name: "authentik-db-lb"
-              labels:
-                cilium-lb-pool: postgres-pool
-              annotations:
-                external-dns.alpha.kubernetes.io/hostname: authentik-pg.seyzahl.com
-            spec:
-              type: LoadBalancer
