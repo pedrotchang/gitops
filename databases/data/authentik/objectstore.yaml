@@ -1,0 +1,21 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: authentik-aws-store
+  namespace: authentik
+spec:
+  retentionPolicy: "7d"
+  configuration:
+    destinationPath: s3://seyzahl-cnpg-backups/authentik
+    endpointURL: https://s3.us-west-1.amazonaws.com
+    s3Credentials:
+      accessKeyId:
+        name: aws-backup-creds
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: aws-backup-creds
+        key: SECRET_ACCESS_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip

@@ -15,6 +15,12 @@ spec:
   monitoring:
     enablePodMonitor: true
 
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: authentik-aws-store
+
   bootstrap:
     initdb:
       database: authentik
