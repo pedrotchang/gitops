@@ -1,0 +1,48 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: authentik-db-tachtit-cnpg-v1
+spec:
+  description: Restored authentik DB — PITR recovery from v0 S3 object store to just before the 2026 migration damage (2026-06-16T17:20:00Z)
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  instances: 3
+
+  inheritedMetadata:
+    labels:
+      app: authentik-database
+      policy-type: "database"
+
+  monitoring:
+    enablePodMonitor: true
+
+  bootstrap:
+    recovery:
+      source: authentik-db-v0
+      recoveryTarget:
+        targetTime: "2026-06-16T17:20:00Z"
+
+  externalClusters:
+    - name: authentik-db-v0
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: authentik-aws-store
+          serverName: authentik-db-tachtit-cnpg-v0
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: authentik-aws-store
+        serverName: authentik-db-tachtit-cnpg-v1
+
+  resources:
+    requests:
+      memory: 256Mi
+  storage:
+    size: 2Gi
+
+  managed:
+    services:
+      ## no LoadBalancer yet — added at repoint so v0 stays the live DB until v1 is verified
+      disabledDefaultServices: ["ro", "r"]

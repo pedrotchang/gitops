@@ -4,6 +4,7 @@ namespace: authentik
 resources:
   - namespace.yaml
   - database.yaml
+  - database-v1.yaml
   - objectstore.yaml
   - scheduled-backups.yaml
   - secrets.yaml
