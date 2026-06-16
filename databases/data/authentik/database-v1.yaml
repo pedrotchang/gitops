@@ -54,6 +54,6 @@ spec:
                 cilium-lb-pool: postgres-pool
               annotations:
                 external-dns.alpha.kubernetes.io/hostname: authentik-pg.seyzahl.com
-                lbipam.cilium.io/ips: "192.168.4.162"
+                lbipam.cilium.io/ips: "192.168.4.164"
             spec:
               type: LoadBalancer
