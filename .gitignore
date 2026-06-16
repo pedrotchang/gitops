@@ -1,4 +1,3 @@
-homelab-private/
 *-kubeconfig.yaml
 *-talosconfig.yaml
 omniconfig.yaml
