@@ -31,7 +31,7 @@ spec:
 
       containers:
         - name: commafeed
-          image: athou/commafeed:6.2.0-postgresql
+          image: athou/commafeed:7.1.0-postgresql
 
           securityContext:
             allowPrivilegeEscalation: false
