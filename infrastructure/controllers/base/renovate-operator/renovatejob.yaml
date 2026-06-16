@@ -12,6 +12,7 @@ spec:
     endpoint: http://forgejo.forgejo.svc.cluster.local:3000/api/v1
   discoveryFilters:
     - "platform-infrastructure/gitops-platform"
+    - "platform-infrastructure/custom-images"
   extraEnvFrom:
     - secretRef:
         name: renovate-env
