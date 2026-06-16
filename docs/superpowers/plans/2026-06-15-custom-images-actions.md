@@ -14,18 +14,15 @@
 
 ## Prerequisites (verify before Task 1)
 
-- [ ] Org-level Actions secret `REGISTRY_TOKEN` and variable `REGISTRY_USER` exist on the `platform-infrastructure` org (user added 2026-06-15). Confirm in Forgejo UI → Organization → Settings → Actions → Secrets / Variables.
-- [ ] `REGISTRY_TOKEN` truly has `write:package` on the org namespace. Smoke-test (uses the package-scoped registry token from KV, **not** `forgej-api-token` which lacks package scope):
+- [x] Org-level Actions **secrets** `REGISTRY_TOKEN` and `REGISTRY_USER` exist on the `platform-infrastructure` org (confirmed 2026-06-15 via `GET /orgs/platform-infrastructure/actions/secrets`; both are secrets — the variables endpoint is empty `[]`).
+- [x] Registry credentials valid — `docker login forgejo.seyzahl.com` with KV `forgejo-registry-username` (`pedrotchang`) / `forgejo-registry-token` returned `Login Succeeded`; the registry v2 API answers (`GET /v2/_catalog` → HTTP 200). KV secret names confirmed: `forgejo-registry-username` / `forgejo-registry-token` (these are the package-scoped creds — **not** `forgej-api-token`, which lacks package scope).
+- [ ] **`REGISTRY_TOKEN` `write:package` is proven by the first runner build in Task 3, not by a local probe.** This machine has no running docker daemon and no `skopeo`/`crane`, so a standalone push can't be staged here. If Task 3's build job fails at the push step with a 403, the token lacks `write:package` on the org namespace — re-mint it (Forgejo UI → user Settings → Applications → Generate Token → `write:package`) and update the org `REGISTRY_TOKEN` secret, then re-run. All published-image verification below uses the curl v2 API (daemon-independent):
 
 ```bash
-REG_TOKEN=$(az keyvault secret show --vault-name seyzahl --name forgejo-registry-token --query value -o tsv)
-REG_USER=$(az keyvault secret show --vault-name seyzahl --name forgejo-registry-user --query value -o tsv 2>/dev/null || echo "<REGISTRY_USER value from org var>")
-echo "$REG_TOKEN" | docker login forgejo.seyzahl.com -u "$REG_USER" --password-stdin
-docker pull docker.io/library/busybox:1.37
-docker tag docker.io/library/busybox:1.37 forgejo.seyzahl.com/platform-infrastructure/_smoketest:probe
-docker push forgejo.seyzahl.com/platform-infrastructure/_smoketest:probe
+# reusable verify helper (used in Task 3)
+export REG_TOKEN=$(az keyvault secret show --vault-name seyzahl --name forgejo-registry-token --query value -o tsv)
+export REG_USER=$(az keyvault secret show --vault-name seyzahl --name forgejo-registry-username --query value -o tsv)
 ```
-Expected: `docker login` succeeds and `docker push` returns a digest. If push 403s, the token lacks `write:package` on the namespace — re-mint before continuing. Delete the `_smoketest` package in the Forgejo UI afterward.
 
 - [ ] Token shell setup for repo creation (used in Task 1 and Task 2):
 
@@ -104,10 +101,13 @@ on:
       REGISTRY_TOKEN:
         description: Forgejo PAT with write:package on the platform-infrastructure namespace
         required: true
+      REGISTRY_USER:
+        description: Forgejo user the push authenticates as
+        required: true
 
 jobs:
   build:
-    runs-on: docker
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
@@ -121,7 +121,7 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
         with:
           registry: forgejo.seyzahl.com
-          username: ${{ vars.REGISTRY_USER }}
+          username: ${{ secrets.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build and push
@@ -132,11 +132,10 @@ jobs:
           tags: |
             forgejo.seyzahl.com/platform-infrastructure/${{ inputs.image }}:${{ inputs.tag }}
             forgejo.seyzahl.com/platform-infrastructure/${{ inputs.image }}:${{ github.sha }}
-          cache-from: type=registry,ref=forgejo.seyzahl.com/platform-infrastructure/${{ inputs.image }}:buildcache
-          cache-to: type=registry,ref=forgejo.seyzahl.com/platform-infrastructure/${{ inputs.image }}:buildcache,mode=max
 ```
+**No `cache-from`/`cache-to`** — the original spec called for registry buildcache, but the Forgejo container registry rejects buildkit cache export: the image builds and pushes fine, then `cache-to type=registry,mode=max` fails with `error writing layer blob: unknown`, marking the whole run red (verified on run #4, 2026-06-15). Registry buildcache is dropped; the image still builds + publishes. If build time becomes a concern later, revisit `cache-to type=inline` (mode=min, embeds cache in the image manifest — Forgejo-compatible) rather than a separate `:buildcache` tag.
 
-The four action SHAs are copied verbatim from the (now-dormant) gitops-platform `images/nextcloud/.forgejo/workflows/build.yaml`, which is the existing repo convention. `${{ vars.REGISTRY_USER }}` replaces the old `${{ github.actor }}`, and `${{ secrets.REGISTRY_TOKEN }}` replaces the old `${{ secrets.FORGEJO_TOKEN }}` — names match the supply-chain spec so the later swap to `scan-and-publish` needs no secret changes.
+The four action SHAs are copied verbatim from the (now-dormant) gitops-platform `images/nextcloud/.forgejo/workflows/build.yaml`, which is the existing repo convention. **`runs-on: ubuntu-latest`, NOT `docker`** — the dormant workflow used `docker`, but that label was never validated (it never ran). The registered forgejo-runner advertises `ubuntu-latest` (matching the working supply-chain workflow). Using `docker` makes the callee `build` job unschedulable: the run flashes "running" during caller orchestration, then fails with no step logs (the callee task is never created → `job_id N resource does not exist`). Discovered 2026-06-15 on the first build (run #1). `${{ secrets.REGISTRY_USER }}` replaces the old `${{ github.actor }}`, and `${{ secrets.REGISTRY_TOKEN }}` replaces the old `${{ secrets.FORGEJO_TOKEN }}` — names match the supply-chain spec so the later swap to `scan-and-publish` needs no secret changes. **Both are org-level Actions _secrets_** (confirmed 2026-06-15: `REGISTRY_USER` was added as a secret, not a variable), so both are declared in `workflow_call.secrets` and flow from the caller via `secrets: inherit`.
 
 - [ ] **Step 5: Write `README.md`** (input contract + usage)
 
@@ -163,12 +162,7 @@ Reusable Forgejo Actions workflows (generic CI primitives) for the `platform-inf
 | secret | required | description |
 |--------|----------|-------------|
 | `REGISTRY_TOKEN` | yes | Forgejo PAT with `write:package` on the `platform-infrastructure` namespace. Pass via `secrets: inherit`. |
-
-### Variables
-
-| var | description |
-|-----|-------------|
-| `REGISTRY_USER` | Forgejo user the push authenticates as (org-level Actions variable). |
+| `REGISTRY_USER` | yes | Forgejo user the push authenticates as. Org-level Actions secret; pass via `secrets: inherit`. |
 
 ### Usage
 
@@ -253,9 +247,9 @@ RUN apt-get update && \
 
 RUN curl -fsSL \
     "https://github.com/nextcloud/user_oidc/releases/download/v${USER_OIDC_VERSION}/user_oidc.tar.gz" \
-    | tar -xz -C /var/www/html/custom_apps/
+    | tar -xz -C /usr/src/nextcloud/custom_apps/
 ```
-This is byte-for-byte the current gitops-platform `images/nextcloud/Dockerfile` (verify with the diff in Task 4, Step 1).
+**NOT byte-for-byte verbatim** — the original gitops-platform Dockerfile extracted to `/var/www/html/custom_apps/`, which is broken: in the nextcloud image `/var/www/html` is an empty runtime volume at build time (the dir doesn't exist → build fails `tar: Cannot open: No such file or directory`), and the entrypoint repopulates `/var/www/html` from `/usr/src/nextcloud` on container start (so build-time writes there would be lost anyway). Custom apps must go in `/usr/src/nextcloud/custom_apps/` (which exists in the image). The original never built — its nested workflow never ran — so this latent bug only surfaced on the first real build (run #1–#3, 2026-06-15). Verified the fixed path on the actual image before committing.
 
 - [ ] **Step 5: Write the thin caller workflow**
 
@@ -341,22 +335,29 @@ The Task 2 push should have triggered it. If no run appears, dispatch manually i
 Forgejo UI → `platform-infrastructure/custom-images` → Actions tab → open the latest `nextcloud` run. Confirm the runner picks it up (`runs-on: docker`) and the `uses:` line resolves the `actions` repo cross-repo.
 Expected: a single `build` job runs all steps green (Checkout → Buildx → Login → Build and push).
 
-- [ ] **Step 3: Verify the published image exists and pulls**
+- [ ] **Step 3: Verify the published tags exist (registry v2 API, no local docker needed)**
 
 ```bash
-echo "$REG_TOKEN" | docker login forgejo.seyzahl.com -u "$REG_USER" --password-stdin
-docker pull forgejo.seyzahl.com/platform-infrastructure/nextcloud:stable
-docker manifest inspect forgejo.seyzahl.com/platform-infrastructure/nextcloud:stable | jq '.config.digest'
+# REG_TOKEN/REG_USER exported in Prerequisites
+curl -s -u "$REG_USER:$REG_TOKEN" \
+  "https://forgejo.seyzahl.com/v2/platform-infrastructure/nextcloud/tags/list" | jq .
 ```
-Expected: pull succeeds; manifest digest prints. (`REG_TOKEN`/`REG_USER` are from the Prerequisites smoke-test.)
+Expected: `{"name":"platform-infrastructure/nextcloud","tags":["stable","<sha>", ...]}` — both `stable` and the commit SHA present.
 
-- [ ] **Step 4: Verify the `:<sha>` tag also landed**
+- [ ] **Step 4: Verify `:stable` and `:<sha>` resolve to the same digest (same build, two tags)**
 
 ```bash
 SHA=$(git -C /tmp/custom-images rev-parse HEAD)
-docker manifest inspect "forgejo.seyzahl.com/platform-infrastructure/nextcloud:${SHA}" | jq '.config.digest'
+ACCEPT='Accept: application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.docker.distribution.manifest.list.v2+json'
+D_STABLE=$(curl -sI -u "$REG_USER:$REG_TOKEN" -H "$ACCEPT" \
+  "https://forgejo.seyzahl.com/v2/platform-infrastructure/nextcloud/manifests/stable" \
+  | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}')
+D_SHA=$(curl -sI -u "$REG_USER:$REG_TOKEN" -H "$ACCEPT" \
+  "https://forgejo.seyzahl.com/v2/platform-infrastructure/nextcloud/manifests/${SHA}" \
+  | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}')
+echo "stable=$D_STABLE  sha=$D_SHA"; [ -n "$D_STABLE" ] && [ "$D_STABLE" = "$D_SHA" ] && echo MATCH || echo "MISMATCH/empty"
 ```
-Expected: digest prints and matches the `:stable` digest from Step 3 (same build, two tags).
+Expected: `MATCH` — non-empty digests, identical for both tags.
 
 **CHECKPOINT — stop and report before Task 4.** Task 3 proves the mechanism the whole spec rests on. If green, proceed to cleanup. If the cross-repo `uses:` fails to resolve or `secrets: inherit` does not pass `REGISTRY_TOKEN`, **stop** and apply the Contingency rather than deleting the working gitops-platform build.
 
@@ -376,12 +377,12 @@ The nested workflow never executed (Forgejo ignores non-root workflow dirs), so 
 **Files (this repo, `gitops-platform`):**
 - Delete: `images/nextcloud/Dockerfile`, `images/nextcloud/.forgejo/workflows/build.yaml` (the whole `images/nextcloud/` tree)
 
-- [ ] **Step 1: Confirm the moved Dockerfile matches the original byte-for-byte**
+- [ ] **Step 1: Confirm the only difference from the original is the custom_apps path fix**
 
 ```bash
-diff images/nextcloud/Dockerfile /tmp/custom-images/nextcloud/Dockerfile && echo "IDENTICAL"
+diff images/nextcloud/Dockerfile /tmp/custom-images/nextcloud/Dockerfile
 ```
-Expected: `IDENTICAL` (no diff output). If they differ, fix Task 2 Step 4 before deleting.
+Expected: exactly one changed line — `/var/www/html/custom_apps/` (original, broken) → `/usr/src/nextcloud/custom_apps/` (fixed). No other differences. The original is being deleted regardless (it never built); this confirms nothing else was lost in the move.
 
 - [ ] **Step 2: Create a branch (repo is on `main`, which Flux reconciles)**
 
@@ -425,7 +426,7 @@ Expected: no Kustomization moves to a failed/not-ready state from this change.
 
 1. [ ] `actions` + `custom-images` repos exist in the org (public), pushed (Task 1 Step 1/6, Task 2 Step 1/7).
 2. [ ] A `nextcloud/**` change (or manual dispatch) triggers `custom-images/nextcloud.yml`; the runner picks it up; the reusable `uses:` resolves cross-repo; `secrets: inherit` passes `REGISTRY_TOKEN` (Task 3 Steps 1–2).
-3. [ ] Image lands at `forgejo.seyzahl.com/platform-infrastructure/nextcloud:stable` and `:<sha>`; `docker pull` succeeds (Task 3 Steps 3–4).
+3. [ ] Image lands at `forgejo.seyzahl.com/platform-infrastructure/nextcloud:stable` and `:<sha>`; registry v2 API lists both tags and they resolve to the same digest (Task 3 Steps 3–4).
 4. [ ] `images/nextcloud/` removed from gitops-platform; Flux still reconciles clean (Task 4 Steps 3, 6).
 
 ## Out of scope (deferred — documented in the spec, not built here)
