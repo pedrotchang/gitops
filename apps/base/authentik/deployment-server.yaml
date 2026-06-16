@@ -9,9 +9,12 @@ metadata:
     app.kubernetes.io/instance: authentik
     app.kubernetes.io/name: authentik-server
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: authentik-server

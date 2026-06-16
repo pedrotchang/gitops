@@ -6,6 +6,7 @@ resources:
   - deployment-server.yaml
   - deployment-worker.yaml
   - deployment-redis.yaml
+  - pdb.yaml
   - secrets.yaml
   - service.yaml
   - storage-nfs.yaml

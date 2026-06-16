@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: authentik-server
+  namespace: authentik
+  labels:
+    app: authentik-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: authentik
+    app.kubernetes.io/name: authentik-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: authentik-server
