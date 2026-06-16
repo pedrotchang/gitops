@@ -57,6 +57,17 @@
         "quay\\.io/kubevirt/cdi-[a-z]+:(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)",
         "name: OPERATOR_VERSION\\s+value:\\s*(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Track the pinned sig-storage driver/sidecar images in csi-driver-nfs values.yaml (repository:/tag: pairs) so Renovate bumps them alongside the chart instead of letting them skew.",
+      "managerFilePatterns": [
+        "/(^|/)infrastructure/controllers/base/csi-driver-nfs/values\\.yaml$/"
+      ],
+      "datasourceTemplate": "docker",
+      "matchStrings": [
+        "repository:\\s*(?<depName>\\S+)\\s+tag:\\s*(?<currentValue>\\S+)"
+      ]
     }
   ],
   "packageRules": [
@@ -89,6 +100,14 @@
       "matchPackageNames": [
         "fluxcd/flux2",
         "/^ghcr.io/fluxcd//"
+      ]
+    },
+    {
+      "description": "Keep the csi-driver-nfs chart (OCIRepository tag) and its pinned driver/sidecar images in ONE PR so a chart bump can never skew from the images again (the cause of the 4.13.2 controller crash).",
+      "groupName": "csi-driver-nfs",
+      "matchFileNames": [
+        "infrastructure/controllers/base/csi-driver-nfs/repository.yaml",
+        "infrastructure/controllers/base/csi-driver-nfs/values.yaml"
       ]
     },
     {
