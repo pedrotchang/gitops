@@ -24,3 +24,7 @@ ta/
 # Multi-Team Chat — local agent config (never commit)
 .pi/
 graphify-out/
+
+# Worktree workflow (local-only)
+.worktrees/
+PR.md
