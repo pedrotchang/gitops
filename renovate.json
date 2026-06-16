@@ -6,6 +6,7 @@
   "enabledManagers": [
     "flux",
     "kubernetes",
+    "helm-values",
     "custom.regex"
   ],
   "flux": {
@@ -23,6 +24,11 @@
       "/(^|/)apps/.+\\.ya?ml$/",
       "/(^|/)databases/.+\\.ya?ml$/",
       "/(^|/)monitoring/.+\\.ya?ml$/"
+    ]
+  },
+  "helm-values": {
+    "managerFilePatterns": [
+      "/(^|/)apps/base/nextcloud/release\\.yaml$/"
     ]
   },
   "customManagers": [
@@ -54,6 +60,13 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "First-party images from the Forgejo registry (custom-images builds) use moving tags like :stable - pin and track their digest so a rebuilt custom image opens a deploy PR.",
+      "matchPackageNames": [
+        "/^forgejo.seyzahl.com//"
+      ],
+      "pinDigests": true
+    },
     {
       "description": "Immich images - group server and ML together",
       "groupName": "immich",
