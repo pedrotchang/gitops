@@ -1,0 +1,196 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: qbittorrent.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "qBittorrent"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "qbittorrent.png"
+    gethomepage.dev/href: "http://qbittorrent.seyzahl.com"
+spec:
+  selector:
+    app: gluetun
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: webui
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-torrent
+  labels:
+    cilium-lb-pool: apps-pool
+spec:
+  selector:
+    app: gluetun
+  type: LoadBalancer
+  ports:
+    - port: 6881
+      targetPort: 6881
+      protocol: TCP
+      name: torrent-tcp
+    - port: 6881
+      targetPort: 6881
+      protocol: UDP
+      name: torrent-udp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: prowlarr.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Prowlarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "prowlarr.png"
+    gethomepage.dev/href: "http://prowlarr.seyzahl.com"
+spec:
+  selector:
+    app: gluetun
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 9696
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: sonarr.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Sonarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "sonarr.png"
+    gethomepage.dev/href: "http://sonarr.seyzahl.com"
+spec:
+  selector:
+    app: sonarr
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8989
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: radarr.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Radarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "radarr.png"
+    gethomepage.dev/href: "http://radarr.seyzahl.com"
+spec:
+  selector:
+    app: radarr
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 7878
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: bazarr.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Bazarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "bazarr.png"
+    gethomepage.dev/href: "http://bazarr.seyzahl.com"
+spec:
+  selector:
+    app: bazarr
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 6767
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kapowarr
+  labels:
+    cilium-lb-pool: apps-pool
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: kapowarr.seyzahl.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Kapowarr"
+    gethomepage.dev/group: "Read"
+    gethomepage.dev/icon: "kapowarr.png"
+    gethomepage.dev/href: "http://kapowarr.seyzahl.com"
+spec:
+  selector:
+    app: kapowarr
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 5656
+      protocol: TCP
+---
+# Internal ClusterIP services for inter-app communication on native ports
+# (LoadBalancer services above only expose port 80)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr-internal
+  namespace: gluetun
+spec:
+  selector:
+    app: sonarr
+  ports:
+    - port: 8989
+      targetPort: 8989
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr-internal
+  namespace: gluetun
+spec:
+  selector:
+    app: radarr
+  ports:
+    - port: 7878
+      targetPort: 7878
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr-internal
+  namespace: gluetun
+spec:
+  selector:
+    app: bazarr
+  ports:
+    - port: 6767
+      targetPort: 6767

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: suwayomi
+  labels:
+    app: suwayomi
+    app.kubernetes.io/name: suwayomi
+    app.kubernetes.io/instance: suwayomi
+    app.kubernetes.io/component: web
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Suwayomi"
+    gethomepage.dev/group: "Read"
+    gethomepage.dev/icon: "suwayomi.png"
+    gethomepage.dev/href: "https://suwayomi.seyzahl.com/library"
+spec:
+  selector:
+    app: suwayomi
+  type: ClusterIP
+  ports:
+    - port: 4567
+      targetPort: 4567
+      protocol: TCP

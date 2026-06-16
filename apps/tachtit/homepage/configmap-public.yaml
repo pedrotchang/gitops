@@ -1,0 +1,392 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage
+  namespace: default
+  labels:
+    app.kubernetes.io/name: homepage
+data:
+  kubernetes.yaml: |
+    mode: default
+  settings.yaml: |
+    title: Seyza
+    theme: dark
+    color: slate
+    target: _blank
+    cardBlur: xl
+    language: en
+    hideVersion: true
+    disableCollapse: true
+    useEqualHeights: true
+    headerStyle: boxed
+    showStats: true
+    hideErrors: true
+    fullWidth: true
+    fadeIn: true
+    base: https://hp.seyzahl.com
+    favicon: /icons/amp.webp
+    backgroundOpacity: 0.40
+    backgroundBrightness: 50
+    background: https://raw.githubusercontent.com/pedrotchang/homelab/main/apps/base/homepage/assets/background.png
+    links:
+      - name: Google Fonts (Preconnect)
+        href: https://fonts.gstatic.com
+        rel: preconnect
+
+      - name: Google Fonts
+        href:: https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap
+        rel: stylesheet
+
+    layout:
+      - Professional:
+          header: false
+          style: row
+          columns: 4
+      - Admin:
+          header: false
+          style: row
+          columns: 5
+      - Space:
+          header: true
+          style: row
+          columns: 4
+      - Media:
+          header: true
+          style: row
+          columns: 5
+      - Developer:
+          header: true
+          style: row
+          columns: 5
+      - Read:
+          header: true
+          style: row
+          columns: 4
+      - Learn:
+          header: false
+          style: row
+          columns: 3
+
+
+  custom.css: |
+    /* ================================
+       custom.css - Modular & Final ⚡
+       ================================ */
+
+    /* ===== ROOT & VARIABLES ===== */
+    :root {
+      /* cores */
+      --bg-main: #1d2434c2;
+      --bg-card: #162232;
+      --bg-card-light: #1f1f2354;
+      --text-header: #fdb833;
+      --text-emerald: #b4e3f9;
+      --text-thin: #9dedf6;
+      --text-accent: #6dc3ea;
+
+      /* espaçamentos */
+      --spacing-sm: calc(var(--spacing) * 0.5);
+      --spacing-md: calc(var(--spacing) * 1);
+      --spacing-lg: calc(var(--spacing) * 1.5);
+
+      /* ícones */
+      --icon-clock: url("/icons/relogio.svg");
+    }
+
+    /* ===== THEME OVERRIDES ===== */
+    :root[data-theme="dark"][data-color="zinc"] {
+      --bg-card: #162232 !important;
+    }
+
+    /* ===== TEXT UTILITIES ===== */
+    .text-emerald-500\/80 {
+      color: color-mix(in oklab, var(--color-emerald-500) 80%, transparent);
+      font-size: 0.67rem;
+      text-transform: none;
+    }
+
+    .text-theme-500 {
+      font-size: 0.9em;
+      font-weight: 400;
+      padding-top: 1px;
+    }
+
+    .text-theme-800 {
+      display: inline-flex;
+    }
+
+    span.secondary-text.text-theme-800 {
+      color: var(--text-accent);
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .text-colored {
+      font-family: "Roboto", sans-serif;
+      letter-spacing: -0.5px;
+    }
+
+    .text-rose-300\/70 {
+      color: color-mix(in oklab, rgb(255, 87, 108)70%, transparent);
+    }
+
+    .text-emerald-300\/70 {
+      color: color-mix(in oklab, var(--color-emerald-300)70%, transparent);
+    }
+
+    .pl-0\.5 {
+      padding-left: var(--spacing-sm);
+      color: var(--text-emerald);
+      font-weight: 500;
+    }
+
+    .font-thin {
+      font-weight: 500;
+      /* sobrescrevendo o thin de propósito */
+      color: var(--text-thin);
+    }
+
+    /* ===== BACKGROUND / CARDS ===== */
+    .dark\:bg-theme-900\/20:is(.dark *) {
+      background-color: color-mix(in oklab, rgb(var(--color-900)/1) 20%, #00000014);
+    }
+
+    :is(.dark .dark\:bg-white\/5) {
+      padding: 10px;
+      border-radius: 7px;
+      transition: transform 0.3s ease-in-out;
+    }
+
+    /* ===== SERVICE CARDS ===== */
+    #revalidate {
+      display: none;
+    }
+
+    .mr-auto-custom {
+      margin-right: auto;
+    }
+
+    .service-icon--large img {
+      margin-left: 2px;
+      width: 35px;
+      height: 35px;
+    }
+
+    .docker-status {
+      display: inline-flex;
+      background: #2525289c;
+      border-radius: 0 0 10px 10px;
+    }
+
+    /* ===== SHADOWS ===== */
+    .shadow-strong {
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ===== TITLES ===== */
+    .service-title-strong {
+      font-weight: bold;
+      font-size: 1.04rem;
+    }
+
+    /* ===== SPACING & LAYOUT ===== */
+    .py-1\.5 {
+      display: inline-flex;
+      margin-right: 6px;
+      padding-block: var(--spacing-lg);
+      padding-inline: var(--spacing-md);
+      border-radius: 5px;
+      background: var(--bg-card-light);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .pr-1 {
+      padding-right: var(--spacing-md);
+      color: #c8c4c4;
+      margin-left: 2px;
+    }
+
+    div.flex.flex-row.items-center.grow.justify-end {
+      background-color: var(--bg-main);
+      padding: 0 6px;
+      border-radius: 8px;
+      font-family: "JetBrains Mono", monospace;
+      line-height: 1.4;
+    }
+
+    /* ===== ICON CLOCK (reliable) ===== */
+    div.flex.flex-row.items-center.grow.justify-end::before {
+      content: "";
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 5px;
+      background-image: var(--icon-clock);
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+  custom.js: ""
+  bookmarks.yaml: ""
+
+  services.yaml: |
+
+    - Professional:
+      - N8N:
+            href: https://n8n.seyzahl.com/
+            icon: n8n.png
+      - AWS:
+            href: https://us-west-1.console.aws.amazon.com
+            icon: aws.png
+      - Azure:
+            href: https://portal.azure.com/#home
+            icon: azure.png
+      - Blog:
+            href: https://pedrotchang.dev
+            icon: ghost.png
+
+    - Admin:
+      - Truenas:
+            href: https://192.168.7.14
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/truenas-scale.png
+      - Authentik:
+            href: https://auth.seyzahl.com
+            icon: authentik.png
+      - Grafana:
+            href: https://grafana-pedrotchang.workload.na-west-1.omni.siderolabs.io
+            icon: grafana.png
+      - Unifi:
+            href: https://unifi.ui.com
+            icon: unifi.png
+      - Omni:
+            href: https://pedrotchang.omni.siderolabs.io/
+            icon: talos.png
+
+    - Space:
+      - Confluence:
+            href: https://confluence.trueanomaly.io
+            icon: confluence.png
+      - DevOps:
+            href: http://jira.trueanomaly.io/projects/DEVOPS/summary
+            icon: jira.png
+      - DevOps SVC:
+            href: http://jira.trueanomaly.io/projects/DEVOPSSVC/
+            icon: jira.png
+      - Glossary:
+            href: http://confluence.trueanomaly.io/display/TA/terms/all
+            icon: confluence.png
+      - Apps:
+            href: http://myapplications.azure.us
+            icon: application-gateways.png
+      - Claude-Gov:
+            href: http://claude.fedstart.com/new
+            icon: claude-ai.png
+      - Github:
+            href: http://github.trueanomaly.space/MCS
+            icon: github.png
+      - Azure:
+            href: http://portal.azure.us
+            icon: azure.png
+      - Artifactory:
+            href: http://artifactory.trueanomaly.space
+            icon: artifactory.png
+      - Chainguard:
+            href: http://console.chainguard.dev/org/trueanomaly
+            icon: chainguard.png
+      - Keeper:
+            href: https://govcloud.keepersecurity.us/vault/
+            icon: keeper-security.png
+      - Learn:
+            href: https://learn.trueanomaly.io
+            icon: bookstack.png
+
+    - Media:
+      - Immich:
+            href: https://immich.seyzahl.com
+            icon: immich.png
+      - Jellyfin:
+            href: http://jellyfin.seyzahl.com
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyfin.png
+      - JellySeerr:
+            href: http://jellyseerr.seyzahl.com
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyseerr.png
+      - Nextcloud:
+            href: https://nextcloud.seyzahl.com
+            icon: nextcloud.png
+      - qBittorrent:
+            href: http://qbittorrent.seyzahl.com
+            icon: qbittorrent.png
+      - Sonarr:
+            href: http://sonarr.seyzahl.com
+            icon: sonarr.png
+      - Radarr:
+            href: http://radarr.seyzahl.com
+            icon: radarr.png
+      - Prowlarr:
+            href: http://prowlarr.seyzahl.com
+            icon: prowlarr.png
+      - Bazarr:
+            href: http://bazarr.seyzahl.com
+            icon: bazarr.png
+      - Suwayomi:
+            href: https://suwayomi.seyzahl.com/library
+            icon: suwayomi.png
+
+    - Developer:
+      - Github:
+            href: https://github.com/pedrotchang
+            icon: github.png
+            description: GitHub
+      - Forgejo:
+            href: https://forgejo.seyzahl.com
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/forgejo.png
+      - CloudFlare:
+            href: https://cloudflare.com/
+            icon: cloudflare.png
+            description: CloudFlare
+      - Kubernetes:
+            href: https://kubernetes.io/docs/home/
+            icon: kubernetes.png
+            description: Kubernetes Docs
+      - Claude:
+            href: https://claude.ai/new
+            description: Claude
+            icon: claude-ai.png
+
+    - Read:
+      - Linkding:
+            href: https://linkding.seyzahl.com
+            icon: linkding.png
+      - Commafeed:
+            href: https://commafeed.seyzahl.com
+            icon: commafeed.png
+      - Kapowarr:
+            href: http://kapowarr.seyzahl.com
+            icon: kapowarr.png
+
+    - Learn:
+      - KubeCraft:
+            href: https://www.skool.com/kubecraft
+            icon: kubecraft.png
+      - Boot.dev:
+            href: https://www.boot.dev/tracks/backend
+      - Udemy:
+            href: https://www.udemy.com/
+
+
+
+  widgets.yaml: |
+
+    - search:
+        provider: google
+        target: _blank
+    # - openweathermap:
+    #     timezone: America/Los_Angeles
+    #     units: imperial
+    #     longitude: 34.059761
+    #     latitude: -118.276802
+    #     provider: openweathermap
+    #     apiKey: "{{HOMEPAGE_VAR_OPENWEATHER_API_KEY}}"
+    #     cache: 5 # Time in minutes to cache API responses, to stay within limits
+    #     format:
+    #       maximumFractionDigits: 1
+  docker.yaml: ""

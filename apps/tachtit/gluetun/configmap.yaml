@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-init
+  namespace: gluetun
+data:
+  99-configure-interface.sh: |
+    #!/usr/bin/with-contenv bash
+    # Configure qBittorrent to use tun0 interface for VPN binding
+
+    CONFIG_FILE="/config/qBittorrent/qBittorrent.conf"
+
+    echo "[qBittorrent Init] Waiting for qBittorrent config file..."
+
+    # Wait for config file to exist (max 60 seconds)
+    timeout=60
+    while [ ! -f "$CONFIG_FILE" ] && [ $timeout -gt 0 ]; do
+        sleep 1
+        ((timeout--))
+    done
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "[qBittorrent Init] Config file not found after waiting, skipping interface configuration"
+        exit 0
+    fi
+
+    echo "[qBittorrent Init] Config file found, configuring tun0 interface binding..."
+
+    # Check if Advanced section exists
+    if ! grep -q "^\[Advanced\]" "$CONFIG_FILE"; then
+        echo "" >> "$CONFIG_FILE"
+        echo "[Advanced]" >> "$CONFIG_FILE"
+        echo "[qBittorrent Init] Added [Advanced] section"
+    fi
+
+    # Add or update interface settings
+    if grep -q "Session\\\\Interface=" "$CONFIG_FILE"; then
+        # Update existing settings
+        sed -i 's|Session\\Interface=.*|Session\\Interface=tun0|g' "$CONFIG_FILE"
+        sed -i 's|Session\\InterfaceName=.*|Session\\InterfaceName=tun0|g' "$CONFIG_FILE"
+        sed -i 's|Session\\InterfaceAddress=.*|Session\\InterfaceAddress=10.5.0.2|g' "$CONFIG_FILE"
+        echo "[qBittorrent Init] Updated existing interface binding to tun0"
+    else
+        # Add new settings after [Advanced] section
+        sed -i '/^\[Advanced\]/a Session\\InterfaceAddress=10.5.0.2' "$CONFIG_FILE"
+        sed -i '/^\[Advanced\]/a Session\\InterfaceName=tun0' "$CONFIG_FILE"
+        sed -i '/^\[Advanced\]/a Session\\Interface=tun0' "$CONFIG_FILE"
+        echo "[qBittorrent Init] Added tun0 interface binding"
+    fi
+
+    # Also check BitTorrent section for listen address
+    if grep -q "^\[BitTorrent\]" "$CONFIG_FILE"; then
+        # Check if listen address is set
+        if ! grep -q "Session\\\\InterfaceAddress=" "$CONFIG_FILE"; then
+            sed -i '/^\[Advanced\]/a Session\\InterfaceAddress=10.5.0.2' "$CONFIG_FILE"
+        fi
+    fi
+
+    echo "[qBittorrent Init] Configuration complete - qBittorrent will announce VPN IP (10.5.0.2) to trackers"

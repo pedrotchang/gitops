@@ -1,0 +1,391 @@
+# VPN pod: gluetun + qbittorrent + prowlarr share the network namespace.
+# qBittorrent and Prowlarr must route through the VPN tunnel; all other
+# arr apps run as standalone Deployments below.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gluetun
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gluetun
+
+  template:
+    metadata:
+      labels:
+        app: gluetun
+        policy-type: "app"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+      containers:
+        # Gluetun VPN container - must start first
+        - name: gluetun
+          image: qmcgaw/gluetun:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: "nordvpn"
+            - name: VPN_TYPE
+              value: "wireguard"
+            - name: WIREGUARD_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gluetun-vpn-credentials
+                  key: WIREGUARD_PRIVATE_KEY
+            - name: WIREGUARD_ADDRESSES
+              value: "10.5.0.2/32"
+            - name: TZ
+              value: "America/Los_Angeles"
+            - name: SERVER_CITIES
+              value: "Los Angeles"
+            - name: SERVER_HOSTNAMES
+              value: "us5851.nordvpn.com,us8579.nordvpn.com,us9825.nordvpn.com,us6461.nordvpn.com,us9829.nordvpn.com,us9406.nordvpn.com,us5994.nordvpn.com,us9423.nordvpn.com"
+            - name: UPDATER_PERIOD
+              value: "24h"
+            - name: DNS_KEEP_NAMESERVER
+              value: "on"
+            - name: UPDATER_MIN_RATIO
+              value: "0.8"
+            - name: FIREWALL_INPUT_PORTS
+              value: "8080,6881,9696,8989,7878,6767,5656,9999"
+            # Health server must bind all interfaces so kubelet probes reach it
+            - name: HEALTH_SERVER_ADDRESS
+              value: ":9999"
+            # Allow direct (non-VPN) egress to cluster pod + service CIDRs so
+            # Prowlarr can sync to Sonarr/Radarr running in separate pods
+            - name: FIREWALL_OUTBOUND_SUBNETS
+              value: "10.244.0.0/16,10.96.0.0/12"
+          volumeMounts:
+            - name: gluetun-config
+              mountPath: /gluetun
+            - name: tun-device
+              mountPath: /dev/net/tun
+          ports:
+            - containerPort: 8080
+              name: qbit-webui
+            - containerPort: 6881
+              name: qbit-tcp
+              protocol: TCP
+            - containerPort: 6881
+              name: qbit-udp
+              protocol: UDP
+            - containerPort: 9696
+              name: prowlarr
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9999
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9999
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+        # qBittorrent
+        - name: qbittorrent
+          image: lscr.io/linuxserver/qbittorrent:latest
+          resources:
+            limits:
+              memory: 2Gi
+            requests:
+              memory: 512Mi
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+            - name: WEBUI_PORT
+              value: "8080"
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+            - name: qbittorrent-init
+              mountPath: /custom-cont-init.d/99-configure-interface.sh
+              subPath: 99-configure-interface.sh
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+
+        # Prowlarr
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+          volumeMounts:
+            - name: prowlarr-config
+              mountPath: /config
+
+      restartPolicy: Always
+
+      volumes:
+        - name: tun-device
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+        - name: gluetun-config
+          persistentVolumeClaim:
+            claimName: gluetun-config-pvc
+        - name: qbittorrent-config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config-pvc
+        - name: prowlarr-config
+          persistentVolumeClaim:
+            claimName: prowlarr-config-pvc
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: downloads-pvc
+        - name: qbittorrent-init
+          configMap:
+            name: qbittorrent-init
+            defaultMode: 0755
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sonarr
+
+  template:
+    metadata:
+      labels:
+        app: sonarr
+        policy-type: "app"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+      containers:
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+          volumeMounts:
+            - name: sonarr-config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+            - name: downloads
+              mountPath: /downloads
+
+      restartPolicy: Always
+
+      volumes:
+        - name: sonarr-config
+          persistentVolumeClaim:
+            claimName: sonarr-config-pvc
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: downloads-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: radarr
+
+  template:
+    metadata:
+      labels:
+        app: radarr
+        policy-type: "app"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+      containers:
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+          volumeMounts:
+            - name: radarr-config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+            - name: downloads
+              mountPath: /downloads
+
+      restartPolicy: Always
+
+      volumes:
+        - name: radarr-config
+          persistentVolumeClaim:
+            claimName: radarr-config-pvc
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: downloads-pvc
+---
+# Bazarr UI setup (apps are now separate pods, use service DNS not localhost):
+#   Settings → Sonarr: host=sonarr-internal.gluetun.svc.cluster.local port=8989
+#   Settings → Radarr: host=radarr-internal.gluetun.svc.cluster.local port=7878
+#   Settings → Providers: add Opensubtitles.com and/or Subdl (good anime coverage)
+#   For anime: language profile = English only
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bazarr
+
+  template:
+    metadata:
+      labels:
+        app: bazarr
+        policy-type: "app"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+      containers:
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+          volumeMounts:
+            - name: bazarr-config
+              mountPath: /config
+            - name: media
+              mountPath: /media
+
+      restartPolicy: Always
+
+      volumes:
+        - name: bazarr-config
+          persistentVolumeClaim:
+            claimName: bazarr-config-pvc
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kapowarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: kapowarr
+
+  template:
+    metadata:
+      labels:
+        app: kapowarr
+        policy-type: "app"
+
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+      containers:
+        - name: kapowarr
+          image: mrcas/kapowarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            - name: kapowarr-db
+              mountPath: /app/db
+            - name: kapowarr-temp-downloads
+              mountPath: /app/temp_downloads
+            - name: manga
+              mountPath: /manga
+            - name: comics
+              mountPath: /comics
+            - name: books
+              mountPath: /books
+
+      restartPolicy: Always
+
+      volumes:
+        - name: kapowarr-db
+          persistentVolumeClaim:
+            claimName: kapowarr-db-pvc
+        - name: kapowarr-temp-downloads
+          persistentVolumeClaim:
+            claimName: kapowarr-temp-downloads-pvc
+        - name: manga
+          persistentVolumeClaim:
+            claimName: manga-pvc
+        - name: comics
+          persistentVolumeClaim:
+            claimName: comics-pvc
+        - name: books
+          persistentVolumeClaim:
+            claimName: books-pvc

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: homepage
 resources:
   - ../../base/homepage
+  - configmap-public.yaml
   - httproute-local.yaml
   - httproute.yaml
   - authentik-outpost.yaml
