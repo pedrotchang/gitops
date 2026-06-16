@@ -11,4 +11,4 @@ spec:
   pluginConfiguration:
     name: barman-cloud.cloudnative-pg.io
   cluster:
-    name: authentik-db-tachtit-cnpg-v0
+    name: authentik-db-tachtit-cnpg-v1
