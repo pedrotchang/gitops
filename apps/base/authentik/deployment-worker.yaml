@@ -67,6 +67,9 @@ spec:
               mountPath: /media
             - name: templates
               mountPath: /templates
+            - name: blueprints
+              mountPath: /blueprints/custom
+              readOnly: true
       restartPolicy: Always
       volumes:
         - name: media
@@ -75,3 +78,6 @@ spec:
         - name: templates
           persistentVolumeClaim:
             claimName: authentik-templates-pvc-nfs
+        - name: blueprints
+          configMap:
+            name: authentik-blueprint-immich

@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-immich
+  namespace: authentik
+data:
+  immich.yaml: |
+    # Managed in GitOps — enforces the immich OIDC provider config so it cannot
+    # drift in the admin UI (the root cause of the 2.5->2.7 OIDC break).
+    # sub_mode is pinned to the current working value (hashed_user_id) so no re-link is needed.
+    version: 1
+    metadata:
+      name: immich OIDC (GitOps managed)
+    entries:
+      - id: immich-oauth2-provider
+        model: authentik_providers_oauth2.oauth2provider
+        state: present
+        identifiers:
+          name: "immich OIDC"
+        attrs:
+          authorization_flow: 4e8745dd-e19b-4450-b9a6-4b0ee816f88a
+          invalidation_flow: dc089b4e-601c-4b12-bae7-5063a1e092bc
+          client_type: confidential
+          client_id: "M54DpkpOmncOdbJcbZUVbEPiQ0PKq8b9VRo8evLI"
+          client_secret: !Env IMMICH_OIDC_CLIENT_SECRET
+          access_code_validity: "minutes=1"
+          access_token_validity: "hours=24"
+          refresh_token_validity: "days=30"
+          include_claims_in_id_token: true
+          issuer_mode: per_provider
+          sub_mode: hashed_user_id
+          signing_key: e6747b32-b04a-40e7-b118-c6cabd6c63cf
+          redirect_uris:
+            - matching_mode: strict
+              url: "https://immich.seyzahl.com/auth/login"
+            - matching_mode: strict
+              url: "https://immich.seyzahl.com/user-settings"
+            - matching_mode: regex
+              url: "app.immich:///oauth-callback"
+          property_mappings:
+            - 2a23b800-1f2a-4bbc-8063-a7c55f8bd258
+            - d120dd83-650e-4d1d-af8e-e0b0b3b91413
+            - 49341e76-dbb2-47dc-9acb-35359575510d

@@ -6,6 +6,7 @@ resources:
   - deployment-server.yaml
   - deployment-worker.yaml
   - deployment-redis.yaml
+  - blueprint-immich.yaml
   - pdb.yaml
   - secrets.yaml
   - service.yaml
