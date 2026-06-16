@@ -14,8 +14,10 @@ spec:
         name: nextcloud
   values:
     image:
-      repository: nextcloud
+      repository: forgejo.seyzahl.com/platform-infrastructure/nextcloud
       tag: stable
+      pullSecrets:
+        - forgejo-registry
 
     nextcloud:
       host: nextcloud.seyzahl.com
