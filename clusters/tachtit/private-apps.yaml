@@ -26,7 +26,7 @@ spec:
     kind: GitRepository
     name: private-apps
   path: "./apps"
-  prune: true
+  prune: false
   decryption:
     provider: sops
     secretRef:
