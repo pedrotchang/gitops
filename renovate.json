@@ -5,21 +5,54 @@
   ],
   "enabledManagers": [
     "flux",
-    "kubernetes"
+    "kubernetes",
+    "custom.regex"
   ],
   "flux": {
     "managerFilePatterns": [
       "/(^|/)infrastructure/.+\\.ya?ml$/",
-      "/(^|/)clusters/.+\\.ya?ml$/"
+      "/(^|/)clusters/.+\\.ya?ml$/",
+      "/(^|/)databases/.+\\.ya?ml$/",
+      "/(^|/)monitoring/.+\\.ya?ml$/"
     ]
   },
   "kubernetes": {
     "managerFilePatterns": [
       "/(^|/)infrastructure/.+\\.ya?ml$/",
       "/(^|/)clusters/.+\\.ya?ml$/",
-      "/(^|/)apps/.+\\.ya?ml$/"
+      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)databases/.+\\.ya?ml$/",
+      "/(^|/)monitoring/.+\\.ya?ml$/"
     ]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "KubeVirt operator: bump every virt-operator image ref AND the KUBEVIRT_VERSION env together",
+      "managerFilePatterns": [
+        "/(^|/)infrastructure/controllers/base/kubevirt/kubevirt-operator\\.ya?ml$/"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "kubevirt/kubevirt",
+      "matchStrings": [
+        "quay\\.io/kubevirt/virt-operator:(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)",
+        "name: KUBEVIRT_VERSION\\s+value:\\s*(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "CDI operator: bump every cdi-* image ref AND the OPERATOR_VERSION env together",
+      "managerFilePatterns": [
+        "/(^|/)infrastructure/controllers/base/cdi/cdi-operator\\.ya?ml$/"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "kubevirt/containerized-data-importer",
+      "matchStrings": [
+        "quay\\.io/kubevirt/cdi-[a-z]+:(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)",
+        "name: OPERATOR_VERSION\\s+value:\\s*(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Immich images - group server and ML together",
@@ -27,6 +60,14 @@
       "versioning": "semver-coerced",
       "matchPackageNames": [
         "/^ghcr.io/immich-app//"
+      ]
+    },
+    {
+      "description": "Authentik server + proxy outpost must run the same version - group them into one PR so they never split (a newer proxy outrunning the server breaks SSO).",
+      "groupName": "authentik",
+      "matchPackageNames": [
+        "ghcr.io/goauthentik/server",
+        "ghcr.io/goauthentik/proxy"
       ]
     },
     {
@@ -51,6 +92,31 @@
       ],
       "registryUrls": [
         "https://helm.cilium.io"
+      ]
+    },
+    {
+      "description": "KubeVirt & CDI operator versions are owned by the customManagers above (image + every env value move as one). Disable the kubernetes manager on these files so it cannot open a partial-update PR that bumps only image: and breaks the operator.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "infrastructure/controllers/base/kubevirt/kubevirt-operator.yaml",
+        "infrastructure/controllers/base/cdi/cdi-operator.yaml"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "CloudNativePG Postgres engine MAJOR upgrades are disruptive and not trivially reversible. Hold them behind explicit Dependency Dashboard approval so they never open/merge unattended; minor and patch still flow as normal PRs.",
+      "matchPackageNames": [
+        "ghcr.io/cloudnative-pg/postgresql",
+        "ghcr.io/tensorchord/cloudnative-vectorchord"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true,
+      "addLabels": [
+        "stateful-major-review"
       ]
     }
   ]
