@@ -21,6 +21,12 @@ server:
       value: "false"
     - name: AUTHENTIK_LOG_LEVEL
       value: info
+    - name: AUTHENTIK_LISTEN__HTTP
+      value: "0.0.0.0:9000"
+    - name: AUTHENTIK_LISTEN__HTTPS
+      value: "0.0.0.0:9443"
+    - name: AUTHENTIK_LISTEN__METRICS
+      value: "0.0.0.0:9300"
   volumes:
     - name: media
       persistentVolumeClaim:
@@ -48,6 +54,10 @@ worker:
       value: "false"
     - name: AUTHENTIK_LOG_LEVEL
       value: info
+    - name: AUTHENTIK_LISTEN__HTTP
+      value: "0.0.0.0:9000"
+    - name: AUTHENTIK_LISTEN__METRICS
+      value: "0.0.0.0:9300"
   volumes:
     - name: media
       persistentVolumeClaim:
