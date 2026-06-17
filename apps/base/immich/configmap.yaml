@@ -9,12 +9,8 @@ data:
   DB_PORT: "5432"
   DB_DATABASE_NAME: "immich"
 
-  # Redis configuration
-  REDIS_HOSTNAME: "immich-redis"
-  REDIS_PORT: "6379"
-
-  # Immich configuration
-  IMMICH_MACHINE_LEARNING_URL: "http://immich-ml:3003"
+  # Media/upload location — must match the library mount + absolute paths in the DB.
+  # Redis (Valkey) and machine-learning URL are now provided by the chart.
   UPLOAD_LOCATION: "/usr/src/app/upload"
 
   # Logging

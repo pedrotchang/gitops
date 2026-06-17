@@ -1,0 +1,43 @@
+# Immich via the official chart. App version is pinned by image.tag (chart version != app version).
+# DB stays external (CNPG + VectorChord); Redis is the chart-managed Valkey.
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          tag: v2.7.5
+        envFrom:
+          - configMapRef:
+              name: immich-configmap
+          - secretRef:
+              name: immich-container-env
+          - secretRef:
+              name: immich-oidc
+
+immich:
+  persistence:
+    library:
+      existingClaim: immich-library-pvc-nfs
+
+server:
+  enabled: true
+  persistence:
+    # Library mounts MUST match the absolute paths stored in the DB:
+    #   originalPath -> /usr/src/app/upload/...   (64327 assets)
+    #   external lib -> /external/...             (38435 assets, subPath upload)
+    data:
+      globalMounts:
+        - path: /usr/src/app/upload
+        - path: /external
+          subPath: upload
+
+valkey:
+  enabled: true
+
+machine-learning:
+  enabled: true
+  persistence:
+    cache:
+      enabled: true
+      type: persistentVolumeClaim
+      existingClaim: immich-cache-pvc-nfs

@@ -1,12 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: immich
+
 resources:
   - namespace.yaml
   - secrets.yaml
   - configmap.yaml
   - storage-nfs.yaml
-  - redis.yaml
-  - deployment-server.yaml
-  - deployment-ml.yaml
-  - service.yaml
+  - repository.yaml
+  - release.yaml
+
+configMapGenerator:
+  - name: immich-values
+    files:
+      - values.yaml=values.yaml
+
+configurations:
+  - kustomizeconfig.yaml
+
+generatorOptions:
+  disableNameSuffixHash: false
