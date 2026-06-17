@@ -15,6 +15,13 @@ spec:
   monitoring:
     enablePodMonitor: true
 
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: nextcloud-aws-store
+        serverName: nextcloud-db-tachtit-cnpg-v0
+
   storage:
     size: 5Gi
 

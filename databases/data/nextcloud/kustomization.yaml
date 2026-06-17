@@ -4,4 +4,6 @@ namespace: nextcloud
 resources:
   - namespace.yaml
   - database.yaml
+  - objectstore.yaml
+  - scheduled-backups.yaml
   - secrets.yaml
