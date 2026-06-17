@@ -18,4 +18,4 @@ spec:
             value: /
       backendRefs:
         - name: authentik-server
-          port: 9000
+          port: 80

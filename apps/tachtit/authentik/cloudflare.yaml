@@ -69,7 +69,7 @@ data:
 
     ingress:
     - hostname: auth.seyzahl.com
-      service: http://authentik-server:9000
+      service: http://authentik-server:80
 
     - service: http_status:404
 ---
