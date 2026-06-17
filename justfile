@@ -32,10 +32,40 @@ fetch-manifests:
     @echo "  infrastructure/controllers/base/cdi/kustomization.yaml"
     @echo "Then commit and push."
 
+# Start the lab VMs, wait for them to boot, then re-pin the cluster networking
+# so you get a SCHEDULABLE cluster — not just running VMs. Under masquerade the
+# pod IPs change every boot and cluster-setup's pinning is wiped, so a plain
+# start leaves workers NotReady. See scripts/lab-rejoin.sh. Idempotent.
 lab-up: _guard
-    virtctl start cp       -n {{namespace}}
-    virtctl start worker-1 -n {{namespace}}
-    virtctl start worker-2 -n {{namespace}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for vm in cp worker-1 worker-2; do
+        virtctl start "$vm" -n {{namespace}} 2>/dev/null || true
+    done
+    echo "==> waiting for VMIs to reach Running..."
+    for i in $(seq 1 60); do
+        running="$(kubectl get vmi -n {{namespace}} --no-headers 2>/dev/null | grep -c Running || true)"
+        [ "${running:-0}" -eq 3 ] && break
+        sleep 5
+    done
+    echo "==> waiting for SSH on each VM..."
+    for vm in cp worker-1 worker-2; do
+        for i in $(seq 1 60); do
+            if virtctl ssh ubuntu@vm/"$vm" -n {{namespace}} \
+                --local-ssh-opts="-o StrictHostKeyChecking=no" \
+                --local-ssh-opts="-o UserKnownHostsFile=/dev/null" \
+                --local-ssh-opts="-o ConnectTimeout=5" \
+                --local-ssh-opts="-o BatchMode=yes" \
+                -c true 2>/dev/null; then break; fi
+            sleep 5
+        done
+    done
+    bash scripts/lab-rejoin.sh
+
+# Re-pin cluster networking after a reboot WITHOUT restarting the VMs.
+# lab-up runs this automatically; use it standalone to recover an already-up lab.
+lab-rejoin: _guard
+    bash scripts/lab-rejoin.sh
 
 lab-down: _guard
     -virtctl stop cp       -n {{namespace}}
