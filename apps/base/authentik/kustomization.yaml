@@ -1,13 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: authentik
+
 resources:
   - namespace.yaml
-  - deployment-server.yaml
-  - deployment-worker.yaml
-  - deployment-redis.yaml
-  - blueprint-immich.yaml
-  - pdb.yaml
   - secrets.yaml
-  - service.yaml
   - storage-nfs.yaml
+  - blueprint-immich.yaml
+  - repository.yaml
+  - release.yaml
+
+configMapGenerator:
+  - name: authentik-values
+    files:
+      - values.yaml=values.yaml
+
+configurations:
+  - kustomizeconfig.yaml
+
+generatorOptions:
+  disableNameSuffixHash: false

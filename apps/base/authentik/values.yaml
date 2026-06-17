@@ -1,0 +1,66 @@
+postgresql:
+  enabled: false
+redis:
+  enabled: false
+
+authentik:
+  existingSecret:
+    secretName: authentik-env
+
+server:
+  replicas: 2
+  envFrom:
+    - secretRef:
+        name: authentik-env
+  env:
+    - name: AUTHENTIK_POSTGRESQL__HOST
+      value: authentik-pg.seyzahl.com
+    - name: AUTHENTIK_POSTGRESQL__NAME
+      value: authentik
+    - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+      value: "false"
+    - name: AUTHENTIK_LOG_LEVEL
+      value: info
+  volumes:
+    - name: media
+      persistentVolumeClaim:
+        claimName: authentik-media-pvc-nfs
+    - name: templates
+      persistentVolumeClaim:
+        claimName: authentik-templates-pvc-nfs
+  volumeMounts:
+    - name: media
+      mountPath: /media
+    - name: templates
+      mountPath: /templates
+
+worker:
+  replicas: 1
+  envFrom:
+    - secretRef:
+        name: authentik-env
+  env:
+    - name: AUTHENTIK_POSTGRESQL__HOST
+      value: authentik-pg.seyzahl.com
+    - name: AUTHENTIK_POSTGRESQL__NAME
+      value: authentik
+    - name: AUTHENTIK_ERROR_REPORTING__ENABLED
+      value: "false"
+    - name: AUTHENTIK_LOG_LEVEL
+      value: info
+  volumes:
+    - name: media
+      persistentVolumeClaim:
+        claimName: authentik-media-pvc-nfs
+    - name: templates
+      persistentVolumeClaim:
+        claimName: authentik-templates-pvc-nfs
+  volumeMounts:
+    - name: media
+      mountPath: /media
+    - name: templates
+      mountPath: /templates
+
+blueprints:
+  configMaps:
+    - authentik-blueprint-immich
