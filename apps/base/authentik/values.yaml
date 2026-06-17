@@ -30,7 +30,7 @@ server:
         claimName: authentik-templates-pvc-nfs
   volumeMounts:
     - name: media
-      mountPath: /media
+      mountPath: /data/media
     - name: templates
       mountPath: /templates
 
@@ -57,7 +57,7 @@ worker:
         claimName: authentik-templates-pvc-nfs
   volumeMounts:
     - name: media
-      mountPath: /media
+      mountPath: /data/media
     - name: templates
       mountPath: /templates
 
