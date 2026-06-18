@@ -1,5 +1,16 @@
 # Immich via the official chart. App version is pinned by image.tag (chart version != app version).
 # DB stays external (CNPG + VectorChord); Redis is the chart-managed Valkey.
+
+# Run as uid/gid 1000 to match the NFS library owner (the raw deployment did this).
+# Without it the chart runs immich as root, NFS root-squashes it, and writes to the
+# 1000-owned library 500 with EACCES (mkdir permission denied) -> uploads fail.
+defaultPodOptions:
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+
 controllers:
   main:
     containers:
