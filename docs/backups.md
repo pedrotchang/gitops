@@ -273,7 +273,7 @@ if tachtit dies, the GitOps source dies with it. Every push is auto-mirrored to 
    independently; DB restores from CNPG S3 backups per section 1 if the data cluster was also lost).
 4. Once Forgejo serves again, flip the URLs back (atomic: replace the flux secret with the Forgejo
    deploy key AND patch the URL in the same step — doing the secret first deadlocks the source
-   controller; see docs/superpowers/plans/2026-06-12-forgejo-migration.md Task 6).
+   controller; see docs/plans/2026-06-12-forgejo-migration.md Task 6).
 
 **Rule during recovery:** never push to GitHub even then — fix forward by restoring Forgejo, or
 accept a frozen config until it's back. Pushing to the mirror diverges it and breaks mirror sync.
