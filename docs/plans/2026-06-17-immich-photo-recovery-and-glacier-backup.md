@@ -1,7 +1,7 @@
 # Immich — photo recovery, uid fix, and Glacier backup (runbook)
 
-Started 2026-06-17, recovery completed 2026-06-18. This is the durable record of what happened
-and how, plus the runbook for the S3 Glacier Deep Archive backup and restores.
+Started 2026-06-17, recovery + backup completed 2026-06-18. This is the durable record of what
+happened and how, plus the runbook for the S3 Glacier Deep Archive backup and restores.
 
 ## System layout (reference)
 
@@ -66,64 +66,70 @@ sudo sed -i '/immich.seyzahl.com/d' /etc/hosts        # remove the temp resolver
 
 ---
 
-## Glacier Deep Archive backup (runbook)
+## Glacier Deep Archive backup — ✅ IMPLEMENTED 2026-06-18
 
-Goal: an **indefinite, encrypted, offsite mirror** of the photo originals + DB dumps. Local ZFS
-snapshots remain the everyday/quick-recovery layer; Glacier is the "house burned down" copy.
+Indefinite, encrypted, offsite mirror of the photo originals + DB dumps. Local ZFS snapshots remain
+the everyday/quick-recovery layer; Glacier is the "house burned down" copy. Set up by driving
+TrueNAS over `ssh root@truenas.seyzahl.com` (Mac key in root's authorized_keys) + the Mac's `aws`
+CLI (user `seyza`, acct 917003953329).
 
-### What to back up (source `/mnt/tank/photos`)
+### As-built
 
-- **Include:** `upload/` (originals — managed + recovered, ~595 GB), `backups/` (immich DB dumps →
-  makes Glacier a one-stop restore: photos + DB), plus tiny `library/`, `profile/`.
-- **Exclude:** `thumbs/`, `encoded-video/` (immich regenerates these).
+- **AWS** (`us-west-1`): bucket **`seyzahl-immich-photos`** — public access blocked, **versioning ON**
+  (note: S3 versioning is OFF by default on all buckets; no account-wide default exists). IAM user
+  **`immich-backup`**, inline policy scoped to this bucket only: `ListBucket`/`GetBucketLocation` on
+  the bucket + `PutObject`/`GetObject`/`RestoreObject` on `/*`, **no Delete** (so the backup creds
+  can't delete). Access key **rotated 2026-06-18** → current `AKIA…WYRQ77LA` (the first key leaked to
+  a chat transcript and was deleted; rotation = new key → update credential + `s3immich` remote →
+  abort/restart seed → delete old key).
+- **TrueNAS Cloud Sync** task **id=1** + credential **id=1 `immich-aws`** (created via `midclt call
+  cloudsync.credentials.create` / `cloudsync.create`): PUSH · **COPY** (additive/indefinite; `SYNC`
+  would prune — not wanted) · source `/mnt/tank/photos` · **exclude `thumbs/**`, `encoded-video/**`** ·
+  storage class **`DEEP_ARCHIVE`** · **encryption + filename_encryption ON** (rclone crypt) · weekly
+  **Sun 04:00**. Captures `upload/` (ALL originals incl. the external-lib `ad079afe`/`852b4743`
+  ~321 GB) + `backups/` (immich DB dumps → one-stop restore) + tiny `library/`,`profile/`.
+- **Crypt password:** `pass` at **`immich.seyzahl.com/glacier-crypt`** (48-hex). **Losing it = the
+  backup is permanently unreadable.** Keep an offline copy too.
+- **Seed:** ~830 GiB / 52,183 files, started manually (`midclt call cloudsync.sync 1`), ~32–40 MiB/s.
+  Objects verified landing as `StorageClass=DEEP_ARCHIVE` with encrypted (gibberish) keys. Cost ≈ $0.85/mo.
+- **Helper rclone remotes on TrueNAS** (root, for restore/inspection): `s3immich` (S3, the
+  immich-backup key) and `immichcrypt` (crypt over `s3immich:seyzahl-immich-photos`, password from
+  the pass key, `filename_encryption=standard`, `directory_name_encryption=true`). Update these if
+  the AWS key or crypt password change.
 
-### AWS setup (reuse the existing account; region `us-west-1` to match the authentik backups)
+### Verify recoverability
 
-1. **Bucket** e.g. `seyzahl-immich-photos` — Block Public Access ON, default encryption (SSE-S3) ON.
-2. **IAM user** `immich-backup` scoped to that bucket only:
-   `s3:ListBucket` on the bucket, `s3:PutObject`/`s3:GetObject` on `bucket/*` (Get needed for
-   rclone integrity checks; no Delete — COPY mode never deletes). Save the access key.
-3. **Storage class:** upload directly as `DEEP_ARCHIVE` (set in the sync task; avoids lifecycle
-   transition costs).
-
-### TrueNAS Cloud Sync Task (rclone under the hood; runs on the NAS)
-
-- Credentials: add the IAM key as an S3 Cloud Credential.
-- **Direction:** PUSH · **Provider:** Amazon S3 · **Bucket:** `seyzahl-immich-photos` · region `us-west-1`.
-- **Source folder:** `/mnt/tank/photos`; **Exclude:** `thumbs/**`, `encoded-video/**`.
-- **Transfer mode:** **COPY** (additive → indefinite; `SYNC` would prune deleted files — not wanted).
-- **Advanced:** Storage class `DEEP_ARCHIVE`; **Remote Encryption ON** (rclone crypt) with a
-  password + salt → store in **`pass`** (e.g. `immich.seyzahl.com/glacier-crypt`).
-  **Losing this key = the backup is unreadable.** Keep a second offline copy of it.
-- **Schedule:** weekly (e.g. Sun 04:00, after the 03:00 ZFS snapshot + 02:00 DB dump). Incremental
-  after the first seed (only new files upload).
-- **GitOps note:** this is TrueNAS-side config, not in the Flux repo. (Alternative: a k8s CronJob
-  running rclone over the NFS mount — GitOps-native but pulls ~595 GB through the cluster; NAS-native preferred.)
-
-### Initial seed
-
-- First run pushes ~595 GB → hours/days on home upstream. Run manually first and monitor.
-- Cost: storage ≈ `$1/TB/mo` (~$0.6/mo); PUTs ≈ 15k × `$0.05/1000` ≈ `$0.75` one-time. Negligible.
-
-### Verify + test-restore (do once, before trusting it)
-
-- Confirm objects land in the bucket (Deep Archive class).
-- **Test-restore a single file:** initiate an S3 restore (Bulk tier), then `rclone copy` it back
-  through the **same crypt config** and confirm it decrypts to the original. This proves both the
-  retrieval flow and that the crypt key works. Don't skip this.
+- **Free key check (no thaw, anytime):** `rclone lsf immichcrypt: --max-depth 1` → returns the real
+  decrypted dirs (`upload/ backups/ …`) ⇒ crypt key+config decrypt correctly. ✅ passed 2026-06-18.
+- **Full single-file test (≈$0.03, ~12–48 h thaw):**
+  ```sh
+  P='upload/<userId>/xx/yy/<uuid>.ext'
+  ENC=$(ssh root@truenas.seyzahl.com "rclone backend encode immichcrypt: '$P'" | tail -1)
+  aws s3api restore-object --bucket seyzahl-immich-photos --key "$ENC" \
+    --restore-request '{"Days":3,"GlacierJobParameters":{"Tier":"Bulk"}}'
+  # wait until: aws s3api head-object --bucket seyzahl-immich-photos --key "$ENC" --query Restore  → ongoing-request="false"
+  ssh root@truenas.seyzahl.com "rclone copy 'immichcrypt:$P' /tmp/gtest/ && sha256sum /tmp/gtest/* '/mnt/tank/photos/$P'"
+  ```
+  (In progress 2026-06-18 on `upload/ad079afe…/09/09/0909e5a1….png`.)
 
 ### Restore procedure (disaster recovery)
 
-1. Initiate restore of the needed objects from Deep Archive (Bulk ≈ 48 h / Standard ≈ 12 h).
-2. `rclone copy` (with the crypt remote configured from the `pass` key) S3 → local.
-3. Restore the immich DB from the newest `backups/immich-db-backup-*.sql.gz` (or CNPG → Azure).
-4. Costs (full ~595 GB): retrieval ≈ `$1.5` (Bulk) + egress ≈ `$0.09/GB` ≈ `$54`. DR-only.
+1. Re-create the `s3immich` + `immichcrypt` rclone remotes if needed (S3 creds + the `pass` crypt key).
+2. Thaw the needed objects from Deep Archive (Bulk ≈ 48 h / Standard ≈ 12 h) via `aws s3api
+   restore-object` on the **encrypted** keys, or `rclone backend restore s3immich:…` — the `restore`
+   backend command must run on **`s3immich:`**, NOT through `immichcrypt:` (crypt doesn't forward it).
+3. After thaw, `rclone copy immichcrypt:<decrypted/path> <local>` — downloads **and decrypts** in one step.
+4. Restore the immich DB from the newest `backups/immich-db-backup-*.sql.gz` (or CNPG → Azure).
+5. Costs (full ~830 GB): retrieval ≈ `$2` (Bulk) + egress ≈ `$0.09/GB` ≈ `$75`. DR-only.
 
 ## Future (out of scope)
 
+- Finish the single-file restore verification once the test object thaws (~2026-06-19/20).
 - 2nd offsite with **14-day short retention** (no-minimum tier, e.g. Backblaze B2; versioning +
   lifecycle) — Deep Archive's 180-day minimum makes short retention there cost-ineffective.
-- Recover + retire the rest of the external library (`ad079afe`/`852b4743`), same method, then
-  delete the external library so the timeline stops surfacing old overlapping copies.
+- Recover + retire the rest of the external library (`ad079afe`/`852b4743`) — same method, then
+  delete the external library so the timeline stops surfacing old overlapping copies. (Their
+  originals are already in the Glacier backup regardless.)
+- Bump CNPG DB backup retention to **30 days** (authentik ~7d / immich ~10d today) via each cluster's
+  `retentionPolicy` — discussed, not done.
 - Tighten the headscale ACL (currently `* → *`).
-- Review the ~3,155 near-duplicate groups (Utilities → Duplicates); resource right-sizing; thumbnail/ML tuning.
