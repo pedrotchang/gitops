@@ -33,7 +33,7 @@ spec:
 
       containers:
         - name: suwayomi
-          image: ghcr.io/suwayomi/tachidesk:v2.1.2065
+          image: ghcr.io/suwayomi/tachidesk:v2.2.2211
 
           securityContext:
               allowPrivilegeEscalation: false
