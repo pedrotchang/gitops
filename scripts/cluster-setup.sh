@@ -6,6 +6,7 @@
 set -euo pipefail
 
 NAMESPACE=cka-labs
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K8S_VERSION="1.35.1-1.1"
 K8S_SEMVER="v${K8S_VERSION%%-*}"   # 1.35.1-1.1 → v1.35.1
 CILIUM_VERSION="1.19.4"
@@ -119,5 +120,7 @@ for worker in worker-1 worker-2; do
   vssh "$worker" "echo 'KUBELET_EXTRA_ARGS=--node-ip=${WORKER_IP}' | sudo tee /etc/default/kubelet >/dev/null && sudo systemctl restart kubelet"
 done
 
-log "=== Cluster ready ==="
-vssh cp "kubectl get nodes -o wide"
+log "=== Verifying cluster health ==="
+# Self-verify the fresh build. If a gate fails (e.g. kube-proxy buried the
+# ClusterIP DNAT), 'just lab-rejoin' re-asserts and re-converges.
+bash "$SCRIPT_DIR/lab-verify.sh"

@@ -16,12 +16,14 @@
 set -euo pipefail
 
 NAMESPACE=cka-labs
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 vssh() {
   virtctl ssh -n "$NAMESPACE" \
     --local-ssh-opts="-o StrictHostKeyChecking=no" \
     --local-ssh-opts="-o UserKnownHostsFile=/dev/null" \
     --local-ssh-opts="-o ConnectTimeout=15" \
+    --local-ssh-opts="-o LogLevel=ERROR" \
     ubuntu@vm/"$1" -c "${2}"
 }
 vmi_ip() { kubectl get vmi "$1" -n "$NAMESPACE" -o jsonpath='{.status.interfaces[0].ipAddress}'; }
@@ -100,11 +102,37 @@ kc -n kube-system delete pod -l k8s-app=cilium --wait=false 2>/dev/null || true
 kc -n kube-system delete pod -l name=cilium-operator --wait=false 2>/dev/null || true
 kc -n kube-system rollout status ds/cilium --timeout=180s || true
 
-# --- Uncordon + wait + report -----------------------------------------------
+# --- Uncordon ---------------------------------------------------------------
 log "Uncordoning nodes"
 for n in cp worker-1 worker-2; do kc uncordon "$n" 2>/dev/null || true; done
-log "Waiting for all nodes Ready..."
-kc wait --for=condition=Ready node --all --timeout=120s || true
+
+# --- Phase 4: converge + verify ---------------------------------------------
+# The ClusterIP apiserver DNAT (Phase 2) is the most fragile rule: kube-proxy
+# re-inserts KUBE-SERVICES at the top of OUTPUT whenever it restarts, which can
+# bury our redirect and silently cut pods off from the apiserver. So before each
+# verification attempt, cheaply re-assert that one rule on every worker, then run
+# the read-only health gate. We only exit 0 once the gate is actually green — no
+# more "succeeding" with a broken cluster.
+reassert_clusterip_dnat() {
+  for w in worker-1 worker-2; do
+    [[ -z "$(vmi_ip "$w" 2>/dev/null)" ]] && continue
+    vssh "$w" "sudo iptables -t nat -D OUTPUT -d 10.96.0.1 -p tcp --dport 443 -j DNAT --to-destination ${CP_IP}:6443 2>/dev/null || true"
+    vssh "$w" "sudo iptables -t nat -I OUTPUT 1 -d 10.96.0.1 -p tcp --dport 443 -j DNAT --to-destination ${CP_IP}:6443"
+  done
+}
+
+log "Converging + verifying..."
+for attempt in 1 2 3; do
+  reassert_clusterip_dnat
+  if bash "$SCRIPT_DIR/lab-verify.sh"; then
+    log "✅ lab-rejoin complete — cluster healthy."
+    exit 0
+  fi
+  log "attempt $attempt not green; re-asserting and retrying..."
+  sleep 10
+done
+
 echo
-log "Cluster state:"
-kc get nodes -o wide
+echo "❌ lab-rejoin could not converge after 3 attempts." >&2
+echo "   'just lab-verify' shows the failing gate. If it persists, 'just cluster-setup' rebuilds." >&2
+exit 1

@@ -67,6 +67,11 @@ lab-up: _guard
 lab-rejoin: _guard
     bash scripts/lab-rejoin.sh
 
+# Read-only health gate: is the lab actually usable right now? Makes NO changes.
+# Exits 0 (green) or non-zero naming the exact broken check.
+lab-verify: _guard
+    bash scripts/lab-verify.sh
+
 lab-down: _guard
     -virtctl stop cp       -n {{namespace}}
     -virtctl stop worker-1 -n {{namespace}}
