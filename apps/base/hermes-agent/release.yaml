@@ -1,0 +1,59 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: ./
+      sourceRef:
+        kind: GitRepository
+        name: hermes-agent
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    image:
+      tag: "0.8.0"
+    replicaCount: 1
+    strategy:
+      type: Recreate
+
+    # Phase 0: chat gateway only (you DM the bot). API server + ingress arrive in
+    # later phases (n8n). Gateway is outbound-only, so no Service/ingress here.
+    args:
+      - gateway
+      - run
+
+    # LLM: OpenRouter, Claude Haiku as the cheap default.
+    # Slug verified against the OpenRouter catalog 2026-06-21 (latest Haiku = 4.6).
+    config:
+      values:
+        model:
+          default: anthropic/claude-haiku-4.6
+          provider: auto
+          base_url: https://openrouter.ai/api/v1
+
+    env:
+      GATEWAY_ALLOW_ALL_USERS: "false"
+      # Comma-separated numeric Telegram user IDs (family allowlist).
+      # Pedro: 6403864751. Append Hanna's ID (comma-separated) when available.
+      TELEGRAM_ALLOWED_USERS: "6403864751"
+
+    # Secrets come from the ExternalSecret (Azure Key Vault via ESO).
+    secrets:
+      existingSecret: hermes-agent-secrets
+
+    # Single replica + durable block storage for HERMES_HOME (the agent's memory).
+    # iSCSI is RWO, which is correct here — the chart forbids replicas>1 with persistence.
+    persistence:
+      enabled: true
+      storageClass: truenas-iscsi
+      accessMode: ReadWriteOnce
+      size: 5Gi
