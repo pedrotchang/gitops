@@ -1,0 +1,13 @@
+# Hermes Agent Helm chart, sourced from the in-cluster Forgejo over HTTP.
+# Public repo -> anonymous clone (no deploy key). No release tags yet, so we
+# track the main branch; consider tagging v0.1.0 and pinning to a tag later.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: hermes-agent
+  namespace: hermes-agent
+spec:
+  interval: 5m
+  url: http://forgejo.forgejo.svc.cluster.local:3000/artificial-intelligence/hermes-agent-helm-chart.git
+  ref:
+    branch: main
