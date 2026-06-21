@@ -20,7 +20,10 @@ spec:
       retries: 3
   values:
     image:
-      tag: "0.8.0"
+      # Chart default 0.8.0 isn't published on Docker Hub; real tags are CalVer.
+      # Pinned to the newest multi-arch (amd64) tag as of 2026-06-21.
+      # TODO: fix the chart's default image.tag + appVersion upstream.
+      tag: "v2026.6.19"
     replicaCount: 1
     strategy:
       type: Recreate
