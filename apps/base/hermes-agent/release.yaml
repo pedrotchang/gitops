@@ -77,7 +77,11 @@ spec:
         mountPath: /run
     securityContext:
       readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
+      # Must be true so the added CHOWN cap is actually EFFECTIVE for the non-root
+      # (uid 1000) process: no_new_privs (set by =false) strips added caps on exec,
+      # which is why s6 couldn't chown /run. The agent still runs as uid 1000 and can
+      # never become root — its capability ceiling is just the 3 file caps below.
+      allowPrivilegeEscalation: true
       seccompProfile:
         type: RuntimeDefault
       capabilities:
