@@ -1,0 +1,80 @@
+# Headroom context-compression proxy — sits in front of Hermes' LLM calls.
+# Self-contained image (Kompress model baked in, runs offline). The agent stays
+# non-root + read-only root fs; Headroom caches under $HOME/$XDG_CACHE_HOME, pointed
+# at a writable emptyDir.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headroom
+  labels:
+    app: headroom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: headroom
+  template:
+    metadata:
+      labels:
+        app: headroom
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: headroom
+          # Published by custom-images; baked Kompress model → no runtime HuggingFace.
+          image: forgejo.seyzahl.com/platform-infrastructure/headroom:0.26.0
+          # Entrypoint is `headroom proxy`; the image CMD already binds 0.0.0.0:8787.
+          env:
+            - name: HOME
+              value: /data
+            - name: XDG_CACHE_HOME
+              value: /data
+          ports:
+            - name: http
+              containerPort: 8787
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: 8787
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 40   # generous grace for first compressor/model preload
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8787
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8787
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
