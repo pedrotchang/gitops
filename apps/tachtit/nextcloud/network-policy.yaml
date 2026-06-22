@@ -29,3 +29,13 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+    # Hermes reaches Nextcloud CalDAV pod->service in-cluster (Family calendar),
+    # bypassing the Cloudflare Tunnel whose WAF blocks CalDAV clients. Scoped to
+    # the hermes-agent namespace, port 80 (the nextcloud container port).
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP

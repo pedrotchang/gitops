@@ -68,8 +68,8 @@ spec:
         # shared "Family" calendar URL via list-calendars. Creds come from the ESO
         # secret via ${VAR} expansion (Hermes expands ${ENV} in config values), so
         # nothing secret lands in git. CALDAV_USERNAME/PASSWORD are the app-password's
-        # own login (NOT Pedro's OIDC userid); base_url is the public DAV root
-        # (no authentik forward-auth on the nextcloud ingress).
+        # own login (NOT Pedro's OIDC userid); base_url is the in-cluster service
+        # (see the env comment — keeps CalDAV traffic off the public Cloudflare path).
         mcp_servers:
           caldav:
             command: npx
@@ -77,7 +77,12 @@ spec:
               - "-y"
               - caldav-mcp
             env:
-              CALDAV_BASE_URL: "https://nextcloud.seyzahl.com/remote.php/dav"
+              # In-cluster service (svc port 8080 → container 80), NOT the public URL:
+              # nextcloud.seyzahl.com is a Cloudflare Tunnel whose WAF blocks CalDAV
+              # clients (err 1010). This keeps calendar traffic inside the cluster. The
+              # svc hostname is whitelisted in Nextcloud trusted_domains, and the
+              # nextcloud CiliumNetworkPolicy allows ingress from hermes-agent.
+              CALDAV_BASE_URL: "http://nextcloud.nextcloud.svc.cluster.local:8080/remote.php/dav"
               CALDAV_USERNAME: "${CALDAV_USERNAME}"
               CALDAV_PASSWORD: "${CALDAV_PASSWORD}"
 
