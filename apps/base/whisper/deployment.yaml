@@ -1,6 +1,9 @@
 # Self-hosted Whisper (Speaches, OpenAI-compatible STT) — transcribes Telegram voice
-# memos for Hermes. Stateless: the large-v3-turbo model is baked into the image and
-# audio is processed in an emptyDir /tmp, so NO PVC and nothing audio-related persists.
+# memos for Hermes. Stateless: the faster-whisper-small model is baked into the image
+# and audio is processed in an emptyDir /tmp, so NO PVC and nothing audio-related
+# persists. (small chosen over large-v3-turbo: large's ~18s auto language-detection on
+# this CPU-only node flirted with Hermes' hardcoded 30s STT timeout; small keeps
+# multilingual auto-detect but runs in single-digit seconds.)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,8 +29,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: whisper
-          # Speaches + baked faster-whisper large-v3-turbo (offline, no runtime HF).
-          image: forgejo.seyzahl.com/platform-infrastructure/speaches:large-v3-turbo
+          # Speaches + baked faster-whisper-small (offline, no runtime HF).
+          image: forgejo.seyzahl.com/platform-infrastructure/speaches:small
           ports:
             - name: http
               containerPort: 8000
