@@ -54,6 +54,15 @@ spec:
       # Comma-separated numeric Telegram user IDs (family allowlist).
       # Pedro: 6403864751. Append Hanna's ID (comma-separated) when available.
       TELEGRAM_ALLOWED_USERS: "6403864751"
+      # Email gateway — dedicated inbox the agent monitors (IMAP login verified).
+      # EMAIL_PASSWORD is injected from the ExternalSecret (KV google-hermes-app).
+      EMAIL_ADDRESS: "pedrotychang.hermes@gmail.com"
+      EMAIL_IMAP_HOST: "imap.gmail.com"
+      EMAIL_IMAP_PORT: "993"
+      EMAIL_SMTP_HOST: "smtp.gmail.com"
+      EMAIL_SMTP_PORT: "587"
+      # Only process mail FROM these senders — forward flights/events from these accounts.
+      EMAIL_ALLOWED_USERS: "pedrotychang@gmail.com,hanna.jeon12@gmail.com"
 
     # Secrets come from the ExternalSecret (Azure Key Vault via ESO).
     secrets:
