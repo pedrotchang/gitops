@@ -77,5 +77,22 @@ spec:
     securityContext:
       readOnlyRootFilesystem: false
       allowPrivilegeEscalation: true
+      # Talos applies a restricted default capability set, so even the root s6 init
+      # can't chown HERMES_HOME or drop privileges to hermes (uid 10000) — chown() and
+      # setgroups() return EPERM. Grant only the caps a privilege-dropping init needs.
+      # The agent still ends up running as NON-ROOT uid 10000; these caps live on the
+      # s6 supervisor (PID 1) only, which uses them to set up and then drop privileges.
+      capabilities:
+        drop:
+          - ALL
+        add:
+          - CHOWN
+          - DAC_OVERRIDE
+          - FOWNER
+          - FSETID
+          - SETUID
+          - SETGID
+          - SETPCAP
+          - KILL
       seccompProfile:
         type: RuntimeDefault
