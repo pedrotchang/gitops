@@ -53,6 +53,14 @@ spec:
         stt:
           enabled: true
           provider: openai
+          # The image ships a default `openai.model: whisper-1` in config.yaml.
+          # Hermes resolves the STT model as: call-arg → stt.openai.model →
+          # STT_OPENAI_MODEL env. The config key WINS over the env, so without this
+          # override Hermes sends "whisper-1", which Speaches aliases to its built-in
+          # default `Systran/faster-whisper-large-v3` (not baked, HF offline) → 404.
+          # Pin the baked model name here so the request matches what Speaches has.
+          openai:
+            model: deepdml/faster-whisper-large-v3-turbo-ct2
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
@@ -68,8 +76,10 @@ spec:
       EMAIL_SMTP_PORT: "587"
       # Speech-to-text backend → self-hosted Whisper (Speaches) in the `whisper` ns.
       # provider=openai (set in config.stt) + this base_url route STT to the in-cluster
-      # service; the key is a dummy (Speaches has no auth). Model matches the baked one.
+      # service; the key is a dummy (Speaches has no auth).
       STT_OPENAI_BASE_URL: "http://whisper.whisper.svc.cluster.local:8000/v1"
+      # Fallback model default only — the actual model is pinned via config.stt.openai.model
+      # above, which shadows this env. Kept in sync so both agree on the baked model.
       STT_OPENAI_MODEL: "deepdml/faster-whisper-large-v3-turbo-ct2"
       VOICE_TOOLS_OPENAI_KEY: "sk-not-needed-self-hosted"
       # Only process mail FROM these senders — forward flights/events from these accounts.
