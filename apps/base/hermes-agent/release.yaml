@@ -48,9 +48,6 @@ spec:
       # Comma-separated numeric Telegram user IDs (family allowlist).
       # Pedro: 6403864751. Append Hanna's ID (comma-separated) when available.
       TELEGRAM_ALLOWED_USERS: "6403864751"
-      # Tell s6-overlay the root fs is read-only so it keeps all scratch under /run,
-      # which lets the agent stay non-root + readOnlyRootFilesystem.
-      S6_READ_ONLY_ROOT: "1"
 
     # Secrets come from the ExternalSecret (Azure Key Vault via ESO).
     secrets:
@@ -64,30 +61,21 @@ spec:
       accessMode: ReadWriteOnce
       size: 5Gi
 
-    # s6-overlay (the image's init) needs a writable /run owned by the run-as user.
-    # NO container runs as root. We keep the chart's full hardening (non-root uid 1000,
-    # read-only root fs, RuntimeDefault seccomp) and only give s6 a /run emptyDir plus
-    # the three narrow file-ownership caps it needs to prepare /run itself as uid 1000.
-    # Works together with S6_READ_ONLY_ROOT=1 set in env above.
-    extraVolumes:
-      - name: run
-        emptyDir: {}
-    extraVolumeMounts:
-      - name: run
-        mountPath: /run
+    # Run as the image intends. The container starts as root so the s6 init can set up
+    # /run and then DROP the actual agent to the non-root "hermes" user (uid 10000) via
+    # s6-setuidgid — see the image's main-wrapper.sh, which explicitly refuses arbitrary
+    # --user values (that's what broke our earlier runAsUser:1000 attempts). So the
+    # code-executing agent runs NON-ROOT; only PID 1 (the s6 supervisor) is root, the
+    # same pattern the official nginx/postgres images use. fsGroup 10000 matches the
+    # hermes gid so the dropped agent can write HERMES_HOME on the PVC.
+    podSecurityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+      runAsGroup: 0
+      fsGroup: 10000
+      fsGroupChangePolicy: OnRootMismatch
     securityContext:
-      readOnlyRootFilesystem: true
-      # Must be true so the added CHOWN cap is actually EFFECTIVE for the non-root
-      # (uid 1000) process: no_new_privs (set by =false) strips added caps on exec,
-      # which is why s6 couldn't chown /run. The agent still runs as uid 1000 and can
-      # never become root — its capability ceiling is just the 3 file caps below.
+      readOnlyRootFilesystem: false
       allowPrivilegeEscalation: true
       seccompProfile:
         type: RuntimeDefault
-      capabilities:
-        drop:
-          - ALL
-        add:
-          - CHOWN
-          - DAC_OVERRIDE
-          - FOWNER
