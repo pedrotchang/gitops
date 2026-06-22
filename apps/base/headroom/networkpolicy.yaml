@@ -1,0 +1,29 @@
+# Restrict who can reach the Headroom proxy: only Hermes (hermes-agent namespace),
+# plus the node/kubelet for health probes. Ingress-only on purpose — Headroom sits in
+# Hermes' LLM path, so egress stays open here to keep Anthropic reachable. Full egress
+# lockdown (Headroom → Anthropic+DNS only, and Hermes → Telegram/Nextcloud/Headroom)
+# belongs to the cluster-wide zero-trust netpol effort (backlog).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: headroom
+  namespace: headroom
+spec:
+  endpointSelector:
+    matchLabels:
+      app: headroom
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+      toPorts:
+        - ports:
+            - port: "8787"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "8787"
+              protocol: TCP
