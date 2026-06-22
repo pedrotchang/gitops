@@ -48,6 +48,11 @@ spec:
           # in-cluster: Hermes → headroom svc → Anthropic returns valid responses.
           # To bypass Headroom, set this back to https://api.anthropic.com.
           base_url: "http://headroom.headroom.svc.cluster.local:8787"
+        # Speech-to-text for Telegram voice memos → self-hosted Whisper (own `whisper` ns).
+        # provider=openai points at the in-cluster Speaches service (STT_OPENAI_* env below).
+        stt:
+          enabled: true
+          provider: openai
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
@@ -61,6 +66,12 @@ spec:
       EMAIL_IMAP_PORT: "993"
       EMAIL_SMTP_HOST: "smtp.gmail.com"
       EMAIL_SMTP_PORT: "587"
+      # Speech-to-text backend → self-hosted Whisper (Speaches) in the `whisper` ns.
+      # provider=openai (set in config.stt) + this base_url route STT to the in-cluster
+      # service; the key is a dummy (Speaches has no auth). Model matches the baked one.
+      STT_OPENAI_BASE_URL: "http://whisper.whisper.svc.cluster.local:8000/v1"
+      STT_OPENAI_MODEL: "deepdml/faster-whisper-large-v3-turbo-ct2"
+      VOICE_TOOLS_OPENAI_KEY: "sk-not-needed-self-hosted"
       # Only process mail FROM these senders — forward flights/events from these accounts.
       EMAIL_ALLOWED_USERS: "pedrotychang@gmail.com,hanna.jeon12@gmail.com"
 
