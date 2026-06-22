@@ -31,6 +31,21 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          env:
+            # ctranslate2 reads the NODE core count (nproc=16) and over-subscribes,
+            # then gets CFS-throttled onto this container's 4-core limit — so the
+            # language-detection encoder pass crawled (~18s) and blew past Hermes'
+            # hardcoded 30s STT client timeout. Pin threads to the CPU limit so it
+            # uses 4 cores efficiently instead of thrashing 16. Speeds detect + decode.
+            - name: WHISPER__CPU_THREADS
+              value: "4"
+            - name: OMP_NUM_THREADS
+              value: "4"
+            # Keep the model resident instead of offloading after 300s idle (which
+            # forced a ~3s reload on the next memo). ~1.5GB steady RAM, well within
+            # the 5Gi limit. -1 = never evict.
+            - name: WHISPER__TTL
+              value: "-1"
           startupProbe:
             tcpSocket:
               port: 8000
