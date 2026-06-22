@@ -45,6 +45,19 @@ spec:
               'auto_provision' => true,
             ),
           );
+        # Allow the in-cluster service hostname as a trusted domain so Hermes can
+        # reach CalDAV pod->service directly (http://nextcloud.nextcloud.svc:8080),
+        # bypassing the Cloudflare Tunnel whose WAF blocks CalDAV clients (err 1010).
+        # Full explicit list so the public domain is never dropped by config merge.
+        trusteddomains.config.php: |-
+          <?php
+          $CONFIG = array (
+            'trusted_domains' => array (
+              0 => 'localhost',
+              1 => 'nextcloud.seyzahl.com',
+              2 => 'nextcloud.nextcloud.svc.cluster.local',
+            ),
+          );
 
     internalDatabase:
       enabled: false
