@@ -107,19 +107,19 @@ done
 
 ### A3 — Power the nodes off via Omni
 
-Per your workflow, drive this from the **Sidero Omni** console:
+Drive this from the **Sidero Omni** console — the hosted Sidero Labs web UI. Omni reaches each node
+over SideroLink, so **you never touch a node IP**: just pick the machine and shut it down.
 
-- **Omni UI:** Clusters → select cluster → for each machine → **Shutdown**. Do **tachtit** first,
-  then **data**.
-- **Equivalent CLI** (graceful Talos shutdown; nodes leave etcd cleanly):
+- **Omni UI (primary):** open your Omni instance → **Clusters** → select the cluster → for each
+  machine → **Shutdown**. Do **tachtit** (apps) first, then **data** (DBs).
+- **Optional CLI** via the Omni-issued talosconfig (addresses nodes by their Omni **name**, not a raw
+  IP; Omni proxies the call):
   ```bash
-  # tachtit nodes first, then data nodes
-  eval "$(mise env -E tachtit)"; talosctl -n <tachtit-node-ip ...> shutdown
-  eval "$(mise env -E data)";    talosctl -n <data-node-ip ...>    shutdown
+  talosctl -n <node-name> shutdown        # node-name as shown in the Omni UI; tachtit nodes, then data
   ```
 
-After this, both clusters are off. **Note (see §6):** Omni cannot wake these machines back up on its
-own once they're fully off — power-on is WoL or physical.
+After this, both clusters are off. **Note (see §6):** Omni cannot wake these machines back up once
+they're fully off — power-on is WoL/BMC or physical.
 
 ---
 
@@ -132,16 +132,18 @@ Bring up in **dependency order: storage → data → tachtit**, then let Flux co
 - [ ] **TrueNAS (`192.168.7.14`) is up and healthy** — it serves the iSCSI PVs and immich NFS. If
       storage isn't up, CNPG pods and immich will not mount. Verify before powering on `data`.
 - [ ] **LAN + DNS/gateway up.** You're on the LAN (Headscale is on-cluster, §1 trap 2).
-- [ ] **Omni reachable** from your workstation (`omniconfig.yaml` present).
+- [ ] **Omni reachable** — the hosted Sidero Labs UI opens in a browser (`omniconfig.yaml` present if
+      you also want `omnictl`/`talosctl`).
 
 ### B1 — Power ON the data cluster
 
-Power on both `data` nodes (§6 — WoL/physical). Then wait for Talos + etcd:
+Power on both `data` nodes (§6 — WoL/physical; Omni can't wake an off box). Watch them come back in
+the **Omni UI dashboard** (it shows node + etcd health directly — no IPs needed), or from the CLI:
 
 ```bash
 eval "$(mise env -E data)"
-talosctl -n <data-cp-node-ip> health --wait-timeout 10m   # etcd + kubelet healthy
-kubectl get nodes -o wide                                   # both Ready
+talosctl health --wait-timeout 10m   # uses the Omni-scoped context; no -n <ip> required
+kubectl get nodes -o wide            # both Ready
 ```
 
 ### B2 — Wake Postgres and confirm primaries
@@ -165,12 +167,12 @@ therefore Flux's git source) needs it.
 
 ### B3 — Power ON the tachtit cluster
 
-Power on both `tachtit` nodes (§6). Then:
+Power on both `tachtit` nodes (§6). Watch in the Omni UI dashboard, or:
 
 ```bash
 eval "$(mise env -E tachtit)"
-talosctl -n <tachtit-cp-node-ip> health --wait-timeout 10m
-kubectl get nodes -o wide          # both Ready
+talosctl health --wait-timeout 10m   # Omni-scoped context; no -n <ip>
+kubectl get nodes -o wide            # both Ready
 ```
 
 ### B4 — Re-establish Flux and reconcile to current state
@@ -213,10 +215,13 @@ power cut — that's the whole point of the platform. The differences below are 
 
 ### C2 — etcd / control-plane didn't come healthy
 
+The Omni UI shows per-machine health, service status, and the etcd backup/restore controls directly.
+From the CLI, address nodes by their Omni **name** (not a raw IP):
+
 ```bash
-talosctl -n <node-ip> service etcd status
-talosctl -n <node-ip> logs etcd
-talosctl -n <node-ip> dmesg | tail -50
+talosctl -n <node-name> service etcd status
+talosctl -n <node-name> logs etcd
+talosctl -n <node-name> dmesg | tail -50
 ```
 
 - **Single CP node that lost quorum / won't form etcd:** recover from the Talos etcd snapshot via Omni
