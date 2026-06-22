@@ -7,3 +7,5 @@ resources:
   - repository.yaml
   - externalsecret.yaml
   - release.yaml
+  - headroom-deployment.yaml
+  - headroom-service.yaml
