@@ -17,4 +17,4 @@ resources:
   - jellyfin
   - jellyseerr
   - suwayomi
-  # - hermes-agent  # temporarily disabled — re-enable with the rootless custom image (Option B)
+  - hermes-agent
