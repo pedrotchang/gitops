@@ -43,10 +43,11 @@ spec:
         model:
           default: claude-sonnet-4-6
           provider: anthropic
-          # Must override the chart's OpenRouter default (Helm-merged) — with
-          # provider: anthropic, Hermes uses this base_url directly. Verified in the
-          # image: the anthropic provider's default endpoint is api.anthropic.com.
-          base_url: "https://api.anthropic.com"
+          # Route through the Headroom compression proxy (own `headroom` namespace),
+          # which forwards to Anthropic and passes ANTHROPIC_API_KEY through. Verified
+          # in-cluster: Hermes → headroom svc → Anthropic returns valid responses.
+          # To bypass Headroom, set this back to https://api.anthropic.com.
+          base_url: "http://headroom.headroom.svc.cluster.local:8787"
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
