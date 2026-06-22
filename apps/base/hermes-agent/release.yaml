@@ -60,7 +60,7 @@ spec:
           # default `Systran/faster-whisper-large-v3` (not baked, HF offline) → 404.
           # Pin the baked model name here so the request matches what Speaches has.
           openai:
-            model: deepdml/faster-whisper-large-v3-turbo-ct2
+            model: Systran/faster-whisper-small
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
@@ -80,7 +80,7 @@ spec:
       STT_OPENAI_BASE_URL: "http://whisper.whisper.svc.cluster.local:8000/v1"
       # Fallback model default only — the actual model is pinned via config.stt.openai.model
       # above, which shadows this env. Kept in sync so both agree on the baked model.
-      STT_OPENAI_MODEL: "deepdml/faster-whisper-large-v3-turbo-ct2"
+      STT_OPENAI_MODEL: "Systran/faster-whisper-small"
       VOICE_TOOLS_OPENAI_KEY: "sk-not-needed-self-hosted"
       # Only process mail FROM these senders — forward flights/events from these accounts.
       EMAIL_ALLOWED_USERS: "pedrotychang@gmail.com,hanna.jeon12@gmail.com"
