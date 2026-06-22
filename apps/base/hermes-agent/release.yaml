@@ -35,11 +35,11 @@ spec:
       - run
 
     # LLM: OpenRouter, Claude Haiku as the cheap default.
-    # Slug verified against the OpenRouter catalog 2026-06-21 (latest Haiku = 4.6).
+    # Slug from OpenRouter /models API (2026-06-22): latest Haiku is 4.5 (no 4.6 exists).
     config:
       values:
         model:
-          default: anthropic/claude-haiku-4.6
+          default: anthropic/claude-haiku-4.5
           provider: auto
           base_url: https://openrouter.ai/api/v1
 
