@@ -34,14 +34,15 @@ spec:
       - gateway
       - run
 
-    # LLM: OpenRouter, Claude Haiku as the cheap default.
-    # Slug from OpenRouter /models API (2026-06-22): latest Haiku is 4.5 (no 4.6 exists).
+    # LLM: direct Anthropic API, Claude Sonnet 4.6 (agentic sweet spot, prompt caching).
+    # Direct model IDs differ from OpenRouter's — verified via Anthropic /v1/models
+    # (2026-06-22): claude-sonnet-4-6. Uses ANTHROPIC_API_KEY (ESO ← anthropic-hermes-api-key);
+    # no base_url so it hits Anthropic's default endpoint.
     config:
       values:
         model:
-          default: anthropic/claude-haiku-4.5
-          provider: auto
-          base_url: https://openrouter.ai/api/v1
+          default: claude-sonnet-4-6
+          provider: anthropic
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
