@@ -61,6 +61,25 @@ spec:
           # Pin the baked model name here so the request matches what Speaches has.
           openai:
             model: Systran/faster-whisper-small
+        # Phase 1 calendar — CalDAV via the `caldav-mcp` npm package as a STDIO MCP
+        # server (the image ships npx + the pod has egress; `-y` auto-installs
+        # non-interactively, fetched at runtime → NOT offline-baked, revisit later).
+        # Tools: list-calendars, list/create/update/delete-event. The agent finds the
+        # shared "Family" calendar URL via list-calendars. Creds come from the ESO
+        # secret via ${VAR} expansion (Hermes expands ${ENV} in config values), so
+        # nothing secret lands in git. CALDAV_USERNAME/PASSWORD are the app-password's
+        # own login (NOT Pedro's OIDC userid); base_url is the public DAV root
+        # (no authentik forward-auth on the nextcloud ingress).
+        mcp_servers:
+          caldav:
+            command: npx
+            args:
+              - "-y"
+              - caldav-mcp
+            env:
+              CALDAV_BASE_URL: "https://nextcloud.seyzahl.com/remote.php/dav"
+              CALDAV_USERNAME: "${CALDAV_USERNAME}"
+              CALDAV_PASSWORD: "${CALDAV_PASSWORD}"
 
     env:
       GATEWAY_ALLOW_ALL_USERS: "false"
