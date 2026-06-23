@@ -86,6 +86,11 @@ spec:
               # http, pure JS, no build step). Source: platform-infrastructure/dav-mcp.
               # TODO: pin to a tag/commit for reproducibility; Pedro may build his own later.
               - "git+http://forgejo.forgejo.svc.cluster.local:3000/platform-infrastructure/dav-mcp.git"
+            # A COLD pod start runs npx-from-git (clone + npm install of the GitHub
+            # tsdav deps) before the MCP responds — measured ~46s, close to the 60s
+            # default connect timeout. Give generous headroom so a cold start (or slow
+            # GitHub fetch) can't time out the MCP connection. Warm reconnects are ~2.5s.
+            connect_timeout: 120
             env:
               # In-cluster service (svc port 8080 → container 80), NOT the public URL:
               # nextcloud.seyzahl.com is a Cloudflare Tunnel whose WAF blocks DAV
