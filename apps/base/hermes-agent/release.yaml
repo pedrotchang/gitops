@@ -78,7 +78,14 @@ spec:
             command: npx
             args:
               - "-y"
-              - dav-mcp
+              # OUR FORK of PhilflowIO/dav-mcp. Upstream `create_todo` called the
+              # non-existent client.createTodo() → ALL task creation failed
+              # ("client.createTodo is not a function"). The fork patches it to
+              # client.createCalendarObject() (same method create_event uses; verified
+              # → 201 in Nextcloud Tasks). Run via npx straight from Forgejo (in-cluster
+              # http, pure JS, no build step). Source: platform-infrastructure/dav-mcp.
+              # TODO: pin to a tag/commit for reproducibility; Pedro may build his own later.
+              - "git+http://forgejo.forgejo.svc.cluster.local:3000/platform-infrastructure/dav-mcp.git"
             env:
               # In-cluster service (svc port 8080 → container 80), NOT the public URL:
               # nextcloud.seyzahl.com is a Cloudflare Tunnel whose WAF blocks DAV
