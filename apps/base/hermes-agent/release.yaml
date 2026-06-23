@@ -63,28 +63,30 @@ spec:
           # Pin the baked model name here so the request matches what Speaches has.
           openai:
             model: Systran/faster-whisper-small
-        # Phase 1 calendar — CalDAV via the `caldav-mcp` npm package as a STDIO MCP
-        # server (the image ships npx + the pod has egress; `-y` auto-installs
+        # Phase 1 calendar + tasks — CalDAV/CardDAV/VTODO via the `dav-mcp` npm package
+        # as a STDIO MCP server (image ships npx + pod has egress; `-y` auto-installs
         # non-interactively, fetched at runtime → NOT offline-baked, revisit later).
-        # Tools: list-calendars, list/create/update/delete-event. The agent finds the
-        # shared "Family" calendar URL via list-calendars. Creds come from the ESO
-        # secret via ${VAR} expansion (Hermes expands ${ENV} in config values), so
+        # Supersedes caldav-mcp: events (list_calendars, create/update/delete_event),
+        # TASKS/to-dos (list_todos, create/update/delete_todo → VTODO, syncs to the
+        # Nextcloud Tasks app + phone), and contacts (CardDAV). The agent finds the
+        # "Family" calendar / "Tasks" list URL via list_calendars. Creds come from the
+        # ESO secret via ${VAR} expansion (Hermes expands ${ENV} in config values), so
         # nothing secret lands in git. CALDAV_USERNAME/PASSWORD are the app-password's
-        # own login (NOT Pedro's OIDC userid); base_url is the in-cluster service
-        # (see the env comment — keeps CalDAV traffic off the public Cloudflare path).
+        # own login (NOT Pedro's OIDC userid).
         mcp_servers:
-          caldav:
+          dav:
             command: npx
             args:
               - "-y"
-              - caldav-mcp
+              - dav-mcp
             env:
               # In-cluster service (svc port 8080 → container 80), NOT the public URL:
-              # nextcloud.seyzahl.com is a Cloudflare Tunnel whose WAF blocks CalDAV
-              # clients (err 1010). This keeps calendar traffic inside the cluster. The
-              # svc hostname is whitelisted in Nextcloud trusted_domains, and the
-              # nextcloud CiliumNetworkPolicy allows ingress from hermes-agent.
-              CALDAV_BASE_URL: "http://nextcloud.nextcloud.svc.cluster.local:8080/remote.php/dav"
+              # nextcloud.seyzahl.com is a Cloudflare Tunnel whose WAF blocks DAV
+              # clients (err 1010). This keeps DAV traffic inside the cluster. The svc
+              # hostname is whitelisted in Nextcloud trusted_domains, and the nextcloud
+              # CiliumNetworkPolicy allows ingress from hermes-agent. (dav-mcp uses
+              # CALDAV_SERVER_URL, not CALDAV_BASE_URL.)
+              CALDAV_SERVER_URL: "http://nextcloud.nextcloud.svc.cluster.local:8080/remote.php/dav"
               CALDAV_USERNAME: "${CALDAV_USERNAME}"
               CALDAV_PASSWORD: "${CALDAV_PASSWORD}"
 
@@ -106,12 +108,15 @@ spec:
         e.g. "Added ✓ Family · Jun 25, 10:00 — reminder to tell Hanna you love her. 💛"
 
         ## How you work (your systems)
-        - Calendar → self-hosted Nextcloud via the `caldav` MCP. Call `list-calendars`
-          for URLs, then `create-event`/`list-events`/`update-event` with the right
-          `calendarUrl`. Default to the **Family** calendar for shared events; use
+        - Calendar & tasks → self-hosted Nextcloud via the `dav` MCP (CalDAV/VTODO).
+          Use `list_calendars` to find URLs. Events: `create_event`/`list_events`/
+          `update_event`. Tasks/to-dos: `create_todo`/`list_todos`/`update_todo`
+          (these are real Nextcloud Tasks that sync to the phone — use them for
+          "remind me to…" / "add to my list", not a calendar event). Default to the
+          **Family** calendar for shared events; the **Tasks** list for to-dos; use
           **Personal** only when Pedro says so. NEVER use Google Calendar, the
-          `google-workspace` skill, or any cloud calendar; never set up Google creds.
-          If a calendar tool fails, report the error — never fall back to Google.
+          `google-workspace` skill, or any cloud service; never set up Google creds.
+          If a tool fails, report the error — never fall back to Google.
         - Email → you watch a dedicated triage inbox (flights, events, bills forwarded
           to it). You do NOT have anyone's full mailbox. Summarize and propose; never
           send or delete mail without explicit confirmation.
