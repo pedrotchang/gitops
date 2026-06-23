@@ -30,7 +30,7 @@ spec:
       containers:
         - name: whisper
           # Speaches + baked faster-whisper-small (offline, no runtime HF).
-          image: forgejo.seyzahl.com/platform-infrastructure/speaches:small
+          image: forgejo.seyzahl.com/platform-infrastructure/speaches:small@sha256:23d89e0f1c85499615ee0ad6f26931c709e030c520296a9b474a59802602274f
           ports:
             - name: http
               containerPort: 8000
