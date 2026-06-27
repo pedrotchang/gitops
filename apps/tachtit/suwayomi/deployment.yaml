@@ -45,6 +45,15 @@ spec:
               value: "0.0.0.0"
             - name: BIND_PORT
               value: "4567"
+            # Pin the WebUI to the build bundled inside the server image so the
+            # server stops auto-pulling a newer WebUI (channel=stable) on a 23h
+            # timer. A 2026-06-27 image bump auto-updated the WebUI r2937 -> r3147,
+            # which desynced from the server and made every client render an empty
+            # source list while the GraphQL API still returned all sources.
+            - name: WEB_UI_CHANNEL
+              value: "bundled"
+            - name: WEB_UI_UPDATE_INTERVAL
+              value: "0"
 
           ports:
             - containerPort: 4567
