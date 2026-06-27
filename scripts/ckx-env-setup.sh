@@ -6,6 +6,7 @@
 set -euo pipefail
 
 NAMESPACE=cka-labs
+HELM_VERSION="v3.21.2"   # pinned exact; bump to upgrade (idempotency re-installs on change)
 
 vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -c "${@:2}"; }
 log() { echo "==> $*"; }
@@ -50,6 +51,23 @@ vssh cp 'grep -qF "ETCDCTL_CACERT" /etc/bash.bashrc || {
   echo "export ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt"
   echo "export ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key"
 } | sudo tee -a /etc/bash.bashrc > /dev/null'
+
+# ---------------------------------------------------------------------------
+# cp — install Helm (pinned) + bash completion
+# The CKA exam terminal ships Helm pre-installed: tasks ask you to *use* Helm to
+# install cluster components, never to install Helm itself. So bake it into cp,
+# where ~/.kube/config lives. Pinned for reproducible rebuilds — the get.helm.sh
+# tarball extracts to linux-amd64/helm; skip if already at the pinned version.
+# ---------------------------------------------------------------------------
+log "[cp] Installing Helm ${HELM_VERSION} (skip if already installed)..."
+vssh cp "helm version --short 2>/dev/null | grep -q '${HELM_VERSION}' || { \
+  curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz \
+  | sudo tar -xz --strip-components=1 -C /usr/local/bin \
+  linux-amd64/helm; }"
+
+log "[cp] Configuring Helm bash completion in /etc/bash.bashrc..."
+vssh cp 'grep -qF "helm completion bash" /etc/bash.bashrc || \
+  echo "source <(helm completion bash)" | sudo tee -a /etc/bash.bashrc > /dev/null'
 
 # ---------------------------------------------------------------------------
 # All nodes — kubectl completion + k alias (idempotent)
