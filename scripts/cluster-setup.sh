@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K8S_VERSION="1.35.1-1.1"
 K8S_SEMVER="v${K8S_VERSION%%-*}"   # 1.35.1-1.1 → v1.35.1
 CILIUM_VERSION="1.19.4"
+GATEWAY_API_VERSION="v1.4.1"       # experimental channel — Cilium 1.19 needs TLSRoute v1alpha2 served
 POD_CIDR="10.244.0.0/16"
 
 vssh() { virtctl ssh -n "$NAMESPACE" ubuntu@vm/"$1" -c "${@:2}"; }
@@ -77,13 +78,43 @@ vssh cp "echo 'KUBELET_EXTRA_ARGS=--node-ip=${CP_IP}' | sudo tee /etc/default/ku
 log "=== Installing Cilium CLI ==="
 vssh cp "command -v cilium >/dev/null 2>&1 || { CILIUM_CLI_VERSION=\$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt) && curl -fsSL https://github.com/cilium/cilium-cli/releases/download/\${CILIUM_CLI_VERSION}/cilium-linux-amd64.tar.gz | sudo tar xz -C /usr/local/bin; }"
 
-log "=== Installing Cilium ==="
+log "=== Installing Gateway API CRDs ($GATEWAY_API_VERSION, experimental channel) ==="
+# CKA covers Gateway API. Cilium 1.19's gateway controller REQUIRES the
+# experimental channel: it sets up a TLSRoute (gateway.networking.k8s.io/v1alpha2)
+# field indexer at startup and fatals if that version isn't *served* — which the
+# standard channel / Gateway API >= v1.5 no longer does (TLSRoute graduated to v1).
+# --server-side is mandatory: the experimental httproutes CRD exceeds kubectl's
+# 262144-byte last-applied-config annotation limit on a client-side apply.
+vssh cp "kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/experimental-install.yaml"
+
+log "=== Installing Cilium (kube-proxy-replacement + Gateway API) ==="
 # The host (talos) cluster also runs Cilium with VXLAN on the default UDP port
 # 8472. These VMs share the host's network via masquerade, so the host's vxlan
 # socket swallows the inner cluster's 8472 traffic and cross-node pod networking
 # silently breaks (pods on different nodes can't talk, DNS to coredns fails).
 # Move the inner cluster's tunnel to 8473 to dodge the collision.
-vssh cp "cilium install --version $CILIUM_VERSION --set tunnelProtocol=vxlan --set tunnelPort=8473 2>/dev/null || cilium status"
+#
+# kubeProxyReplacement=true is REQUIRED for Cilium's Gateway API to reconcile
+# (the operator refuses to start the gateway controller otherwise). socketLB MUST
+# stay disabled on this masquerade lab: with socket-LB on, host-namespace traffic
+# to the kubernetes ClusterIP 10.96.0.1 is rewritten at connect() to the apiserver
+# endpoint 10.0.2.2:6443 and loops back to the node, BYPASSING the manual OUTPUT
+# DNAT (10.96.0.1 -> CP_IP) that keeps the apiserver reachable. With socket-LB
+# off, host-ns ClusterIP goes through iptables, so that DNAT path survives — and
+# kube-proxy is intentionally RETAINED to serve the host-namespace ClusterIP
+# routing that socket-LB-off Cilium does not.
+#
+# Do NOT set --set k8sServiceHost=<CP_IP>: the apiserver serving cert only covers
+# the stable SANs 10.96.0.1 / 10.0.2.2 (CP_IP churns each boot and is NOT in the
+# cert), so Cilium must reach the apiserver via 10.96.0.1 (cert-valid) + the DNAT.
+#
+# gatewayAPI.enabled as a HELM value (not just the configmap) is what renders the
+# operator's Gateway API RBAC, the CiliumEnvoyConfig CRD, and the `cilium`
+# GatewayClass itself — so we never create the GatewayClass by hand.
+vssh cp "cilium install --version $CILIUM_VERSION \
+  --set tunnelProtocol=vxlan --set tunnelPort=8473 \
+  --set kubeProxyReplacement=true --set socketLB.enabled=false \
+  --set gatewayAPI.enabled=true 2>/dev/null || cilium status"
 
 log "=== Waiting for control plane Ready ==="
 vssh cp "kubectl wait --for=condition=Ready node/cp --timeout=300s"
@@ -119,6 +150,34 @@ for worker in worker-1 worker-2; do
   vssh "$worker" "sudo ip addr add ${WORKER_IP}/32 dev lo 2>/dev/null || true"
   vssh "$worker" "echo 'KUBELET_EXTRA_ARGS=--node-ip=${WORKER_IP}' | sudo tee /etc/default/kubelet >/dev/null && sudo systemctl restart kubelet"
 done
+
+log "=== Finalizing Gateway API (LB pool + GatewayClass) ==="
+# LoadBalancer IP pool so Gateways get an address and reach Programmed=True. The
+# range is arbitrary/internal: under masquerade these IPs are not routable from
+# outside the cluster, but Cilium still allocates one (so Programmed=True) and the
+# gateway is reachable in-cluster via its Service ClusterIP.
+vssh cp "cat <<'EOF' | kubectl apply -f -
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: gateway-pool
+  namespace: kube-system
+spec:
+  blocks:
+    - start: \"192.168.200.10\"
+      stop: \"192.168.200.50\"
+  serviceSelector:
+    matchExpressions:
+      - key: io.cilium.gateway/owning-gateway
+        operator: Exists
+EOF"
+# The operator creates the CiliumEnvoyConfig CRD at its own startup, but its
+# gateway controller-runtime manager can begin watching that CRD before discovery
+# is ready — leaving the helm-created GatewayClass stuck Accepted=Unknown. One
+# restart after every CRD exists makes it converge deterministically.
+vssh cp "kubectl -n kube-system rollout restart deploy/cilium-operator"
+vssh cp "kubectl -n kube-system rollout status deploy/cilium-operator --timeout=120s || true"
+vssh cp "kubectl wait --for=condition=Accepted gatewayclass/cilium --timeout=120s || true"
 
 log "=== Verifying cluster health ==="
 # Self-verify the fresh build. If a gate fails (e.g. kube-proxy buried the
