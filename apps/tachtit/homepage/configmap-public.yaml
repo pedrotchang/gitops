@@ -338,9 +338,6 @@ data:
       - Commafeed:
             href: https://commafeed.seyzahl.com
             icon: commafeed.png
-      - Kapowarr:
-            href: http://kapowarr.seyzahl.com
-            icon: kapowarr.png
 
     - Learn:
       - KubeCraft:
