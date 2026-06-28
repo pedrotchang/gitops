@@ -306,6 +306,9 @@ data:
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png
+      - Suwayomi:
+            href: https://suwayomi.seyzahl.com/library
+            icon: suwayomi.png
 
     - Developer:
       - Github:

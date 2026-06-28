@@ -8,6 +8,7 @@ excludeDomains:
   - nextcloud.seyzahl.com
   - wallabag.seyzahl.com
   - n8n.seyzahl.com
+  - suwayomi.seyzahl.com
   - git.seyzahl.com
 
 sources:
