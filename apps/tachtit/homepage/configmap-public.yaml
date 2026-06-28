@@ -303,33 +303,9 @@ data:
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
-      - Jellyfin:
-            href: http://jellyfin.seyzahl.com
-            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyfin.png
-      - JellySeerr:
-            href: http://jellyseerr.seyzahl.com
-            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyseerr.png
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png
-      - qBittorrent:
-            href: http://qbittorrent.seyzahl.com
-            icon: qbittorrent.png
-      - Sonarr:
-            href: http://sonarr.seyzahl.com
-            icon: sonarr.png
-      - Radarr:
-            href: http://radarr.seyzahl.com
-            icon: radarr.png
-      - Prowlarr:
-            href: http://prowlarr.seyzahl.com
-            icon: prowlarr.png
-      - Bazarr:
-            href: http://bazarr.seyzahl.com
-            icon: bazarr.png
-      - Suwayomi:
-            href: https://suwayomi.seyzahl.com/library
-            icon: suwayomi.png
 
     - Developer:
       - Github:
