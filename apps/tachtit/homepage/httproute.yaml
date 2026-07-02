@@ -5,6 +5,13 @@ metadata:
   namespace: homepage
   annotations:
     external-dns.alpha.kubernetes.io/exclude: "true"
+    # homepage v1 Gateway API discovery (kubernetes.yaml: gateway: true);
+    # enabled=false hides homepage's own tile, matching the retired Ingress
+    gethomepage.dev/enabled: "false"
+    gethomepage.dev/name: Homepage
+    gethomepage.dev/description: Dynamically Detected Homepage
+    gethomepage.dev/group: Cluster Management
+    gethomepage.dev/icon: homepage.png
 spec:
   parentRefs:
     - name: cilium-gateway

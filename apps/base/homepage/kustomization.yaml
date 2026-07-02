@@ -5,6 +5,5 @@ resources:
   - secret.yaml
   - serviceaccount.yaml
   - service.yaml
-  # - ingress.yaml
   - deployment.yaml
   - clusterrole.yaml
