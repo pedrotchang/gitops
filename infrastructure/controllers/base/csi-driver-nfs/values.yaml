@@ -13,7 +13,10 @@ image:
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: registry.k8s.io/sig-storage/csi-provisioner
-    tag: v6.3.0
+    # v6.2+ removed the HonorPVReclaimPolicy feature gate that chart <=4.13.x
+    # still passes via --feature-gates; v6.3.0 crashloops (exit 255). Unpin
+    # only when the chart template drops the gate arg.
+    tag: v6.1.0
     pullPolicy: IfNotPresent
   csiResizer:
     repository: registry.k8s.io/sig-storage/csi-resizer
