@@ -7,7 +7,8 @@ metadata:
     app.kubernetes.io/name: homepage
 data:
   kubernetes.yaml: |
-    mode: default
+    mode: cluster
+    gateway: true
   settings.yaml: |
     title: Seyza
     theme: dark
@@ -23,7 +24,7 @@ data:
     hideErrors: true
     fullWidth: true
     fadeIn: true
-    base: https://hp.seyzahl.com
+    base: https://homepage.seyzahl.com
     favicon: /icons/amp.webp
     backgroundOpacity: 0.40
     backgroundBrightness: 50
