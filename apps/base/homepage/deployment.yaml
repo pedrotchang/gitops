@@ -58,6 +58,10 @@ spec:
               drop:
                 - ALL
           volumeMounts:
+            # v1 requires /app/config writable: it copies skeleton configs
+            # (proxmox.yaml, ...) on demand and exits 1 on EACCES otherwise
+            - mountPath: /app/config
+              name: config
             - mountPath: /app/config/custom.js
               name: homepage-config
               subPath: custom.js
@@ -85,6 +89,8 @@ spec:
             - mountPath: /app/config/logs
               name: logs
       volumes:
+        - name: config
+          emptyDir: {}
         - name: homepage-config
           configMap:
             name: homepage
