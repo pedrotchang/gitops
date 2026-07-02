@@ -15,7 +15,10 @@ spec:
     spec:
       containers:
         - name: cloudflared
-          image: cloudflare/cloudflared:2026.6.1
+          # Served from the org's scanned mirror (supply-chain gate: grype+trivy,
+          # blocks Critical/High). Upstream version kept as the tag. Anonymous
+          # pull — org packages are public, no imagePullSecret needed.
+          image: forgejo.seyzahl.com/platform-infrastructure/cloudflared:2026.6.1
           args:
             - tunnel
             - --config
