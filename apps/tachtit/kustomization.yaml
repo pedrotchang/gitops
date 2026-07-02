@@ -13,7 +13,6 @@ resources:
   - n8n
   - nextcloud
   - headscale
-  - suwayomi
   - hermes-agent
   - headroom
   - whisper
