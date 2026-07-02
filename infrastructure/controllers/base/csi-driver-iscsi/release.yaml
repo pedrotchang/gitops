@@ -9,7 +9,7 @@ spec:
   chart:
     spec:
       chart: democratic-csi
-      version: "0.14.7"
+      version: "0.15.1"
       sourceRef:
         kind: HelmRepository
         name: democratic-csi
@@ -25,7 +25,10 @@ spec:
       strategy: deployment
       replicas: 1
       driver:
-        image: docker.io/democraticcsi/democratic-csi:next
+        # chart 0.15.x: image is a map; `registry` holds the full repo path
+        image:
+          registry: docker.io/democraticcsi/democratic-csi
+          tag: next
         logLevel: debug
       tolerations:
         - key: node-role.kubernetes.io/control-plane
@@ -36,7 +39,9 @@ spec:
       enabled: true
       hostPID: true
       driver:
-        image: docker.io/democraticcsi/democratic-csi:next
+        image:
+          registry: docker.io/democraticcsi/democratic-csi
+          tag: next
         logLevel: debug
         extraEnv:
           - name: ISCSIADM_HOST_STRATEGY
