@@ -102,10 +102,18 @@ Azure Key Vault "seyzahl"  ──ESO (ClusterSecretStore azure-kv-store)──�
 ## Provisioning (zero-click rebuild)
 
 `media-provisioner` Job (`apps/base/media/provisioner/`) runs `provision.ts`
-(bun) against every app API, idempotently: Prowlarr indexers (**Anime Tosho**,
-never Nyaa.si — it blocks automation) + full-sync to Sonarr/Radarr; download
-clients; root folders; TRaSH anime custom formats; Bazarr languages/providers;
-qBittorrent categories; Jellyfin wizard + libraries + SSO plugin; Seerr↔Jellyfin/arr.
+(bun) against every app API, idempotently: Prowlarr indexers (**YTS, Knaben,
+Tokyo Toshokan** — never Nyaa.si, it blocks automation) + full-sync to
+Sonarr/Radarr; download clients; root folders; TRaSH anime custom formats;
+Bazarr languages/providers; qBittorrent categories; Jellyfin wizard + libraries
++ API key; **Seerr full first-run** (owner + Jellyfin link + library sync +
+Sonarr/Radarr servers). Every step GETs current state first and only writes on
+drift, so reruns are safe.
+
+**Two things are deliberately NOT automated** (see *Known click-ops* below):
+the Jellyfin SSO plugin (needs a restart mid-setup) and the Cloudflare-gated
+indexers Anime Tosho / 1337x (answer Forbidden from a datacenter IP). Both are
+attempted best-effort and logged as warnings, never hard failures.
 
 Rerun: `kubectl -n media delete job media-provisioner && flux reconcile kustomization apps -n flux-system`
 (or edit `provision.ts` — the configMap hash change makes Flux replace the Job).
@@ -128,7 +136,8 @@ Bootstrap order for a from-scratch rebuild:
   - **"Anime Raws"** -10000 (raw releases have no subs).
   - Original-audio sub groups preferred: **Erai-raws** (Web Tier 04, +500),
     **SubsPlease** (Web Tier 05, +400).
-  - Indexer: **AnimeTosho** via Prowlarr (automation-friendly; mirrors Nyaa).
+  - Anime indexer: **Tokyo Toshokan** via Prowlarr (automation-friendly). Anime
+    Tosho mirrors Nyaa but is Cloudflare-gated — add it via the UI if wanted.
 - Anime series should be added with series type **Anime** (Seerr sets this for
   anime automatically; check when adding manually in Sonarr).
 
@@ -136,7 +145,7 @@ Bootstrap order for a from-scratch rebuild:
 
 1. Open `jellyseerr.seyzahl.com` (over Headscale), authentik login → Jellyfin
    account sign-in, search, request.
-2. Seerr → Sonarr/Radarr → Prowlarr (AnimeTosho et al) → qBittorrent
+2. Seerr → Sonarr/Radarr → Prowlarr (Tokyo Toshokan et al) → qBittorrent
    (`/data/downloads/{tv,movies}`, via NordVPN).
 3. Import **hardlinks** into `/data/tv` or `/data/movies` (single NFS dataset
    `tank/media` — no byte copies, seeding continues).
@@ -158,11 +167,40 @@ story is git + Key Vault + the provisioner, not storage restores.
 - **Bazarr providers**: OpenSubtitles.com/SubDL accounts + credentials must be
   entered in Bazarr (Settings → Providers) or staged into KV and added to
   provision.ts — provider registration itself is a human step.
-- **Jellyfin SSO plugin**: needs one Jellyfin restart after first install
-  before its Configuration API accepts writes — the provisioner tolerates this;
-  rerun the Job (or finish in UI: Dashboard → Plugins → SSO-Auth).
+- **Jellyfin SSO plugin (authentik OIDC)** — the one genuinely un-scriptable
+  step, because it needs a Jellyfin **restart** between install and config, and
+  a single idempotent Job can't restart its own dependency mid-run. One-time:
+  1. Dashboard → Plugins → Catalog → add repo
+     `https://raw.githubusercontent.com/9p4/jellyfin-plugin-sso/manifest-release/manifest.json`,
+     install **SSO Authentication**.
+  2. **Restart Jellyfin** (`kubectl -n media rollout restart deploy/jellyfin`).
+  3. Dashboard → Plugins → SSO-Auth → add an OIDC provider named `authentik`:
+     - OID Endpoint: `https://auth.seyzahl.com/application/o/jellyfin/`
+     - Client ID: `jellyfin-media-sso`
+     - Client Secret: KV `media-jellyfin-oidc-client-secret` (env
+       `JELLYFIN_OIDC_CLIENT_SECRET`, already in the pod's Secret)
+     - Enabled ✔, Enable Authorization ✔, Enable All Folders ✔,
+       Role Claim `groups`, Enabled for Admins ✔.
+
+  Equivalent API call once the plugin is loaded (POST to
+  `/Plugins/{ssoPluginId}/Configuration` with `X-Emby-Token`):
+  ```jsonc
+  { "OidConfigs": { "authentik": {
+      "OidEndpoint": "https://auth.seyzahl.com/application/o/jellyfin/",
+      "OidClientId": "jellyfin-media-sso",
+      "OidSecret": "<JELLYFIN_OIDC_CLIENT_SECRET>",
+      "Enabled": true, "EnableAuthorization": true, "EnableAllFolders": true,
+      "RoleClaim": "groups", "EnabledForAdmins": true } } }
+  ```
+- **Cloudflare-gated indexers (Anime Tosho, 1337x)**: Prowlarr's API add/test
+  fails from a datacenter IP (Cloudflare challenge). If wanted, add them via the
+  Prowlarr UI (Indexers → Add) from a browser over Headscale — the provisioner
+  logs a warning and moves on.
 - **Seerr API key**: generated at init; if it differs from KV
-  `media-jellyseerr-api-key`, copy it into KV (provisioner logs it).
+  `media-jellyseerr-api-key`, copy it into KV (provisioner logs it). The rest of
+  Seerr's first-run **is** automated (owner, Jellyfin link, library sync,
+  Sonarr/Radarr) — `serverType: 2` numeric + a bare hostname are the two
+  non-obvious API requirements, both handled in `provisionSeerr()`.
 - **Authentik group bindings**: all authenticated users can currently reach all
   media apps; bind groups per application in authentik if family members should
   only see Jellyfin/Jellyseerr.

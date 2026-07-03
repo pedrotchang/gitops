@@ -9,10 +9,14 @@
  *   qBittorrent  categories/paths (+password), API reachable via subnet whitelist
  *   Sonarr       root folder, download client, TRaSH anime no-dub custom formats
  *   Radarr       root folder, download client, dub-reject custom format
- *   Prowlarr     AnimeTosho indexer + full-sync applications to Sonarr/Radarr
+ *   Prowlarr     public indexers (YTS/Knaben/Tokyo Toshokan) + full-sync apps
  *   Bazarr       English-everywhere language profile, Sonarr/Radarr link
- *   Jellyfin     startup wizard, libraries, SSO plugin (authentik OIDC)
+ *   Jellyfin     startup wizard, libraries, provisioner API key
  *   Seerr        Jellyfin link + library sync + Sonarr/Radarr servers
+ *
+ * The Jellyfin SSO plugin (authentik OIDC) is deliberately NOT here: it needs a
+ * Jellyfin restart between install and configuration, which no single idempotent
+ * Job can do. It is a one-time manual step — see docs/runbooks/media-stack.md.
  *
  * Every step GETs current state first and only creates/updates on drift.
  */
@@ -318,33 +322,37 @@ async function provisionProwlarr() {
   const api = servarr(URLS.prowlarr, "v1", env("PROWLARR_API_KEY"));
   await waitFor("prowlarr", `${URLS.prowlarr}/ping`);
 
-  // AnimeTosho — automation-friendly anime indexer (Nyaa.si blocks automation)
+  // Public, credential-free indexers. Each is added with a connectivity test;
+  // some (Anime Tosho, 1337x) sit behind Cloudflare and answer Forbidden from a
+  // datacenter IP — those are tried but non-fatal (add via UI per runbook).
+  //   movies: YTS + Knaben (meta-search, wide coverage)
+  //   anime:  Tokyo Toshokan (automation-friendly; Nyaa.si is deliberately NOT
+  //           used — it blocks automation. Anime Tosho is Cloudflare-gated here.)
+  const WANT = ["YTS", "Knaben", "Tokyo Toshokan", "Anime Tosho"];
   const indexers = await api.get<Array<{ name: string }>>("/indexer");
-  if (indexers.some((i) => /anime.?tosho/i.test(i.name))) {
-    console.log(`[prowlarr] indexer Anime Tosho: exists, skipping`);
-  } else {
-    const schemas = await api.get<Array<{ name: string; protocol: string; fields: Array<{ name: string; value?: unknown }> }>>(
-      "/indexer/schema",
-    );
-    const schema = schemas.find((s) => /anime.?tosho/i.test(s.name) && s.protocol === "torrent");
+  const have = new Set(indexers.map((i) => i.name));
+  const schemas = await api.get<Array<{ name: string; protocol: string; fields: Array<{ name: string; value?: unknown }> }>>(
+    "/indexer/schema",
+  );
+  for (const want of WANT) {
+    if ([...have].some((n) => n.toLowerCase() === want.toLowerCase())) {
+      console.log(`[prowlarr] indexer ${want}: exists, skipping`);
+      continue;
+    }
+    const schema = schemas.find((s) => s.name.toLowerCase() === want.toLowerCase() && s.protocol === "torrent");
     if (!schema) {
-      warnings.push("prowlarr: Anime Tosho schema not found — add manually");
-      console.warn(`[prowlarr] Anime Tosho schema not found in ${schemas.length} definitions`);
-    } else {
-      // Historically classified private with a mandatory apiKey field; any value works.
-      for (const f of schema.fields) {
-        if (/apikey/i.test(f.name) && (f.value === undefined || f.value === "")) f.value = "0";
-      }
-      // Prowlarr connectivity-tests the indexer on add; AnimeTosho can answer
-      // Forbidden to the test from a fresh IP. Non-fatal — the app sync and
-      // everything else must still land; add the indexer via UI if this warns.
-      try {
-        await api.post("/indexer?forceSave=true", { ...schema, enable: true, appProfileId: 1, priority: 25 });
-        console.log(`[prowlarr] indexer Anime Tosho: created`);
-      } catch (e) {
-        warnings.push(`prowlarr: Anime Tosho add failed (${String(e).slice(0, 120)}) — add via UI per runbook`);
-        console.warn(`[prowlarr] Anime Tosho add failed, continuing: ${e}`);
-      }
+      console.warn(`[prowlarr] indexer ${want}: schema not found, skipping`);
+      continue;
+    }
+    for (const f of schema.fields) {
+      if (/apikey/i.test(f.name) && (f.value === undefined || f.value === "")) f.value = "0";
+    }
+    try {
+      await api.post("/indexer?forceSave=true", { ...schema, enable: true, appProfileId: 1, priority: 25 });
+      console.log(`[prowlarr] indexer ${want}: created`);
+    } catch (e) {
+      warnings.push(`prowlarr: ${want} add failed (likely Cloudflare-gated) — add via UI per runbook`);
+      console.warn(`[prowlarr] ${want} add failed, continuing: ${String(e).slice(0, 100)}`);
     }
   }
 
@@ -505,58 +513,10 @@ async function provisionJellyfin() {
     console.warn(`[jellyfin] ACTION: stage the generated key into KV media-jellyfin-api-key (value redacted from logs; see warnings summary once, then rotate)`);
   }
 
-  // SSO plugin (authentik OIDC) — tolerant: plugin may need a restart between
-  // install and configuration; rerun the Job to converge.
-  try {
-    const repos = (await (await req(`${URLS.jellyfin}/Repositories`, { headers: jh })).json()) as Array<{ Name: string }>;
-    if (!repos.some((r) => r.Name === "jellyfin-plugin-sso")) {
-      await req(`${URLS.jellyfin}/Repositories`, {
-        method: "POST",
-        headers: jh,
-        body: JSON.stringify([
-          ...repos,
-          { Name: "jellyfin-plugin-sso", Url: "https://raw.githubusercontent.com/9p4/jellyfin-plugin-sso/manifest-release/manifest.json", Enabled: true },
-        ]),
-      });
-      console.log(`[jellyfin] plugin repo jellyfin-plugin-sso: added`);
-    }
-    const plugins = (await (await req(`${URLS.jellyfin}/Plugins`, { headers: jh })).json()) as Array<{ Name: string; Id: string }>;
-    let sso = plugins.find((p) => /sso/i.test(p.Name));
-    if (!sso) {
-      const inst = await req(`${URLS.jellyfin}/Packages/Installed/${encodeURIComponent("SSO Authentication")}`, {
-        method: "POST",
-        headers: jh,
-      });
-      if (!inst.ok) throw new Error(`plugin install -> ${inst.status}`);
-      warnings.push("jellyfin: SSO plugin installed — restart jellyfin, then rerun the provisioner to configure it");
-      console.warn(`[jellyfin] SSO plugin installed; restart + rerun needed to configure`);
-      return;
-    }
-    const cfg = {
-      OidConfigs: {
-        authentik: {
-          OidEndpoint: "https://auth.seyzahl.com/application/o/jellyfin/",
-          OidClientId: "jellyfin-media-sso",
-          OidSecret: env("JELLYFIN_OIDC_CLIENT_SECRET"),
-          Enabled: true,
-          EnableAuthorization: true,
-          EnableAllFolders: true,
-          RoleClaim: "groups",
-          EnabledForAdmins: true,
-        },
-      },
-    };
-    const cfgRes = await req(`${URLS.jellyfin}/Plugins/${sso.Id}/Configuration`, {
-      method: "POST",
-      headers: jh,
-      body: JSON.stringify(cfg),
-    });
-    if (!cfgRes.ok) throw new Error(`plugin config -> ${cfgRes.status}`);
-    console.log(`[jellyfin] SSO plugin configured against authentik (client jellyfin-media-sso)`);
-  } catch (err) {
-    warnings.push(`jellyfin: SSO plugin configuration incomplete (${err}) — finish via UI per runbook or rerun Job`);
-    console.warn(`[jellyfin] SSO plugin step failed: ${err}`);
-  }
+  // SSO (authentik OIDC) is intentionally a runbook step, not a provisioner
+  // step: the SSO plugin install requires a Jellyfin restart before it can be
+  // configured, and a single idempotent Job cannot restart its own dependency
+  // mid-run. The one-time manual recipe lives in docs/runbooks/media-stack.md.
 }
 
 // ── Seerr (Jellyseerr successor) ───────────────────────────────────────────
@@ -577,37 +537,55 @@ async function provisionSeerrInner() {
   await waitFor("seerr", `${URLS.seerr}/api/v1/status`);
   const pub = (await (await req(`${URLS.seerr}/api/v1/settings/public`)).json()) as { initialized: boolean };
 
-  let cookie = "";
-  // Seerr expects the Jellyfin base as a full URL in `hostname` (scheme+host),
-  // not a bare host — a bare host returns 404 INVALID_URL.
-  const login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      hostname: "http://jellyfin.media.svc.cluster.local:8096",
-      username: "admin",
-      password: env("JELLYFIN_ADMIN_PASSWORD"),
-      email: "admin@seyzahl.com",
-    }),
-  });
+  // POST /api/v1/auth/jellyfin serves BOTH create-owner and login (Seerr v3
+  // source, commit 703faf9). Verified specifics that bit us:
+  //   - hostname must be BARE host (Seerr prepends the scheme); a full URL
+  //     yields http://http://... which is unreachable -> 404 INVALID_URL.
+  //   - serverType is REQUIRED and numeric: 2 = Jellyfin (3 = Emby). Omitting
+  //     it -> 500 NO_ADMIN_USER even for a real Jellyfin admin.
+  //   - once the owner exists, re-sending the server details -> 500
+  //     "hostname already configured"; log in with credentials-only instead.
+  let login: Response;
+  if (pub.initialized) {
+    login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "admin", password: env("JELLYFIN_ADMIN_PASSWORD"), serverType: 2 }),
+    });
+  } else {
+    login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "admin",
+        password: env("JELLYFIN_ADMIN_PASSWORD"),
+        hostname: "jellyfin.media.svc.cluster.local",
+        port: 8096,
+        useSsl: false,
+        urlBase: "",
+        serverType: 2,
+        email: "admin@seyzahl.com",
+      }),
+    });
+  }
   if (!login.ok) throw new Error(`seerr jellyfin auth -> ${login.status}: ${(await login.text()).slice(0, 200)}`);
-  cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
   const sh = { "Content-Type": "application/json", Cookie: cookie };
-  console.log(`[seerr] authenticated via Jellyfin admin${pub.initialized ? " (already initialized)" : ""}`);
+  console.log(`[seerr] authenticated via Jellyfin admin${pub.initialized ? " (existing owner)" : " (owner created)"}`);
 
-  if (!pub.initialized) {
-    const sync = await req(`${URLS.seerr}/api/v1/settings/jellyfin/sync`, { method: "POST", headers: sh });
-    if (!sync.ok) warnings.push(`seerr: library sync -> ${sync.status}`);
-    const init = await req(`${URLS.seerr}/api/v1/settings/initialize`, { method: "POST", headers: sh });
-    if (!init.ok) warnings.push(`seerr: initialize -> ${init.status}`);
-    console.log(`[seerr] initialized + libraries synced`);
+  // Import Jellyfin libraries: discover (?sync=true) then enable all ids.
+  const libs = (await (await req(`${URLS.seerr}/api/v1/settings/jellyfin/library?sync=true`, { headers: sh })).json()) as Array<{ id: string }>;
+  const ids = libs.map((l) => l.id).filter(Boolean).join(",");
+  if (ids) {
+    await req(`${URLS.seerr}/api/v1/settings/jellyfin/library?enable=${ids}`, { headers: sh });
+    console.log(`[seerr] enabled ${libs.length} Jellyfin libraries`);
   }
 
   // Surface the generated API key so it can be copied to KV
   const main = (await (await req(`${URLS.seerr}/api/v1/settings/main`, { headers: sh })).json()) as { apiKey: string };
   if (main.apiKey && main.apiKey !== process.env.JELLYSEERR_API_KEY) {
-    warnings.push(`seerr: generated API key differs from KV media-jellyseerr-api-key — copy into KV`);
-    console.warn(`[seerr] ACTION: stage Seerr's generated API key into KV media-jellyseerr-api-key (read from Seerr Settings; value redacted from logs)`);
+    warnings.push(`seerr: generated API key differs from KV media-jellyseerr-api-key — stage it (set API_KEY env for determinism)`);
+    console.warn(`[seerr] ACTION: stage Seerr's API key into KV media-jellyseerr-api-key (value redacted; or set API_KEY env)`);
   }
 
   // Sonarr/Radarr servers — resolve default profile ids from the apps directly
