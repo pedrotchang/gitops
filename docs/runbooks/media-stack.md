@@ -190,8 +190,26 @@ story is git + Key Vault + the provisioner, not storage restores.
       "OidClientId": "jellyfin-media-sso",
       "OidSecret": "<JELLYFIN_OIDC_CLIENT_SECRET>",
       "Enabled": true, "EnableAuthorization": true, "EnableAllFolders": true,
-      "RoleClaim": "groups", "EnabledForAdmins": true } } }
+      "RoleClaim": "groups", "EnabledForAdmins": true,
+      "OidScopes": ["openid", "profile", "email"] } } }
   ```
+
+  Two gotchas found the hard way (both fixed permanently, listed so nobody
+  re-debugs them; done 2026-07-02):
+  - **KnownProxies**: the gateway terminates TLS and forwards http +
+    `X-Forwarded-Proto`. With Jellyfin's default empty `KnownProxies` those
+    headers are ignored, the plugin builds an `http://` redirect_uri, and
+    authentik's strict match rejects the login. The provisioner now asserts
+    `KnownProxies: [10.244.0.0/16, 192.168.7.0/24]`; it applies on the restart
+    in step 2. Symptom if regressed: `redirect_uri=http%3A%2F%2F...` in the
+    authorize URL.
+  - **authentik `grant_types`**: authentik 2026.x oauth2 providers created via
+    blueprint get an EMPTY grant-types list, which denies everything —
+    `/authorize` 302s back with `error=invalid_request` and the server log
+    says `Invalid grant_type for provider`. The media blueprint now sets
+    `grant_types: [authorization_code, refresh_token]`. (ProxyProviders are
+    immune — their save() fills grant types, which is why the *arr outpost
+    logins never hit this.)
 - **Cloudflare-gated indexers (Anime Tosho, 1337x)**: Prowlarr's API add/test
   fails from a datacenter IP (Cloudflare challenge). If wanted, add them via the
   Prowlarr UI (Indexers → Add) from a browser over Headscale — the provisioner

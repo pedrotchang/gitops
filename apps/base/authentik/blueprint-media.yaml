@@ -115,6 +115,14 @@ data:
           issuer_mode: per_provider
           sub_mode: hashed_user_id
           signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          # authentik 2026.x denies every grant when this list is empty, and
+          # blueprint-created oauth2 providers get NO default (the admin UI
+          # pre-checks authorization_code; blueprints do not). Without this the
+          # SSO login dies at /authorize: "Invalid grant_type for provider".
+          # ProxyProviders are unaffected — their save() fills grant types.
+          grant_types:
+            - authorization_code
+            - refresh_token
           redirect_uris:
             - matching_mode: strict
               url: "https://jellyfin.seyzahl.com/sso/OID/redirect/authentik"

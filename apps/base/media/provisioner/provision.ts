@@ -533,6 +533,31 @@ async function provisionJellyfin() {
     console.warn(`[jellyfin] ACTION: stage the generated key into KV media-jellyfin-api-key (value redacted from logs; see warnings summary once, then rotate)`);
   }
 
+  // Reverse-proxy trust — the gateway terminates TLS and forwards plain http
+  // with X-Forwarded-Proto; with an empty KnownProxies Jellyfin ignores those
+  // headers and builds http:// URLs, so the SSO plugin's redirect_uri fails
+  // authentik's strict https match. CIDRs cover the Envoy/gateway hops (pod
+  // CIDR + node LAN). Applies on next restart — the manual SSO plugin step
+  // (runbook) includes one, so a fresh rebuild converges without extra action.
+  const KNOWN_PROXIES = ["10.244.0.0/16", "192.168.7.0/24"];
+  const netCfg = (await (await req(`${URLS.jellyfin}/System/Configuration/network`, { headers: jh })).json()) as Record<
+    string,
+    unknown
+  > & { KnownProxies?: string[] };
+  const currentProxies = netCfg.KnownProxies ?? [];
+  if (KNOWN_PROXIES.some((p) => !currentProxies.includes(p))) {
+    const r = await req(`${URLS.jellyfin}/System/Configuration/network`, {
+      method: "POST",
+      headers: jh,
+      body: JSON.stringify({ ...netCfg, KnownProxies: [...new Set([...currentProxies, ...KNOWN_PROXIES])] }),
+    });
+    if (!r.ok) throw new Error(`jellyfin network config -> ${r.status}`);
+    warnings.push("jellyfin: KnownProxies updated — takes effect on the next Jellyfin restart (the SSO runbook step includes one)");
+    console.log(`[jellyfin] KnownProxies asserted: ${KNOWN_PROXIES.join(", ")} (restart required to apply)`);
+  } else {
+    console.log(`[jellyfin] KnownProxies already cover gateway CIDRs: skipping`);
+  }
+
   // SSO (authentik OIDC) is intentionally a runbook step, not a provisioner
   // step: the SSO plugin install requires a Jellyfin restart before it can be
   // configured, and a single idempotent Job cannot restart its own dependency
