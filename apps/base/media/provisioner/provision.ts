@@ -11,12 +11,11 @@
  *   Radarr       root folder, download client, dub-reject custom format
  *   Prowlarr     public indexers (YTS/Knaben/Tokyo Toshokan) + full-sync apps
  *   Bazarr       English-everywhere language profile, Sonarr/Radarr link
- *   Jellyfin     startup wizard, libraries, provisioner API key
+ *   Jellyfin     startup wizard, libraries, API key, KnownProxies, SSO plugin
+ *                config (plugin binaries are seeded onto the config PVC by the
+ *                seed-sso initContainer — carrier image jellyfin-sso-plugin —
+ *                so it is loaded from first boot; no install/restart dance)
  *   Seerr        Jellyfin link + library sync + Sonarr/Radarr servers
- *
- * The Jellyfin SSO plugin (authentik OIDC) is deliberately NOT here: it needs a
- * Jellyfin restart between install and configuration, which no single idempotent
- * Job can do. It is a one-time manual step — see docs/runbooks/media-stack.md.
  *
  * Every step GETs current state first and only creates/updates on drift.
  */
@@ -558,10 +557,54 @@ async function provisionJellyfin() {
     console.log(`[jellyfin] KnownProxies already cover gateway CIDRs: skipping`);
   }
 
-  // SSO (authentik OIDC) is intentionally a runbook step, not a provisioner
-  // step: the SSO plugin install requires a Jellyfin restart before it can be
-  // configured, and a single idempotent Job cannot restart its own dependency
-  // mid-run. The one-time manual recipe lives in docs/runbooks/media-stack.md.
+  // SSO plugin config (authentik OIDC). The plugin binaries are seeded onto
+  // the config PVC by the seed-sso initContainer, so the plugin is loaded from
+  // first boot and config can be asserted here — no install/restart dance.
+  // Config POSTs to an Active plugin apply immediately (verified live).
+  const plugins = (await (await req(`${URLS.jellyfin}/Plugins`, { headers: jh })).json()) as Array<{
+    Name: string;
+    Id: string;
+    Status: string;
+  }>;
+  const sso = plugins.find((p) => /sso/i.test(p.Name));
+  if (!sso || sso.Status !== "Active") {
+    warnings.push(
+      `jellyfin: SSO plugin ${sso ? `status=${sso.Status}` : "not loaded"} — check the seed-sso initContainer (runbook: Jellyfin SSO)`,
+    );
+    console.warn(`[jellyfin] SSO plugin ${sso ? sso.Status : "absent"}; skipping OIDC config`);
+    return;
+  }
+  const desiredOid: Record<string, unknown> = {
+    OidEndpoint: "https://auth.seyzahl.com/application/o/jellyfin/",
+    OidClientId: "jellyfin-media-sso",
+    OidSecret: env("JELLYFIN_OIDC_CLIENT_SECRET"),
+    Enabled: true,
+    EnableAuthorization: true,
+    EnableAllFolders: true,
+    RoleClaim: "groups",
+    EnabledForAdmins: true,
+    OidScopes: ["openid", "profile", "email"],
+  };
+  const ssoCfg = (await (await req(`${URLS.jellyfin}/Plugins/${sso.Id}/Configuration`, { headers: jh })).json()) as {
+    OidConfigs?: Record<string, Record<string, unknown>>;
+  };
+  const currentOid = ssoCfg.OidConfigs?.authentik ?? {};
+  const oidDrift = Object.entries(desiredOid).some(([k, v]) => JSON.stringify(currentOid[k]) !== JSON.stringify(v));
+  if (!oidDrift) {
+    console.log(`[jellyfin] SSO plugin OIDC config: already correct, skipping`);
+  } else {
+    // Merge over the full config object so non-OIDC plugin settings survive.
+    const r = await req(`${URLS.jellyfin}/Plugins/${sso.Id}/Configuration`, {
+      method: "POST",
+      headers: jh,
+      body: JSON.stringify({
+        ...ssoCfg,
+        OidConfigs: { ...(ssoCfg.OidConfigs ?? {}), authentik: { ...currentOid, ...desiredOid } },
+      }),
+    });
+    if (!r.ok) throw new Error(`jellyfin SSO plugin config -> ${r.status}`);
+    console.log(`[jellyfin] SSO plugin configured against authentik (client jellyfin-media-sso)`);
+  }
 }
 
 // ── Seerr (Jellyseerr successor) ───────────────────────────────────────────

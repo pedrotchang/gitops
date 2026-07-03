@@ -106,14 +106,15 @@ Azure Key Vault "seyzahl"  ──ESO (ClusterSecretStore azure-kv-store)──�
 Tokyo Toshokan** — never Nyaa.si, it blocks automation) + full-sync to
 Sonarr/Radarr; download clients; root folders; TRaSH anime custom formats;
 Bazarr languages/providers; qBittorrent categories; Jellyfin wizard + libraries
-+ API key; **Seerr full first-run** (owner + Jellyfin link + library sync +
-Sonarr/Radarr servers). Every step GETs current state first and only writes on
-drift, so reruns are safe.
++ API key + KnownProxies + **SSO plugin OIDC config** (binaries pre-seeded by
+the `seed-sso` initContainer — see *Known click-ops*); **Seerr full first-run**
+(owner + Jellyfin link + library sync + Sonarr/Radarr servers). Every step GETs
+current state first and only writes on drift, so reruns are safe.
 
-**Two things are deliberately NOT automated** (see *Known click-ops* below):
-the Jellyfin SSO plugin (needs a restart mid-setup) and the Cloudflare-gated
-indexers Anime Tosho / 1337x (answer Forbidden from a datacenter IP). Both are
-attempted best-effort and logged as warnings, never hard failures.
+**One thing is deliberately NOT automated** (see *Known click-ops* below): the
+Cloudflare-gated indexers Anime Tosho / 1337x (answer Forbidden from a
+datacenter IP). Attempted best-effort and logged as a warning, never a hard
+failure.
 
 Rerun: `kubectl -n media delete job media-provisioner && flux reconcile kustomization apps -n flux-system`
 (or edit `provision.ts` — the configMap hash change makes Flux replace the Job).
@@ -167,42 +168,33 @@ story is git + Key Vault + the provisioner, not storage restores.
 - **Bazarr providers**: OpenSubtitles.com/SubDL accounts + credentials must be
   entered in Bazarr (Settings → Providers) or staged into KV and added to
   provision.ts — provider registration itself is a human step.
-- **Jellyfin SSO plugin (authentik OIDC)** — the one genuinely un-scriptable
-  step, because it needs a Jellyfin **restart** between install and config, and
-  a single idempotent Job can't restart its own dependency mid-run. One-time:
-  1. Dashboard → Plugins → Catalog → add repo
-     `https://raw.githubusercontent.com/9p4/jellyfin-plugin-sso/manifest-release/manifest.json`,
-     install **SSO Authentication**.
-  2. **Restart Jellyfin** (`kubectl -n media rollout restart deploy/jellyfin`).
-  3. Dashboard → Plugins → SSO-Auth → add an OIDC provider named `authentik`:
-     - OID Endpoint: `https://auth.seyzahl.com/application/o/jellyfin/`
-     - Client ID: `jellyfin-media-sso`
-     - Client Secret: KV `media-jellyfin-oidc-client-secret` (env
-       `JELLYFIN_OIDC_CLIENT_SECRET`, already in the pod's Secret)
-     - Enabled ✔, Enable Authorization ✔, Enable All Folders ✔,
-       Role Claim `groups`, Enabled for Admins ✔.
-
-  Equivalent API call once the plugin is loaded (POST to
-  `/Plugins/{ssoPluginId}/Configuration` with `X-Emby-Token`):
-  ```jsonc
-  { "OidConfigs": { "authentik": {
-      "OidEndpoint": "https://auth.seyzahl.com/application/o/jellyfin/",
-      "OidClientId": "jellyfin-media-sso",
-      "OidSecret": "<JELLYFIN_OIDC_CLIENT_SECRET>",
-      "Enabled": true, "EnableAuthorization": true, "EnableAllFolders": true,
-      "RoleClaim": "groups", "EnabledForAdmins": true,
-      "OidScopes": ["openid", "profile", "email"] } } }
-  ```
+- ~~**Jellyfin SSO plugin**~~ — **no longer a click-op** (2026-07-02). The
+  plugin binaries are seeded onto the config PVC by the `seed-sso`
+  initContainer (carrier image
+  `forgejo.seyzahl.com/platform-infrastructure/jellyfin-sso-plugin`, built in
+  `custom-images/`), so the plugin is loaded from Jellyfin's first boot; the
+  initContainer also seeds `network.xml` (KnownProxies) on fresh PVCs, and the
+  provisioner asserts the plugin's OIDC config via API. Zero manual steps.
+  - Plugin version bump: PR in `custom-images/` (Dockerfile ARGs + workflow
+    tag), then bump the initContainer tag in
+    `apps/base/media/jellyfin/deployment.yaml`.
+  - Verify SSO without a browser:
+    `curl -sk --resolve jellyfin.seyzahl.com:443:<gateway-ip> https://jellyfin.seyzahl.com/sso/OID/start/authentik -o /dev/null -w '%{redirect_url}'`
+    → must 302 to `auth.seyzahl.com/application/o/authorize/` with
+    `redirect_uri=https%3A%2F%2Fjellyfin...`; following it must land on
+    `/if/flow/...` (the login flow), not `error=invalid_request`.
 
   Two gotchas found the hard way (both fixed permanently, listed so nobody
   re-debugs them; done 2026-07-02):
   - **KnownProxies**: the gateway terminates TLS and forwards http +
     `X-Forwarded-Proto`. With Jellyfin's default empty `KnownProxies` those
     headers are ignored, the plugin builds an `http://` redirect_uri, and
-    authentik's strict match rejects the login. The provisioner now asserts
-    `KnownProxies: [10.244.0.0/16, 192.168.7.0/24]`; it applies on the restart
-    in step 2. Symptom if regressed: `redirect_uri=http%3A%2F%2F...` in the
-    authorize URL.
+    authentik's strict match rejects the login. Fixed twice over: the
+    `seed-sso` initContainer writes `network.xml` on fresh PVCs (active from
+    first boot) and the provisioner asserts
+    `KnownProxies: [10.244.0.0/16, 192.168.7.0/24]` on existing installs
+    (applies on next restart). Symptom if regressed:
+    `redirect_uri=http%3A%2F%2F...` in the authorize URL.
   - **authentik `grant_types`**: authentik 2026.x oauth2 providers created via
     blueprint get an EMPTY grant-types list, which denies everything —
     `/authorize` 302s back with `error=invalid_request` and the server log
