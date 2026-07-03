@@ -1,0 +1,142 @@
+# vpn-canary — self-healing watchdog for the VPN data path.
+#
+# The tailscale-subnet-router's forwarding state can wedge (observed
+# 2026-07-03: tunnel up, routes approved, router egress fine, yet tunneled
+# traffic blackholed — tx>>rx from clients; a pod bounce fixed it instantly).
+# This canary joins the tailnet as a real client (userspace networking, no
+# privileges) and dials the cluster gateway THROUGH the subnet router's
+# advertised route — the exact path real Headscale clients use. On 3
+# consecutive failures it logs evidence and deletes the router pod (scoped
+# RBAC), turning a human-noticed outage into a ~2-minute self-heal.
+#
+# The auth key is an EPHEMERAL reusable headscale preauth key (user
+# vpn-canary, KV: headscale-canary-authkey) — ephemeral nodes vanish from
+# headscale when they disconnect, so canary restarts don't accumulate nodes.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: vpn-canary-authkey
+  namespace: headscale
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-kv-store
+    kind: ClusterSecretStore
+  target:
+    name: vpn-canary-authkey
+  data:
+    - secretKey: TS_AUTHKEY
+      remoteRef:
+        key: headscale-canary-authkey
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vpn-canary
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vpn-canary
+  namespace: headscale
+rules:
+  # list to find the current subnet-router pod, delete to bounce it.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vpn-canary
+  namespace: headscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vpn-canary
+subjects:
+  - kind: ServiceAccount
+    name: vpn-canary
+    namespace: headscale
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vpn-canary
+  namespace: headscale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vpn-canary
+  template:
+    metadata:
+      labels:
+        app: vpn-canary
+        policy-type: app
+    spec:
+      serviceAccountName: vpn-canary
+      containers:
+        - name: canary
+          # Same image as the subnet router; userspace networking needs no
+          # capabilities, no tun device, no root privileges.
+          image: ghcr.io/tailscale/tailscale:v1.98.4
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: vpn-canary-authkey
+                  key: TS_AUTHKEY
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              echo "starting tailscaled (userspace, in-memory state)"
+              tailscaled --state=mem: --tun=userspace-networking --socks5-server=localhost:1055 &
+              sleep 5
+              until tailscale up --authkey="${TS_AUTHKEY}" --hostname=vpn-canary --accept-routes; do
+                echo "tailscale up failed; retrying in 30s"; sleep 30
+              done
+              echo "joined tailnet; probing gateway 10.104.130.214:443 via subnet route every 60s"
+              GATEWAY="10.104.130.214"
+              FAILS=0
+              while true; do
+                # `tailscale nc` dials through tailscaled -> WG tunnel ->
+                # subnet-router forwarding -> gateway: the exact client path.
+                if timeout 8 tailscale nc "$GATEWAY" 443 </dev/null >/dev/null 2>&1; then
+                  if [ "$FAILS" -gt 0 ]; then echo "RECOVERED after $FAILS failed probes"; fi
+                  FAILS=0
+                else
+                  FAILS=$((FAILS+1))
+                  echo "probe FAIL #$FAILS: cannot reach $GATEWAY:443 through the VPN route"
+                  if [ "$FAILS" -ge 3 ]; then
+                    echo "== EVIDENCE (before self-heal) =="
+                    tailscale status 2>&1 | head -12
+                    tailscale netcheck 2>&1 | head -12
+                    echo "== SELF-HEAL: deleting wedged subnet-router pod =="
+                    TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+                    CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                    POD=$(wget -qO- --ca-certificate=$CA --header="Authorization: Bearer $TOKEN" \
+                      "https://kubernetes.default.svc/api/v1/namespaces/headscale/pods?labelSelector=app%3Dtailscale-subnet-router" \
+                      | grep -o '"name":"tailscale-subnet-router[^"]*"' | head -1 | cut -d'"' -f4)
+                    if [ -n "$POD" ]; then
+                      wget -qO- --method=DELETE --ca-certificate=$CA --header="Authorization: Bearer $TOKEN" \
+                        "https://kubernetes.default.svc/api/v1/namespaces/headscale/pods/$POD" >/dev/null 2>&1 \
+                        && echo "deleted $POD" || echo "DELETE FAILED for $POD (check RBAC)"
+                    else
+                      echo "no subnet-router pod found to delete"
+                    fi
+                    FAILS=0
+                    echo "cooling down 180s for the router to come back"
+                    sleep 180
+                  fi
+                fi
+                sleep 60
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi

@@ -10,3 +10,4 @@ resources:
   - secrets.yaml
   - db-secret.yaml
   - istio-gateway.yaml
+  - vpn-canary.yaml
