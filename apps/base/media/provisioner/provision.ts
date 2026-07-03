@@ -221,7 +221,11 @@ async function ensureRootFolder(app: string, api: ReturnType<typeof servarr>, pa
   console.log(`[${app}] root folder ${path}: created`);
 }
 
-async function ensureDownloadClient(app: string, api: ReturnType<typeof servarr>, category: string) {
+// categoryField: Servarr apps name it differently — Sonarr "tvCategory",
+// Radarr "movieCategory". A generic "category" field is SILENTLY IGNORED by
+// both create and update (unknown provider fields don't error), which is how
+// the clients ended up on the apps' internal defaults (tv-sonarr / radarr).
+async function ensureDownloadClient(app: string, api: ReturnType<typeof servarr>, category: string, categoryField: string) {
   type Client = { id: number; name: string; fields: Array<{ name: string; value?: unknown }> } & Record<string, unknown>;
   const clients = await api.get<Client[]>("/downloadclient");
   const existing = clients.find((c) => c.name === "qBittorrent");
@@ -240,25 +244,26 @@ async function ensureDownloadClient(app: string, api: ReturnType<typeof servarr>
         { name: "useSsl", value: false },
         { name: "username", value: "admin" },
         { name: "password", value: env("QBITTORRENT_PASSWORD") },
-        { name: "category", value: category },
+        { name: categoryField, value: category },
       ],
     });
-    console.log(`[${app}] download client qBittorrent (category ${category}): created`);
+    console.log(`[${app}] download client qBittorrent (${categoryField}=${category}): created`);
     return;
   }
-  // Exists — assert the category field too. A client saved without it falls
-  // back to the app's own default (e.g. Sonarr's "tv-sonarr"), which bypasses
-  // the qBittorrent category save paths (/data/downloads/{tv,movies}) and
-  // dumps downloads at the /data/downloads root.
-  const catField = existing.fields.find((f) => f.name === "category");
-  if (catField?.value === category) {
-    console.log(`[${app}] download client qBittorrent: exists with category ${category}, skipping`);
+  // Exists — assert the category field too. A client left on the app default
+  // (tv-sonarr / radarr) bypasses the qBittorrent category save paths
+  // (/data/downloads/{tv,movies}) and dumps downloads at /data/downloads root.
+  // PUTting the GET body back is safe: Servarr keeps secrets when the value
+  // is the '********' mask.
+  const catField = existing.fields.find((f) => f.name === categoryField);
+  if (!catField) throw new Error(`${app}: field ${categoryField} not in qBittorrent client schema`);
+  if (catField.value === category) {
+    console.log(`[${app}] download client qBittorrent: ${categoryField}=${category}, skipping`);
     return;
   }
-  if (catField) catField.value = category;
-  else existing.fields.push({ name: "category", value: category });
+  catField.value = category;
   await api.put(`/downloadclient/${existing.id}`, existing);
-  console.log(`[${app}] download client qBittorrent: category asserted -> ${category}`);
+  console.log(`[${app}] download client qBittorrent: ${categoryField} asserted -> ${category}`);
 }
 
 // ── qBittorrent ────────────────────────────────────────────────────────────
@@ -310,7 +315,7 @@ async function provisionSonarr() {
   const api = servarr(URLS.sonarr, "v3", env("SONARR_API_KEY"));
   await waitFor("sonarr", `${URLS.sonarr}/ping`);
   await ensureRootFolder("sonarr", api, "/data/tv");
-  await ensureDownloadClient("sonarr", api, "tv");
+  await ensureDownloadClient("sonarr", api, "tv", "tvCategory");
   const cfIds = await ensureCustomFormats("sonarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_ANIME_TIER_04, CF_ANIME_TIER_05]);
 
   // Ensure every profile carries the anime CF scores (formatItems are global
@@ -324,7 +329,7 @@ async function provisionRadarr() {
   const api = servarr(URLS.radarr, "v3", env("RADARR_API_KEY"));
   await waitFor("radarr", `${URLS.radarr}/ping`);
   await ensureRootFolder("radarr", api, "/data/movies");
-  await ensureDownloadClient("radarr", api, "movies");
+  await ensureDownloadClient("radarr", api, "movies", "movieCategory");
   const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS]);
   await scoreFormatsInAllProfiles("radarr", api, cfIds);
 }
