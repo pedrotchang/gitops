@@ -74,6 +74,15 @@ spec:
               value: "America/Los_Angeles"
             - name: UPDATER_PERIOD
               value: "24h"
+            # DNS-over-TLS through the tunnel, but WITHOUT the ad/malware
+            # blocklists — building them in memory OOM-killed gluetun at 512Mi
+            # before it went healthy (crashloop). We only need name resolution.
+            - name: DOT_BLOCK_MALICIOUS
+              value: "off"
+            - name: DOT_BLOCK_ADS
+              value: "off"
+            - name: DOT_BLOCK_SURVEILLANCE
+              value: "off"
             # Health + control servers must bind all interfaces so kubelet
             # probes and the leak canary (via Service) can reach them.
             - name: HEALTH_SERVER_ADDRESS
@@ -111,7 +120,7 @@ spec:
               cpu: 50m
               memory: 128Mi
             limits:
-              memory: 512Mi
+              memory: 256Mi
       containers:
         - name: qbittorrent
           image: lscr.io/linuxserver/qbittorrent:5.2.2_v2.0.13-ls464
