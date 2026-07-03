@@ -40,6 +40,13 @@ spec:
         - name: gluetun
           image: qmcgaw/gluetun:v3.41.1
           restartPolicy: Always
+          # Stale ip rules from a previous gluetun instance persist in the pod
+          # netns across container restarts and block reconnection with
+          # "adding IPv6 rule: file exists" (gluetun#2521; documented k8s fix).
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "(ip rule del table 51820; ip -6 rule del table 51820) || true"]
           securityContext:
             capabilities:
               add:
