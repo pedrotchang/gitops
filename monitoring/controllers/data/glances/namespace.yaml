@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    # hostNetwork (needed so homepage can poll each node by its LAN IP)
+    # violates the baseline PodSecurity profile — same precedent as the
+    # media namespace on tachtit.
+    pod-security.kubernetes.io/enforce: privileged

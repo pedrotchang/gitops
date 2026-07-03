@@ -270,19 +270,17 @@ data:
       - Grafana:
             href: https://grafana-pedrotchang.workload.na-west-1.omni.siderolabs.io
             icon: grafana.png
+            description: Monitoring
+            widget:
+              type: prometheus
+              url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+              fields: ["targets_up", "targets_down", "alerts"]
       - Unifi:
             href: https://unifi.ui.com
             icon: unifi.png
       - Omni:
             href: https://pedrotchang.omni.siderolabs.io/
             icon: talos.png
-      - Prometheus:
-            href: https://grafana-pedrotchang.workload.na-west-1.omni.siderolabs.io
-            icon: prometheus.png
-            description: Alerts
-            widget:
-              type: prometheus
-              url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
 
     - Space:
       - Confluence:
@@ -471,6 +469,23 @@ data:
           cpu: true
           memory: true
           showLabel: true
+
+    # Data-cluster node stats via glances DaemonSet
+    # (monitoring/controllers/data/glances) — homepage's kubernetes widget
+    # only sees the cluster it runs in, so data nodes are polled directly.
+    - glances:
+        url: http://192.168.4.236:61208
+        version: 4
+        label: data · talos-676-4zu
+        cpu: true
+        mem: true
+
+    - glances:
+        url: http://192.168.6.42:61208
+        version: 4
+        label: data · talos-otc-2fk
+        cpu: true
+        mem: true
 
     - search:
         provider: google
