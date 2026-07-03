@@ -81,6 +81,26 @@ blueprint; admin-UI drift is overwritten):
 - In-cluster API traffic (Prowlarr↔Sonarr↔qBittorrent, canary, provisioner)
   uses ClusterIP services + API keys and never crosses the outpost.
 
+### Family-member onboarding (per person, ~2 min)
+
+The trap: Jellyfin users created by the **SSO plugin have no local password**
+(`HasPassword=False`), and Seerr's "use your Jellyfin account" validates
+username+password against Jellyfin — so an SSO-only user cannot get into
+Seerr and it looks like "SSO is broken". The authentik gate itself passes
+fine (outpost logs show the user proxied; Seerr's `/api/v1/auth/me` 403s).
+
+1. Create the user in **authentik** (or they already exist).
+2. They open `jellyfin.seyzahl.com` → **Sign in with Seyzahl SSO** → the
+   Jellyfin user is auto-created.
+3. In Jellyfin, they set a **local password**: avatar → Profile → Password.
+   (SSO login keeps working; the password exists purely for Seerr.)
+4. Import them into Seerr so they get request permissions up front:
+   `POST /api/v1/user/import-from-jellyfin {"jellyfinUserIds": ["<id>"]}`
+   with `X-Api-Key` (or Seerr UI → Users → Import Jellyfin Users).
+5. They open `jellyseerr.seyzahl.com` → (authentik passes silently if a
+   session exists) → **Use your Jellyfin account** → username + the password
+   from step 3. One time per browser.
+
 ## Secrets flow
 
 ```
