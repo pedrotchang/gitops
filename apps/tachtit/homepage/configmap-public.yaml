@@ -307,6 +307,34 @@ data:
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png
+      - Jellyfin:
+            href: https://jellyfin.seyzahl.com
+            icon: jellyfin.png
+            description: Watch
+      - Jellyseerr:
+            href: https://jellyseerr.seyzahl.com
+            icon: jellyseerr.png
+            description: Request
+      - Sonarr:
+            href: https://sonarr.seyzahl.com
+            icon: sonarr.png
+            description: TV
+      - Radarr:
+            href: https://radarr.seyzahl.com
+            icon: radarr.png
+            description: Movies
+      - Prowlarr:
+            href: https://prowlarr.seyzahl.com
+            icon: prowlarr.png
+            description: Indexers
+      - Bazarr:
+            href: https://bazarr.seyzahl.com
+            icon: bazarr.png
+            description: Subtitles
+      - qBittorrent:
+            href: https://qbittorrent.seyzahl.com
+            icon: qbittorrent.png
+            description: Downloads (VPN)
 
     - Developer:
       - Github:
