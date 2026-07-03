@@ -389,19 +389,42 @@ async function provisionBazarr() {
   const h = { "X-API-KEY": env("BAZARR_API_KEY") };
   await waitFor("bazarr", `${URLS.bazarr}/api/system/status`, h);
 
-  // English-everywhere: one language profile, default for series AND movies.
-  const profile = {
-    profileId: 1,
-    name: "English",
-    cutoff: null,
-    items: [{ id: 1, language: "en", audio_exclude: "False", hi: "False", forced: "False" }],
-    mustContain: [],
-    mustNotContain: [],
-    originalFormat: false,
-  };
+  // Bazarr's settings POST is NOT idempotent: re-submitting an existing language
+  // profile returns 500 (only the first create succeeds). So GET first — like
+  // every other step — and never resend a profile that already exists.
+  type Profile = { items?: Array<{ language: string }> };
+  const hasEnglish = async () =>
+    ((await (await req(`${URLS.bazarr}/api/system/languages/profiles`, { headers: h })).json()) as Profile[]).some(
+      (p) => p.items?.some((i) => i.language === "en"),
+    );
+  const gen =
+    ((await (await req(`${URLS.bazarr}/api/system/settings`, { headers: h })).json()) as { general?: Record<string, unknown> })
+      .general ?? {};
+  const englishExists = await hasEnglish();
+  if (englishExists && gen.serie_default_enabled && gen.movie_default_enabled && gen.use_sonarr && gen.use_radarr) {
+    console.log(`[bazarr] English default + Sonarr/Radarr already wired: skipping`);
+    return;
+  }
+
   const form = new URLSearchParams();
-  form.set("languages-enabled", JSON.stringify(["en"]));
-  form.set("languages-profiles", JSON.stringify([profile]));
+  if (!englishExists) {
+    // English-everywhere profile — created only when missing (resend 500s).
+    form.set("languages-enabled", JSON.stringify(["en"]));
+    form.set(
+      "languages-profiles",
+      JSON.stringify([
+        {
+          profileId: 1,
+          name: "English",
+          cutoff: null,
+          items: [{ id: 1, language: "en", audio_exclude: "False", hi: "False", forced: "False" }],
+          mustContain: [],
+          mustNotContain: [],
+          originalFormat: false,
+        },
+      ]),
+    );
+  }
   form.set("settings-general-serie_default_enabled", "true");
   form.set("settings-general-serie_default_profile", "1");
   form.set("settings-general-movie_default_enabled", "true");
@@ -419,21 +442,18 @@ async function provisionBazarr() {
   form.set("settings-radarr-ssl", "false");
   form.set("settings-radarr-apikey", env("RADARR_API_KEY"));
   form.set("settings-general-upgrade_subs", "true");
-  // Embedded subs work credential-free; opensubtitles/subdl accounts are
-  // click-ops (see runbook) — enabling here is best-effort.
-  form.set("settings-general-enabled_providers", JSON.stringify(["embeddedsubtitles", "opensubtitlescom", "subdl"]));
+  // Credential-free provider only; opensubtitles.com / SubDL need accounts and are
+  // enabled by a human in the UI (runbook click-ops) — don't clobber that on rerun.
+  form.set("settings-general-enabled_providers", JSON.stringify(["embeddedsubtitles"]));
 
   const r = await req(`${URLS.bazarr}/api/system/settings`, { method: "POST", headers: h, body: form });
-  if (!r.ok) {
-    const text = await r.text();
-    if (r.status === 422 || r.status === 400) {
-      warnings.push(`bazarr: settings partially rejected (${r.status}) — check provider list in UI`);
-      console.warn(`[bazarr] settings POST ${r.status}: ${text.slice(0, 300)}`);
-    } else {
-      throw new Error(`bazarr settings -> ${r.status}: ${text.slice(0, 300)}`);
-    }
-  } else {
+  // Bazarr's settings endpoint is finicky; confirm by GET rather than trusting the
+  // status, and keep this best-effort — subtitles are off the request→playback path.
+  if (await hasEnglish()) {
     console.log(`[bazarr] settings asserted: English profile default everywhere, Sonarr+Radarr linked`);
+  } else {
+    warnings.push(`bazarr: English profile not confirmed after settings POST (${r.status}) — set it via UI per runbook`);
+    console.warn(`[bazarr] settings POST ${r.status}: English profile absent after save`);
   }
 }
 
