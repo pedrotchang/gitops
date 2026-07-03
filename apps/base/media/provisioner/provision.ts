@@ -170,6 +170,7 @@ type QualityProfile = {
   formatItems: Array<{ format: number; name: string; score: number }>;
   minFormatScore: number;
   cutoffFormatScore: number;
+  upgradeAllowed: boolean;
   [k: string]: unknown;
 };
 
@@ -215,11 +216,22 @@ async function scoreFormatsInAllProfiles(
         changed = true;
       }
     }
+    // upgradeAllowed defaults to FALSE upstream, which freezes whatever file
+    // landed first — a bad grab (e.g. a French-only-subs release) could never
+    // be replaced even at CF -10000, and every better release was rejected
+    // with "profile does not allow upgrade" (bit us live on Yomi no Tsugai
+    // E01–E03). cutoffFormatScore=500 stops the upgrade chase once an
+    // official-subs tier (+500) release is on disk.
+    if (profile.upgradeAllowed !== true || profile.cutoffFormatScore !== 500) {
+      profile.upgradeAllowed = true;
+      profile.cutoffFormatScore = 500;
+      changed = true;
+    }
     if (changed) {
       await api.put(`/qualityprofile/${profile.id}`, profile);
-      console.log(`[${app}] profile "${profile.name}": CF scores updated (no-dub enforced)`);
+      console.log(`[${app}] profile "${profile.name}": CF scores + upgrade policy updated`);
     } else {
-      console.log(`[${app}] profile "${profile.name}": CF scores already correct`);
+      console.log(`[${app}] profile "${profile.name}": CF scores + upgrade policy already correct`);
     }
   }
 }
