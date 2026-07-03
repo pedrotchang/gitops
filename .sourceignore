@@ -1,0 +1,20 @@
+# Flux source-controller artifact exclusions.
+#
+# This file OVERRIDES source-controller's default exclusion list, which strips
+# image files (jpg/png/gif/...) from the artifact. We need
+# apps/tachtit/homepage/assets/background.jpg to reach the kustomize build
+# (configMapGenerator homepage-assets) — without this file the apps
+# kustomization fails with "background.jpg: no such file or directory".
+#
+# Keep the artifact lean: exclude VCS metadata, docs, and repo-root diagrams,
+# but let app asset images through.
+.git/
+.github/
+.vscode/
+docs/
+Plans/
+scripts/
+graphify-out/
+*.md
+/gitops-workflow.png
+/homelab-architecture.png
