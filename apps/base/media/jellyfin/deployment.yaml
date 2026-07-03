@@ -19,6 +19,47 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        # Seeds the SSO plugin + reverse-proxy trust into the config PVC before
+        # Jellyfin starts. Plugins live on the PVC (not the image), so this
+        # carrier-image copy is what makes authentik OIDC work from first boot
+        # with zero click-ops; the media-provisioner then configures the plugin
+        # via API. Copy-if-absent → idempotent across restarts; a plugin bump
+        # ships a new versioned dir, which Jellyfin prefers automatically.
+        - name: seed-sso
+          image: forgejo.seyzahl.com/platform-infrastructure/jellyfin-sso-plugin:4.0.0.4
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /config/plugins /config/config
+              for d in /plugin/*/; do
+                name=$(basename "$d")
+                if [ -d "/config/plugins/$name" ]; then
+                  echo "plugin $name: already present"
+                else
+                  cp -r "$d" "/config/plugins/$name"
+                  echo "plugin $name: seeded"
+                fi
+              done
+              if [ -f /config/config/network.xml ]; then
+                echo "network.xml: already present"
+              else
+                printf '%s\n' \
+                  '<?xml version="1.0" encoding="utf-8"?>' \
+                  '<NetworkConfiguration>' \
+                  '  <KnownProxies>' \
+                  '    <string>10.244.0.0/16</string>' \
+                  '    <string>192.168.7.0/24</string>' \
+                  '  </KnownProxies>' \
+                  '</NetworkConfiguration>' \
+                  > /config/config/network.xml
+                echo "network.xml: seeded (KnownProxies for the gateway hops)"
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
       containers:
         - name: jellyfin
           image: jellyfin/jellyfin:10.11.11
