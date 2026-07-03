@@ -89,9 +89,13 @@ spec:
               value: ":9999"
             - name: HTTP_CONTROL_SERVER_ADDRESS
               value: ":8000"
-            # WebUI for arr apps/outpost, control server for the canary.
+            # WebUI (arr apps/outpost), control server (canary), and the health
+            # server — all three are probed via the pod IP, so gluetun's kill
+            # switch must allow them inbound. 9999 was the missing one: the
+            # kubelet readiness probe hits the pod IP and the firewall dropped
+            # it (localhost bypassed the firewall, masking the problem).
             - name: FIREWALL_INPUT_PORTS
-              value: "8080,8000"
+              value: "8080,8000,9999"
           ports:
             - containerPort: 8000
               name: control
@@ -108,12 +112,14 @@ spec:
               port: 9999
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
               port: 9999
             initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 3
           resources:
             requests:
