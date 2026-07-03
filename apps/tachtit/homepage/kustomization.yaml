@@ -8,3 +8,32 @@ resources:
   - httproute.yaml
   - authentik-outpost.yaml
   - cloudflare.yaml
+
+# Background wallpaper served by homepage at /images/*. Hash-suffixed name
+# forces a pod rollout whenever the image changes (unlike the subPath-mounted
+# homepage configmap, which needs a manual rollout restart).
+configMapGenerator:
+  - name: homepage-assets
+    files:
+      - assets/background.jpg
+
+patches:
+  # Mount the assets configmap into homepage's public images dir.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: homepage
+        namespace: homepage
+      spec:
+        template:
+          spec:
+            containers:
+              - name: homepage
+                volumeMounts:
+                  - mountPath: /app/public/images
+                    name: homepage-assets
+            volumes:
+              - name: homepage-assets
+                configMap:
+                  name: homepage-assets
