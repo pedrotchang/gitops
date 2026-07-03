@@ -4,3 +4,9 @@ metadata:
   name: media
   labels:
     app.kubernetes.io/name: media
+    # Required for the qbittorrent/gluetun VPN pod: NET_ADMIN + /dev/net/tun
+    # hostPath violate the cluster's baseline PodSecurity default (same label
+    # the old gluetun namespace carried).
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
