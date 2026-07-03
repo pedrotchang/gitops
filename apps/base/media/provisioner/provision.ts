@@ -222,29 +222,43 @@ async function ensureRootFolder(app: string, api: ReturnType<typeof servarr>, pa
 }
 
 async function ensureDownloadClient(app: string, api: ReturnType<typeof servarr>, category: string) {
-  const clients = await api.get<Array<{ name: string }>>("/downloadclient");
-  if (clients.some((c) => c.name === "qBittorrent")) {
-    console.log(`[${app}] download client qBittorrent: exists, skipping`);
+  type Client = { id: number; name: string; fields: Array<{ name: string; value?: unknown }> } & Record<string, unknown>;
+  const clients = await api.get<Client[]>("/downloadclient");
+  const existing = clients.find((c) => c.name === "qBittorrent");
+  if (!existing) {
+    await api.post("/downloadclient", {
+      name: "qBittorrent",
+      implementation: "QBittorrent",
+      implementationName: "qBittorrent",
+      configContract: "QBittorrentSettings",
+      protocol: "torrent",
+      enable: true,
+      priority: 1,
+      fields: [
+        { name: "host", value: "qbittorrent.media.svc.cluster.local" },
+        { name: "port", value: 8080 },
+        { name: "useSsl", value: false },
+        { name: "username", value: "admin" },
+        { name: "password", value: env("QBITTORRENT_PASSWORD") },
+        { name: "category", value: category },
+      ],
+    });
+    console.log(`[${app}] download client qBittorrent (category ${category}): created`);
     return;
   }
-  await api.post("/downloadclient", {
-    name: "qBittorrent",
-    implementation: "QBittorrent",
-    implementationName: "qBittorrent",
-    configContract: "QBittorrentSettings",
-    protocol: "torrent",
-    enable: true,
-    priority: 1,
-    fields: [
-      { name: "host", value: "qbittorrent.media.svc.cluster.local" },
-      { name: "port", value: 8080 },
-      { name: "useSsl", value: false },
-      { name: "username", value: "admin" },
-      { name: "password", value: env("QBITTORRENT_PASSWORD") },
-      { name: "category", value: category },
-    ],
-  });
-  console.log(`[${app}] download client qBittorrent (category ${category}): created`);
+  // Exists — assert the category field too. A client saved without it falls
+  // back to the app's own default (e.g. Sonarr's "tv-sonarr"), which bypasses
+  // the qBittorrent category save paths (/data/downloads/{tv,movies}) and
+  // dumps downloads at the /data/downloads root.
+  const catField = existing.fields.find((f) => f.name === "category");
+  if (catField?.value === category) {
+    console.log(`[${app}] download client qBittorrent: exists with category ${category}, skipping`);
+    return;
+  }
+  if (catField) catField.value = category;
+  else existing.fields.push({ name: "category", value: category });
+  await api.put(`/downloadclient/${existing.id}`, existing);
+  console.log(`[${app}] download client qBittorrent: category asserted -> ${category}`);
 }
 
 // ── qBittorrent ────────────────────────────────────────────────────────────
@@ -582,7 +596,8 @@ async function provisionJellyfin() {
     EnableAuthorization: true,
     EnableAllFolders: true,
     RoleClaim: "groups",
-    EnabledForAdmins: true,
+    // NB: no "EnabledForAdmins" — that key is not in the plugin's config
+    // schema (never stored, so comparing it re-POSTs on every run).
     OidScopes: ["openid", "profile", "email"],
   };
   const ssoCfg = (await (await req(`${URLS.jellyfin}/Plugins/${sso.Id}/Configuration`, { headers: jh })).json()) as {
