@@ -9,6 +9,16 @@ excludeDomains:
   - wallabag.seyzahl.com
   - n8n.seyzahl.com
   - git.seyzahl.com
+  # Media stack — Headscale-only, must never appear in public DNS. The
+  # per-route external-dns exclude annotation is NOT honored for the
+  # gateway-httproute source, so exclusion must live here.
+  - jellyfin.seyzahl.com
+  - jellyseerr.seyzahl.com
+  - sonarr.seyzahl.com
+  - radarr.seyzahl.com
+  - prowlarr.seyzahl.com
+  - bazarr.seyzahl.com
+  - qbittorrent.seyzahl.com
 
 sources:
   - service
