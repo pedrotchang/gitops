@@ -142,10 +142,23 @@ const CF_ANIME_TIER_05 = {
   includeCustomFormatWhenRenaming: false,
   specifications: [releaseGroupSpec("tier05-groups", "(SubsPlease|HorribleSubs|SobsPlease|NanDesuKa)")],
 };
+// French-scene releases: "MULTi" there means French+original audio with
+// FRENCH-ONLY subs — no English. Bit us live: Yomi no Tsugai E01–E03 grabbed
+// from Tsundere-Raws/KAF had jpn audio but only fra subtitles, violating the
+// English-subs-everywhere rule. Not covered by "Dubs Only" (nothing dubbed).
+const CF_FRENCH_SCENE = {
+  name: "French Scene (no English subs)",
+  includeCustomFormatWhenRenaming: false,
+  specifications: [
+    releaseTitleSpec("french-terms", "\\b(VOSTFR|SUBFRENCH|FRENCH|VFF?|VF2?)\\b"),
+    releaseGroupSpec("french-groups", "(Tsundere-Raws|KAF|Wawacity|FW)"),
+  ],
+};
 
 const CF_SCORES: Record<string, number> = {
   "Dubs Only": -10000,
   "Anime Raws": -10000,
+  "French Scene (no English subs)": -10000,
   "Anime Web Tier 04 (Official Subs)": 500,
   "Anime Web Tier 05 (FanSubs)": 400,
 };
@@ -334,7 +347,7 @@ async function provisionSonarr() {
   await ensureRootFolder("sonarr", api, "/data/tv");
   await ensureDownloadClient("sonarr", api, "tv", "tvCategory");
   await ensureExtraFileImport("sonarr", api);
-  const cfIds = await ensureCustomFormats("sonarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_ANIME_TIER_04, CF_ANIME_TIER_05]);
+  const cfIds = await ensureCustomFormats("sonarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE, CF_ANIME_TIER_04, CF_ANIME_TIER_05]);
 
   // Ensure every profile carries the anime CF scores (formatItems are global
   // across profiles in v4 — new CFs appear with score 0 until set).
@@ -349,7 +362,7 @@ async function provisionRadarr() {
   await ensureRootFolder("radarr", api, "/data/movies");
   await ensureDownloadClient("radarr", api, "movies", "movieCategory");
   await ensureExtraFileImport("radarr", api);
-  const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS]);
+  const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE]);
   await scoreFormatsInAllProfiles("radarr", api, cfIds);
 }
 
