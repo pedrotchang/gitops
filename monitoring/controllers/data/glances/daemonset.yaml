@@ -1,0 +1,55 @@
+# Per-node system stats for the homepage dashboard header (data cluster has
+# no monitoring stack; homepage's kubernetes widget only sees tachtit).
+# hostNetwork exposes the glances REST API on each node's LAN IP :61208 so
+# homepage (tachtit) can address nodes individually. /proc cpu/mem stats are
+# host-wide inside containers, so no hostPID needed for the fields we render.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: glances
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: glances
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: glances
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: glances
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: glances
+          image: docker.io/nicolargo/glances:4.5.5-full
+          args: ["glances", "-w", "--disable-webui"]
+          ports:
+            - name: http
+              containerPort: 61208
+              protocol: TCP
+          env:
+            - name: TZ
+              value: America/Los_Angeles
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /api/4/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
