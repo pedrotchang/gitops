@@ -1,0 +1,94 @@
+# Defense-in-depth network policy for the media namespace (Cilium idiom per
+# apps/base/forgejo/network-policy.yaml).
+#
+# Two tiers:
+#   policy-type: app  — normal apps: cluster ingress, DNS + in-cluster + web egress
+#   policy-type: vpn  — the qbittorrent/gluetun pod: egress is ONLY WireGuard
+#                       (UDP 51820) + cluster DNS. Even with gluetun's own
+#                       firewall off or misconfigured, nothing but encrypted
+#                       tunnel traffic can leave this pod. Fail closed.
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: media-apps
+  namespace: media
+spec:
+  endpointSelector:
+    matchLabels:
+      policy-type: app
+  ingress:
+    - fromEntities:
+        - cluster
+    - fromEntities:
+        - ingress
+  egress:
+    # Cluster DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # In-cluster traffic (qbittorrent API, authentik, inter-arr sync)
+    - toEndpoints:
+        - {}
+    # Indexers, metadata providers, subtitle providers
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+        - ports:
+            - port: "80"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: media-vpn-pod
+  namespace: media
+spec:
+  endpointSelector:
+    matchLabels:
+      policy-type: vpn
+  ingress:
+    # WebUI/API from inside the media namespace only (arr apps + authentik outpost)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: media
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Prometheus scraping / probes
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+  egress:
+    # Cluster DNS (gluetun bootstrap resolution; post-tunnel DNS rides tun0 as 51820)
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # WireGuard handshake + tunnel to NordVPN. Deliberately NOT 80/443 —
+    # gluetun's serverlist updater runs through the established tunnel.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "51820"
+              protocol: UDP

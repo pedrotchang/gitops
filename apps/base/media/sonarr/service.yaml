@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: media
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "sonarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "sonarr.png"
+    gethomepage.dev/href: "https://sonarr.seyzahl.com"
+spec:
+  selector:
+    app: sonarr
+  ports:
+    - name: http
+      port: 8989
+      targetPort: 8989
+      protocol: TCP

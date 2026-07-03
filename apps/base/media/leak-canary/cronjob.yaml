@@ -1,0 +1,65 @@
+# VPN confinement canary — the feedback loop the old design lacked.
+# Availability failures are loud (torrents stall); confinement failures are
+# silent (traffic takes the wrong path while everything "works"). This makes
+# them loud: any failed check fails the Job → KubeJobFailed alert.
+#
+# Checks every 15 minutes:
+#   1. gluetun control server reports a public IP (tunnel up)
+#   2. that IP differs from this pod's own egress IP (= the real WAN IP)
+#   3. qBittorrent's active network interface is still tun0
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vpn-leak-canary
+  namespace: media
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: vpn-leak-canary
+            policy-type: app
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: canary
+              image: curlimages/curl:8.14.1
+              env:
+                - name: QBIT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: media-app-secrets
+                      key: QBITTORRENT_PASSWORD
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  fail() { echo "CANARY FAIL: $1"; exit 1; }
+
+                  vpn_ip=$(curl -sf -m 10 http://qbittorrent:8000/v1/publicip/ip | sed 's/[^0-9a-fA-F:.]//g') \
+                    || fail "gluetun control server unreachable or no public IP (tunnel down?)"
+                  [ -n "$vpn_ip" ] || fail "gluetun returned empty public IP"
+
+                  wan_ip=$(curl -sf -m 10 https://api.ipify.org) || fail "cannot determine WAN IP"
+                  [ "$vpn_ip" != "$wan_ip" ] || fail "LEAK: qbittorrent pod egress IP equals real WAN IP ($wan_ip)"
+
+                  cookie=$(curl -sf -m 10 -i --data-urlencode username=admin --data-urlencode "password=$QBIT_PASSWORD" \
+                    http://qbittorrent:8080/api/v2/auth/login | grep -i '^set-cookie:' | cut -d' ' -f2 | tr -d ';\r') \
+                    || fail "qbittorrent API login failed"
+                  iface=$(curl -sf -m 10 -b "$cookie" http://qbittorrent:8080/api/v2/app/preferences \
+                    | tr ',' '\n' | grep '"current_network_interface"' | cut -d'"' -f4)
+                  [ "$iface" = "tun0" ] || fail "qbittorrent not bound to tun0 (got '$iface')"
+
+                  echo "CANARY OK: vpn_ip=$vpn_ip wan_ip=$wan_ip iface=$iface"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi

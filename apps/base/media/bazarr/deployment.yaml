@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+        policy-type: app
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: bazarr
+          image: lscr.io/linuxserver/bazarr:v1.5.6-ls353
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Los_Angeles"
+            # Bazarr has no native env-var config; the custom-cont-init script
+            # pins its API key to this Key-Vault-held value on every start.
+            - name: BAZARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: media-app-secrets
+                  key: BAZARR_API_KEY
+          ports:
+            - containerPort: 6767
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media-data
+              mountPath: /data
+            - name: bazarr-init
+              mountPath: /custom-cont-init.d/99-pin-apikey.sh
+              subPath: 99-pin-apikey.sh
+          readinessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6767
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: bazarr-config
+        - name: media-data
+          persistentVolumeClaim:
+            claimName: media-data
+        - name: bazarr-init
+          configMap:
+            name: bazarr-init
+            defaultMode: 0755

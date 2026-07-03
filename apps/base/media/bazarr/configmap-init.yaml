@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bazarr-init
+  namespace: media
+data:
+  # Pins Bazarr's API key to the Key-Vault value (BAZARR_API_KEY env) so the
+  # provisioner can talk to it deterministically. Bazarr regenerates a random
+  # key on first run otherwise. Runs before the app starts (custom-cont-init).
+  99-pin-apikey.sh: |
+    #!/usr/bin/with-contenv bash
+    CONFIG="/config/config/config.yaml"
+    if [ -z "$BAZARR_API_KEY" ]; then
+        echo "[bazarr-init] BAZARR_API_KEY not set; leaving config untouched"
+        exit 0
+    fi
+    mkdir -p /config/config
+    if [ ! -f "$CONFIG" ]; then
+        printf 'auth:\n  apikey: %s\n  type: null\n' "$BAZARR_API_KEY" > "$CONFIG"
+        echo "[bazarr-init] Seeded fresh config with pinned API key"
+        exit 0
+    fi
+    if grep -qE '^\s+apikey:' "$CONFIG"; then
+        sed -i "s|^\(\s*apikey:\).*|\1 $BAZARR_API_KEY|" "$CONFIG"
+        echo "[bazarr-init] Pinned existing API key"
+    else
+        printf 'auth:\n  apikey: %s\n' "$BAZARR_API_KEY" >> "$CONFIG"
+        echo "[bazarr-init] Appended auth.apikey"
+    fi

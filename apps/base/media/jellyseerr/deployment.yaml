@@ -1,0 +1,63 @@
+# Seerr v3 — the maintained successor to Jellyseerr (Jellyseerr + Overseerr
+# merged into the seerr-team org; fallenbagel/jellyseerr is deprecated).
+# Keeps the jellyseerr name/hostname for continuity. Runs behind the authentik
+# proxy outpost: Seerr's native OIDC is preview-only as of v3.3.0 — revisit
+# when it reaches stable (users sign in with their Jellyfin account inside).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyseerr
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyseerr
+  template:
+    metadata:
+      labels:
+        app: jellyseerr
+        policy-type: app
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: jellyseerr
+          image: ghcr.io/seerr-team/seerr:v3.3.0
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+            - name: TZ
+              value: "America/Los_Angeles"
+          ports:
+            - containerPort: 5055
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: 5055
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/status
+              port: 5055
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: jellyseerr-config

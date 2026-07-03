@@ -74,3 +74,4 @@ worker:
 blueprints:
   configMaps:
     - authentik-blueprint-immich
+    - authentik-blueprint-media

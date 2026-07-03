@@ -28,6 +28,27 @@ spec:
           - 1.1.1.1
           - 8.8.8.8
       extra_records:
+        - name: jellyfin.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: jellyseerr.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: sonarr.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: radarr.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: prowlarr.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: bazarr.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: qbittorrent.seyzahl.com
+          type: A
+          value: "10.104.130.214"
         - name: nextcloud.seyzahl.com
           type: A
           value: "10.104.130.214"

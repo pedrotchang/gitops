@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr
+  namespace: media
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "jellyseerr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "jellyseerr.png"
+    gethomepage.dev/href: "https://jellyseerr.seyzahl.com"
+spec:
+  selector:
+    app: jellyseerr
+  ports:
+    - name: http
+      port: 5055
+      targetPort: 5055
+      protocol: TCP

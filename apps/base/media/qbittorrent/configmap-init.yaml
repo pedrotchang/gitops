@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-init
+  namespace: media
+data:
+  # Binds libtorrent to tun0 so torrent sockets die (fail closed) if the tunnel
+  # interface disappears — in-pod layer under gluetun's firewall and the
+  # CiliumNetworkPolicy. Bind by interface NAME only: the old script also pinned
+  # the WireGuard IP (10.5.0.2), coupling it to the VPN credential config.
+  99-configure-interface.sh: |
+    #!/usr/bin/with-contenv bash
+    CONFIG_FILE="/config/qBittorrent/qBittorrent.conf"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        # First boot: seed a minimal config so qBittorrent starts bound to tun0
+        # (the old script skipped on missing config, leaving boot #1 unbound).
+        # AuthSubnetWhitelist lets in-namespace pods (arr apps, provisioner,
+        # canary) use the API without a login cookie; the UI hostname is still
+        # behind the authentik outpost and the CiliumNetworkPolicy restricts
+        # ingress to the media namespace.
+        mkdir -p /config/qBittorrent
+        {
+            printf '[BitTorrent]\nSession\\Interface=tun0\nSession\\InterfaceName=tun0\n'
+            printf '[Preferences]\nWebUI\\AuthSubnetWhitelistEnabled=true\nWebUI\\AuthSubnetWhitelist=10.244.0.0/16\n'
+        } > "$CONFIG_FILE"
+        echo "[qbit-init] Seeded fresh config with tun0 binding + subnet whitelist"
+        exit 0
+    fi
+
+    # Ensure the subnet whitelist survives config rewrites
+    if ! grep -q 'WebUI\\AuthSubnetWhitelistEnabled=true' "$CONFIG_FILE"; then
+        if grep -q '^\[Preferences\]' "$CONFIG_FILE"; then
+            sed -i '/^\[Preferences\]/a WebUI\\AuthSubnetWhitelistEnabled=true\nWebUI\\AuthSubnetWhitelist=10.244.0.0/16' "$CONFIG_FILE"
+        else
+            printf '\n[Preferences]\nWebUI\\AuthSubnetWhitelistEnabled=true\nWebUI\\AuthSubnetWhitelist=10.244.0.0/16\n' >> "$CONFIG_FILE"
+        fi
+        echo "[qbit-init] Added API subnet whitelist"
+    fi
+
+    # qBittorrent 5.x keeps session settings under [BitTorrent]
+    if ! grep -q '^\[BitTorrent\]' "$CONFIG_FILE"; then
+        printf '\n[BitTorrent]\n' >> "$CONFIG_FILE"
+    fi
+    if grep -q 'Session\\Interface=' "$CONFIG_FILE"; then
+        sed -i 's|Session\\Interface=.*|Session\\Interface=tun0|' "$CONFIG_FILE"
+        sed -i 's|Session\\InterfaceName=.*|Session\\InterfaceName=tun0|' "$CONFIG_FILE"
+    else
+        sed -i '/^\[BitTorrent\]/a Session\\Interface=tun0\nSession\\InterfaceName=tun0' "$CONFIG_FILE"
+    fi
+
+    # Verify — refuse to start unbound rather than start leaky
+    if ! grep -q 'Session\\Interface=tun0' "$CONFIG_FILE"; then
+        echo "[qbit-init] FATAL: tun0 binding not present after edit; refusing to start"
+        exit 1
+    fi
+    echo "[qbit-init] tun0 binding confirmed"

@@ -1,0 +1,96 @@
+# One shared authentik proxy outpost for the whole media namespace.
+# Providers/applications are declared in apps/base/authentik/blueprint-media.yaml
+# (GitOps-managed, no admin-UI drift); the outpost routes by Host header, so all
+# six proxied UIs (sonarr, radarr, prowlarr, bazarr, qbittorrent, jellyseerr)
+# share this Deployment. Jellyfin is NOT proxied — native OIDC via SSO plugin.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-outpost-media
+  namespace: media
+  labels:
+    app: authentik-outpost-media
+    app.kubernetes.io/name: authentik-outpost-media
+    app.kubernetes.io/component: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-outpost-media
+  template:
+    metadata:
+      labels:
+        app: authentik-outpost-media
+        app.kubernetes.io/name: authentik-outpost-media
+        app.kubernetes.io/component: proxy
+        policy-type: app
+    spec:
+      containers:
+        - name: outpost
+          image: ghcr.io/goauthentik/proxy:2026.5.3
+          env:
+            - name: AUTHENTIK_HOST
+              value: https://auth.seyzahl.com
+            - name: AUTHENTIK_INSECURE
+              value: "false"
+            - name: AUTHENTIK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: media-outpost-token
+                  key: token
+          volumeMounts:
+            - name: sessions
+              mountPath: /dev/shm
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+            - name: metrics
+              containerPort: 9300
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /outpost.goauthentik.io/ping
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /outpost.goauthentik.io/ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: sessions
+          emptyDir:
+            medium: Memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentik-outpost-media
+  namespace: media
+  labels:
+    app: authentik-outpost-media
+spec:
+  selector:
+    app: authentik-outpost-media
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+    - name: http
+      port: 9000
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9300
+      targetPort: metrics
+      protocol: TCP

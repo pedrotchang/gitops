@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: media
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "radarr"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "radarr.png"
+    gethomepage.dev/href: "https://radarr.seyzahl.com"
+spec:
+  selector:
+    app: radarr
+  ports:
+    - name: http
+      port: 7878
+      targetPort: 7878
+      protocol: TCP

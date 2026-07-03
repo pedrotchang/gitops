@@ -1,0 +1,36 @@
+# Shared media volume — ONE PV for downloads AND library so imports hardlink
+# instead of copying (the old split downloads/media PVs made link(2) fail EXDEV
+# across mounts and every import duplicated bytes).
+#
+# TRaSH-guides layout inside the share:
+#   /data/downloads/{tv,movies}   qBittorrent writes here
+#   /data/tv  /data/movies        Sonarr/Radarr libraries (Jellyfin reads)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-data-pv
+spec:
+  capacity:
+    storage: 5000Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.7.14
+    path: /mnt/tank/media
+  mountOptions:
+    - nfsvers=4.2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-data
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: media-data-pv
+  resources:
+    requests:
+      storage: 5000Gi

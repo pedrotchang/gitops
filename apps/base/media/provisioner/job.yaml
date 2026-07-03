@@ -1,0 +1,47 @@
+# Idempotent provisioning Job — wires the whole stack via app APIs so a rebuild
+# comes up configured with zero clicks: Prowlarr indexers (AnimeTosho) + app
+# sync, Sonarr/Radarr download client + root folders + TRaSH anime no-dub
+# custom formats, Bazarr English-subs-everywhere, qBittorrent categories,
+# Jellyfin setup + SSO plugin, Seerr wiring.
+#
+# The script is a configMapGenerator (media-provision-script); its hash suffix
+# changes when provision.ts changes, and the force annotation lets Flux replace
+# the immutable Job so it reruns automatically. Manual rerun:
+#   kubectl -n media delete job media-provisioner && flux reconcile ks apps
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: media-provisioner
+  namespace: media
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: "enabled"
+spec:
+  backoffLimit: 4
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      labels:
+        app: media-provisioner
+        policy-type: app
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: provision
+          image: oven/bun:1.2-alpine
+          command: ["bun", "run", "/app/provision.ts"]
+          envFrom:
+            - secretRef:
+                name: media-app-secrets
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: script
+          configMap:
+            name: media-provision-script
