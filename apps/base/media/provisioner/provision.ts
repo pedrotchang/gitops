@@ -625,6 +625,33 @@ async function provisionJellyfin() {
     if (!r.ok) throw new Error(`jellyfin SSO plugin config -> ${r.status}`);
     console.log(`[jellyfin] SSO plugin configured against authentik (client jellyfin-media-sso)`);
   }
+
+  // Login-page SSO button — the plugin does NOT add one; without it SSO only
+  // works by typing /sso/OID/start/authentik by hand. The documented pattern
+  // (9p4 README) is a form in the branding LoginDisclaimer.
+  const desiredBranding = {
+    LoginDisclaimer:
+      '<form action="/sso/OID/start/authentik"><button class="raised block emby-button button-submit">Sign in with Seyzahl SSO</button></form>',
+    CustomCss:
+      ".disclaimerContainer { display: block; } .loginDisclaimer { width: 100%; } .loginDisclaimer form { width: 100%; }",
+    SplashscreenEnabled: false,
+  };
+  const branding = (await (await req(`${URLS.jellyfin}/System/Configuration/branding`, { headers: jh })).json()) as Record<
+    string,
+    unknown
+  >;
+  const brandingDrift = Object.entries(desiredBranding).some(([k, v]) => branding[k] !== v);
+  if (!brandingDrift) {
+    console.log(`[jellyfin] SSO login button (branding): already set, skipping`);
+  } else {
+    const r = await req(`${URLS.jellyfin}/System/Configuration/branding`, {
+      method: "POST",
+      headers: jh,
+      body: JSON.stringify({ ...branding, ...desiredBranding }),
+    });
+    if (!r.ok) throw new Error(`jellyfin branding -> ${r.status}`);
+    console.log(`[jellyfin] SSO login button (branding): asserted`);
+  }
 }
 
 // ── Seerr (Jellyseerr successor) ───────────────────────────────────────────
