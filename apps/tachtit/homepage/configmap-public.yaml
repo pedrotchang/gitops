@@ -433,13 +433,16 @@ data:
         provider: google
         target: _blank
 
-    # Open-Meteo: keyless. (Old openweathermap block had lat/long swapped.)
-    - openmeteo:
+    # OpenWeatherMap (key staged in KV). Open-Meteo is unreachable from this
+    # network (verified from pod AND workstation, 2026-07-02) — do not switch
+    # back without testing api.open-meteo.com reachability first.
+    - openweathermap:
         label: Los Angeles
         timezone: America/Los_Angeles
         latitude: 34.059761
         longitude: -118.276802
         units: metric
+        apiKey: "{{HOMEPAGE_VAR_OPENWEATHER_API_KEY}}"
         cache: 5
         format:
           maximumFractionDigits: 1
