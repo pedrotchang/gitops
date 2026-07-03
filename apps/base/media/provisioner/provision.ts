@@ -181,11 +181,19 @@ async function scoreFormatsInAllProfiles(
   api: ReturnType<typeof servarr>,
   cfIds: Map<string, number>,
 ) {
+  // Map desired scores by CF *id* — matching by name breaks silently if a
+  // Sonarr version returns formatItems keyed only by format id. Getting this
+  // wrong means dubs are NOT rejected (requirement violation), so key on id.
+  const wantById = new Map<number, number>();
+  for (const [name, score] of Object.entries(CF_SCORES)) {
+    const id = cfIds.get(name);
+    if (id !== undefined) wantById.set(id, score);
+  }
   const profiles = await api.get<QualityProfile[]>("/qualityprofile");
   for (const profile of profiles) {
     let changed = false;
     for (const item of profile.formatItems) {
-      const wanted = CF_SCORES[item.name];
+      const wanted = wantById.get(item.format);
       if (wanted !== undefined && item.score !== wanted) {
         item.score = wanted;
         changed = true;
@@ -492,9 +500,9 @@ async function provisionJellyfin() {
   }
   if (provKey && provKey !== process.env.JELLYFIN_API_KEY) {
     warnings.push(
-      `jellyfin: server-generated API key differs from KV media-jellyfin-api-key — copy this into KV: ${provKey}`,
+      `jellyfin: server-generated API key differs from KV media-jellyfin-api-key — read it from the Jellyfin dashboard (API Keys) and stage into KV; value withheld from logs`,
     );
-    console.warn(`[jellyfin] ACTION: az keyvault secret set --vault-name seyzahl --name media-jellyfin-api-key --value '${provKey}'`);
+    console.warn(`[jellyfin] ACTION: stage the generated key into KV media-jellyfin-api-key (value redacted from logs; see warnings summary once, then rotate)`);
   }
 
   // SSO plugin (authentik OIDC) — tolerant: plugin may need a restart between
@@ -599,7 +607,7 @@ async function provisionSeerrInner() {
   const main = (await (await req(`${URLS.seerr}/api/v1/settings/main`, { headers: sh })).json()) as { apiKey: string };
   if (main.apiKey && main.apiKey !== process.env.JELLYSEERR_API_KEY) {
     warnings.push(`seerr: generated API key differs from KV media-jellyseerr-api-key — copy into KV`);
-    console.warn(`[seerr] ACTION: az keyvault secret set --vault-name seyzahl --name media-jellyseerr-api-key --value '${main.apiKey}'`);
+    console.warn(`[seerr] ACTION: stage Seerr's generated API key into KV media-jellyseerr-api-key (read from Seerr Settings; value redacted from logs)`);
   }
 
   // Sonarr/Radarr servers — resolve default profile ids from the apps directly

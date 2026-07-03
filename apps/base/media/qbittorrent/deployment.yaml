@@ -36,6 +36,16 @@ spec:
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      # Route the whole pod's DNS at gluetun's in-netns resolver (127.0.0.1:53,
+      # DoT through the tunnel). Without this, qBittorrent keeps the kubelet
+      # kube-dns resolv.conf and its tracker/peer hostname lookups leak to the
+      # WAN resolver outside the VPN — torrent traffic rides tun0, but the DNS
+      # metadata (which trackers you use) would not. Fail-closed: if gluetun's
+      # resolver is down, resolution fails rather than leaking.
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 127.0.0.1
       initContainers:
         - name: gluetun
           image: qmcgaw/gluetun:v3.41.1
@@ -106,6 +116,18 @@ spec:
               mountPath: /gluetun
             - name: tun-device
               mountPath: /dev/net/tun
+          # For a native sidecar, the main container waits on the sidecar's
+          # STARTUP probe (not readiness). The health server returns 200 only
+          # once the tunnel is up, so this actually gates qBittorrent's start
+          # on tun0 existing — otherwise qbit would boot before WireGuard and
+          # rely on libtorrent auto-rebinding.
+          startupProbe:
+            httpGet:
+              path: /
+              port: 9999
+            periodSeconds: 3
+            failureThreshold: 40
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /
