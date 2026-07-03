@@ -26,9 +26,13 @@ data:
     fadeIn: true
     base: https://homepage.seyzahl.com
     favicon: /icons/amp.webp
-    backgroundOpacity: 0.40
-    backgroundBrightness: 50
-    background: https://raw.githubusercontent.com/pedrotchang/homelab/main/apps/base/homepage/assets/background.png
+    # Pastel landscape served from the homepage-assets configmap (see
+    # kustomization.yaml). Filters keep light text readable over the pastels.
+    background:
+      image: /images/background.jpg
+      brightness: 75
+      saturate: 100
+      opacity: 65
     links:
       - name: Google Fonts (Preconnect)
         href: https://fonts.gstatic.com
@@ -55,6 +59,10 @@ data:
           header: true
           style: row
           columns: 5
+      - Data:
+          header: true
+          style: row
+          columns: 4
       - Developer:
           header: true
           style: row
@@ -76,10 +84,10 @@ data:
 
     /* ===== ROOT & VARIABLES ===== */
     :root {
-      /* cores */
-      --bg-main: #1d2434c2;
-      --bg-card: #162232;
-      --bg-card-light: #1f1f2354;
+      /* cores — deep-purple darks to sit clearly over the pastel landscape */
+      --bg-main: #241e36d9;
+      --bg-card: #221c33;
+      --bg-card-light: #2a234066;
       --text-header: #fdb833;
       --text-emerald: #b4e3f9;
       --text-thin: #9dedf6;
@@ -96,7 +104,14 @@ data:
 
     /* ===== THEME OVERRIDES ===== */
     :root[data-theme="dark"][data-color="zinc"] {
-      --bg-card: #162232 !important;
+      --bg-card: #221c33 !important;
+    }
+
+    /* Solid, clearly-bounded service cards over the pastel background */
+    #page_container .service-card, .bookmark-card {
+      background-color: var(--bg-card) !important;
+      border: 1px solid #ffffff1f;
+      border-radius: 8px;
     }
 
     /* ===== TEXT UTILITIES ===== */
@@ -374,6 +389,34 @@ data:
               username: admin
               password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
 
+    - Data:
+      # CNPG PostgreSQL fleet on the data cluster (no web UIs — informational
+      # tiles; live metrics need a monitoring stack on data, see PR notes)
+      - Authentik DB:
+            icon: postgresql.png
+            description: 192.168.4.164:5432
+      - Commafeed DB:
+            icon: postgresql.png
+            description: 192.168.4.160:5432
+      - Forgejo DB:
+            icon: postgresql.png
+            description: 192.168.4.168:5432
+      - Headscale DB:
+            icon: postgresql.png
+            description: 192.168.4.169:5432
+      - Immich DB:
+            icon: postgresql.png
+            description: 192.168.4.166:5432
+      - Linkding DB:
+            icon: postgresql.png
+            description: 192.168.4.161:5432
+      - N8N DB:
+            icon: postgresql.png
+            description: 192.168.4.163:5432
+      - Nextcloud DB:
+            icon: postgresql.png
+            description: 192.168.4.167:5432
+
     - Developer:
       - Github:
             href: https://github.com/pedrotchang
@@ -441,7 +484,7 @@ data:
         timezone: America/Los_Angeles
         latitude: 34.059761
         longitude: -118.276802
-        units: metric
+        units: imperial
         apiKey: "{{HOMEPAGE_VAR_OPENWEATHER_API_KEY}}"
         cache: 5
         format:
