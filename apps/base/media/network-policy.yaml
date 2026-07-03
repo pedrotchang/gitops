@@ -59,13 +59,16 @@ spec:
     matchLabels:
       policy-type: vpn
   ingress:
-    # WebUI/API from inside the media namespace only (arr apps + authentik outpost)
+    # From inside the media namespace only: WebUI/API on 8080 (arr apps +
+    # authentik outpost) and the gluetun control server on 8000 (leak canary).
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: media
       toPorts:
         - ports:
             - port: "8080"
+              protocol: TCP
+            - port: "8000"
               protocol: TCP
     # Prometheus scraping / probes
     - fromEndpoints:
