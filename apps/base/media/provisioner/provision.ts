@@ -309,6 +309,23 @@ async function provisionQbittorrent() {
   }
 }
 
+// Import companion subtitle files alongside episodes/movies. OFF by default
+// upstream, which strands the .srt files that "ESubs" releases ship next to
+// their videos (bit us live with Shrinking S2 — video imported, subs left in
+// /data/downloads). With Bazarr limited to credential-free providers, these
+// release-shipped subs are the primary subtitle source.
+async function ensureExtraFileImport(app: string, api: ReturnType<typeof servarr>) {
+  const cfg = await api.get<Record<string, unknown>>("/config/mediamanagement");
+  if (cfg.importExtraFiles === true && cfg.extraFileExtensions === "srt,ass") {
+    console.log(`[${app}] importExtraFiles srt,ass: already set, skipping`);
+    return;
+  }
+  await api.put(`/config/mediamanagement`, { ...cfg, importExtraFiles: true, extraFileExtensions: "srt,ass" });
+  const check = await api.get<Record<string, unknown>>("/config/mediamanagement");
+  if (check.importExtraFiles !== true) throw new Error(`${app}: importExtraFiles did not persist`);
+  console.log(`[${app}] importExtraFiles srt,ass: asserted`);
+}
+
 // ── Sonarr ─────────────────────────────────────────────────────────────────
 
 async function provisionSonarr() {
@@ -316,6 +333,7 @@ async function provisionSonarr() {
   await waitFor("sonarr", `${URLS.sonarr}/ping`);
   await ensureRootFolder("sonarr", api, "/data/tv");
   await ensureDownloadClient("sonarr", api, "tv", "tvCategory");
+  await ensureExtraFileImport("sonarr", api);
   const cfIds = await ensureCustomFormats("sonarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_ANIME_TIER_04, CF_ANIME_TIER_05]);
 
   // Ensure every profile carries the anime CF scores (formatItems are global
@@ -330,6 +348,7 @@ async function provisionRadarr() {
   await waitFor("radarr", `${URLS.radarr}/ping`);
   await ensureRootFolder("radarr", api, "/data/movies");
   await ensureDownloadClient("radarr", api, "movies", "movieCategory");
+  await ensureExtraFileImport("radarr", api);
   const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS]);
   await scoreFormatsInAllProfiles("radarr", api, cfIds);
 }
