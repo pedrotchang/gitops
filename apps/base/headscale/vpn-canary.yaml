@@ -95,7 +95,10 @@ spec:
               echo "starting tailscaled (userspace, in-memory state)"
               tailscaled --state=mem: --tun=userspace-networking --socks5-server=localhost:1055 &
               sleep 5
-              until tailscale up --authkey="${TS_AUTHKEY}" --hostname=vpn-canary --accept-routes; do
+              # login-server: in-cluster URL on purpose — the canary's control
+              # connection must NOT depend on the tunnel path it is testing.
+              until tailscale up --login-server=http://headscale.headscale.svc.cluster.local:8080 \
+                    --authkey="${TS_AUTHKEY}" --hostname=vpn-canary --accept-routes; do
                 echo "tailscale up failed; retrying in 30s"; sleep 30
               done
               echo "joined tailnet; probing gateway 10.104.130.214:443 via subnet route every 60s"
