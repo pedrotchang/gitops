@@ -327,8 +327,16 @@ async function provisionProwlarr() {
       for (const f of schema.fields) {
         if (/apikey/i.test(f.name) && (f.value === undefined || f.value === "")) f.value = "0";
       }
-      await api.post("/indexer", { ...schema, enable: true, appProfileId: 1, priority: 25 });
-      console.log(`[prowlarr] indexer Anime Tosho: created`);
+      // Prowlarr connectivity-tests the indexer on add; AnimeTosho can answer
+      // Forbidden to the test from a fresh IP. Non-fatal — the app sync and
+      // everything else must still land; add the indexer via UI if this warns.
+      try {
+        await api.post("/indexer?forceSave=true", { ...schema, enable: true, appProfileId: 1, priority: 25 });
+        console.log(`[prowlarr] indexer Anime Tosho: created`);
+      } catch (e) {
+        warnings.push(`prowlarr: Anime Tosho add failed (${String(e).slice(0, 120)}) — add via UI per runbook`);
+        console.warn(`[prowlarr] Anime Tosho add failed, continuing: ${e}`);
+      }
     }
   }
 
@@ -546,20 +554,32 @@ async function provisionJellyfin() {
 // ── Seerr (Jellyseerr successor) ───────────────────────────────────────────
 
 async function provisionSeerr() {
+  // Seerr v3 (just forked from Jellyseerr) has an in-flux auth API; its OIDC is
+  // preview-only. The whole first-run link can need the UI once. Keep this step
+  // best-effort so it never fails the Job — the runbook covers manual setup.
+  try {
+    await provisionSeerrInner();
+  } catch (e) {
+    warnings.push(`seerr: automated wiring incomplete (${String(e).slice(0, 140)}) — complete first-run link via UI per runbook`);
+    console.warn(`[seerr] wiring incomplete, continuing: ${e}`);
+  }
+}
+
+async function provisionSeerrInner() {
   await waitFor("seerr", `${URLS.seerr}/api/v1/status`);
   const pub = (await (await req(`${URLS.seerr}/api/v1/settings/public`)).json()) as { initialized: boolean };
 
   let cookie = "";
+  // Seerr expects the Jellyfin base as a full URL in `hostname` (scheme+host),
+  // not a bare host — a bare host returns 404 INVALID_URL.
   const login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      hostname: "jellyfin.media.svc.cluster.local",
-      port: 8096,
-      useSsl: false,
+      hostname: "http://jellyfin.media.svc.cluster.local:8096",
       username: "admin",
       password: env("JELLYFIN_ADMIN_PASSWORD"),
-      serverType: 2,
+      email: "admin@seyzahl.com",
     }),
   });
   if (!login.ok) throw new Error(`seerr jellyfin auth -> ${login.status}: ${(await login.text()).slice(0, 200)}`);
