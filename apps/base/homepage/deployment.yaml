@@ -49,6 +49,12 @@ spec:
                   key: OPENWEATHER_API_KEY
             - name: HOMEPAGE_ALLOWED_HOSTS
               value: homepage.seyzahl.com,homepage.local.seyzahl.com
+          # Widget credentials (homepage-widgets ExternalSecret) arrive as
+          # HOMEPAGE_VAR_<KEY>, referenced as {{HOMEPAGE_VAR_<KEY>}} in config.
+          envFrom:
+            - prefix: HOMEPAGE_VAR_
+              secretRef:
+                name: homepage-widgets
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true

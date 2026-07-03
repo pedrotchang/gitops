@@ -74,6 +74,16 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
+    # Homepage dashboard qBittorrent widget (ingress-only pinhole; the VPN
+    # leak guarantees are egress-side and remain fail-closed below)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: homepage
+            app.kubernetes.io/name: homepage
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
   egress:
     # Cluster DNS (gluetun bootstrap resolution; post-tunnel DNS rides tun0 as 51820)
     - toEndpoints:

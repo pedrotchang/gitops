@@ -261,6 +261,13 @@ data:
       - Omni:
             href: https://pedrotchang.omni.siderolabs.io/
             icon: talos.png
+      - Prometheus:
+            href: https://grafana-pedrotchang.workload.na-west-1.omni.siderolabs.io
+            icon: prometheus.png
+            description: Alerts
+            widget:
+              type: prometheus
+              url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
 
     - Space:
       - Confluence:
@@ -311,30 +318,61 @@ data:
             href: https://jellyfin.seyzahl.com
             icon: jellyfin.png
             description: Watch
+            widget:
+              type: jellyfin
+              url: http://jellyfin.media.svc.cluster.local:8096
+              key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+              enableBlocks: true
+              enableNowPlaying: true
       - Jellyseerr:
             href: https://jellyseerr.seyzahl.com
             icon: jellyseerr.png
             description: Request
+            widget:
+              type: jellyseerr
+              url: http://jellyseerr.media.svc.cluster.local:5055
+              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
       - Sonarr:
             href: https://sonarr.seyzahl.com
             icon: sonarr.png
             description: TV
+            widget:
+              type: sonarr
+              url: http://sonarr.media.svc.cluster.local:8989
+              key: "{{HOMEPAGE_VAR_SONARR_API_KEY}}"
       - Radarr:
             href: https://radarr.seyzahl.com
             icon: radarr.png
             description: Movies
+            widget:
+              type: radarr
+              url: http://radarr.media.svc.cluster.local:7878
+              key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
       - Prowlarr:
             href: https://prowlarr.seyzahl.com
             icon: prowlarr.png
             description: Indexers
+            widget:
+              type: prowlarr
+              url: http://prowlarr.media.svc.cluster.local:9696
+              key: "{{HOMEPAGE_VAR_PROWLARR_API_KEY}}"
       - Bazarr:
             href: https://bazarr.seyzahl.com
             icon: bazarr.png
             description: Subtitles
+            widget:
+              type: bazarr
+              url: http://bazarr.media.svc.cluster.local:6767
+              key: "{{HOMEPAGE_VAR_BAZARR_API_KEY}}"
       - qBittorrent:
             href: https://qbittorrent.seyzahl.com
             icon: qbittorrent.png
             description: Downloads (VPN)
+            widget:
+              type: qbittorrent
+              url: http://qbittorrent.media.svc.cluster.local:8080
+              username: admin
+              password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
 
     - Developer:
       - Github:
@@ -378,17 +416,31 @@ data:
 
   widgets.yaml: |
 
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: tachtit
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+
     - search:
         provider: google
         target: _blank
-    # - openweathermap:
-    #     timezone: America/Los_Angeles
-    #     units: imperial
-    #     longitude: 34.059761
-    #     latitude: -118.276802
-    #     provider: openweathermap
-    #     apiKey: "{{HOMEPAGE_VAR_OPENWEATHER_API_KEY}}"
-    #     cache: 5 # Time in minutes to cache API responses, to stay within limits
-    #     format:
-    #       maximumFractionDigits: 1
+
+    # Open-Meteo: keyless. (Old openweathermap block had lat/long swapped.)
+    - openmeteo:
+        label: Los Angeles
+        timezone: America/Los_Angeles
+        latitude: 34.059761
+        longitude: -118.276802
+        units: metric
+        cache: 5
+        format:
+          maximumFractionDigits: 1
   docker.yaml: ""
