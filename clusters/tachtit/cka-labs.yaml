@@ -1,0 +1,29 @@
+# CKA/CKS practice lab — manifests live in the dedicated repo (public on the
+# VPN-gated Forgejo instance, so the source needs no auth secret).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: cka-labs
+  namespace: flux-system
+spec:
+  interval: 10m
+  url: https://forgejo.seyzahl.com/continuous-learning/cka-labs
+  ref:
+    branch: main
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cka-labs
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 5m
+  dependsOn:
+    - name: infra-controllers
+  sourceRef:
+    kind: GitRepository
+    name: cka-labs
+  path: ./manifests
+  prune: true
