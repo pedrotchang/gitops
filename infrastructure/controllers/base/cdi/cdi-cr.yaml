@@ -4,10 +4,4 @@ metadata:
   name: cdi
   namespace: cdi
 spec:
-  config:
-    # local-path PVs are node-pinned and lab VMs carry nodeSelectors: DataVolume
-    # imports must wait for the VM pod (first consumer) so the disk binds on the
-    # VM's target node, not wherever the CDI importer happens to schedule.
-    featureGates:
-      - HonorWaitForFirstConsumer
   imagePullPolicy: IfNotPresent
