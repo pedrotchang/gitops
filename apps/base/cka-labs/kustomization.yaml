@@ -1,9 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - namespace.yaml
-  - cloud-init.yaml
-  - ubuntu-dv.yaml
-  - vm-cp.yaml
-  - vm-workers.yaml
-  - networkpolicy.yaml

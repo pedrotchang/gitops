@@ -1,25 +1,30 @@
-# KubeVirt CKA Lab
+# KubeVirt / CDI on tachtit
+
+This repo manages only the KubeVirt and CDI **operators** (Flux, under
+`infrastructure/controllers/`). The CKA/CKS practice lab that runs on top of them —
+VMs, WireGuard-mesh networking, cluster-setup, security tooling, exercises — lives in
+its own repo: **https://forgejo.seyzahl.com/continuous-learning/cka-labs** (applied by
+Flux via the `cka-labs` GitRepository + Kustomization in `clusters/tachtit/`).
+
+## Versions
+
+| Component | Version | Source |
+|-----------|---------|--------|
+| KubeVirt | v1.8.x | `infrastructure/controllers/base/kubevirt/` |
+| CDI | v1.65.x | `infrastructure/controllers/base/cdi/` |
 
 ## Prerequisites
 
-### 1. Verify KVM is available
+### KVM on Talos
 
-On bare metal with VT-x/AMD-V enabled in BIOS, `kvm_intel`/`kvm_amd` loads automatically — no Talos machineconfig patch needed.
+On bare metal with VT-x/AMD-V enabled in BIOS, `kvm_intel`/`kvm_amd` loads automatically —
+no Talos machineconfig patch needed.
 
 ```bash
 talosctl read /proc/modules -n <worker-node-ip> | grep kvm
 ```
 
-### 2. Azure Key Vault secret
-
-```bash
-az keyvault secret set \
-  --vault-name seyzahl \
-  --name cka-labs-ssh-public-key \
-  --value "$(cat ~/.ssh/id_ed25519.pub)"
-```
-
-### 3. Fetch vendor manifests
+### Updating operator manifests
 
 ```bash
 just fetch-manifests
@@ -37,218 +42,20 @@ flux-system (gotk-sync)
     └── cdi       (namespace + operator + CDI CR)
 
 cka-labs (separate Kustomization, dependsOn: infra-controllers)
-└── apps/tachtit/cka-labs/
-    ├── ExternalSecret  → Azure KV (ssh key → cloud-init Secret)
-    ├── DataVolume      → Ubuntu 22.04 cloud image (CDI import)
-    ├── VirtualMachine  cp        (2 vCPU, 4Gi, runStrategy: Manual)
-    ├── VirtualMachine  worker-1  (2 vCPU, 2Gi, runStrategy: Manual)
-    └── VirtualMachine  worker-2  (2 vCPU, 2Gi, runStrategy: Manual)
+└── GitRepository continuous-learning/cka-labs → ./manifests
 ```
 
-Monitor convergence:
-```bash
-flux get kustomizations -A
-kubectl get kubevirt -n kubevirt
-kubectl get cdi -n cdi
-kubectl get dv -n cka-labs -w   # wait for all DataVolumes Succeeded
-```
+## CDI configuration notes
 
-## Lab session lifecycle
+- `HonorWaitForFirstConsumer` feature gate is required: the lab uses `local-path`
+  (node-pinned) storage with node-pinned VMs, so DataVolume imports must bind on the
+  VM's target node, not wherever the importer pod happens to schedule.
+- KubeVirt CR runs with `useEmulation: false` (real KVM required).
 
-```bash
-just lab-up      # virtctl start all 3 VMs
-just lab-down    # virtctl stop all 3 VMs
-just lab-status  # show VM/VMI/DataVolume state
-just ssh-cp      # SSH into control plane
-just ssh-w1      # SSH into worker-1
-just ssh-w2      # SSH into worker-2
-```
+## History
 
-VMs use `runStrategy: Manual` — Flux does NOT restart or stop them.
-
-## Cluster setup (first time or after teardown)
-
-```bash
-just lab-up
-# wait ~60s for VMs to boot
-just cluster-setup
-```
-
-`cluster-setup` resets kubeadm on all nodes, re-initializes the cluster, installs Cilium, and joins both workers. See `scripts/cluster-setup.sh` for details.
-
-### What the script does
-
-1. Gets `cp`'s current VMI pod IP (changes on every `just lab-up`)
-2. Resets kubeadm on all three nodes
-3. Fixes DNS (`nameserver 8.8.8.8`) and containerd on each node
-4. Installs kubelet/kubeadm/kubectl v1.35.1 from the official pkgs.k8s.io repo
-5. Runs `kubeadm init` on cp with `--apiserver-cert-extra-sans=<vmi-ip>`
-6. Copies `super-admin.conf` as the kubeconfig (see [Known issues](#known-issues))
-7. Completes remaining kubeadm phases manually (see [Known issues](#known-issues))
-8. Installs Cilium v1.19.4
-9. Adds an iptables DNAT rule on each worker (see [Networking](#networking))
-10. Joins both workers
-
-### After every `just lab-up`
-
-The VMI pod IP of `cp` changes on restart. Re-run `just cluster-setup` to rebuild the cluster. The script is idempotent — it resets first.
-
-## Networking
-
-KubeVirt masquerade networking gives every VM the same internal IP (`10.0.2.2`). This means workers cannot reach the control plane via `10.0.2.2` — it resolves to themselves.
-
-**Workaround:** each worker gets two iptables DNAT rules, both applied automatically by `cluster-setup` (ephemeral — lost on VM reboot, reapplied on re-run):
-
-1. `10.0.2.2:6443` → `<cp vmi pod IP>:6443` — fixes the direct apiserver address baked into `kubelet.conf`.
-2. `10.96.0.1:443` → `<cp vmi pod IP>:6443`, inserted at the **top** of nat `OUTPUT` (before `KUBE-SERVICES`) — fixes the kubernetes ClusterIP. kube-proxy DNATs `10.96.0.1` → `10.0.2.2:6443` and that DNAT *terminates* the nat pass, so rule 1 never fires for ClusterIP traffic; the packet would loop back to the worker and get `connection refused`. This breaks cilium and every in-cluster pod, so rule 2 must win first.
-
-To inspect the current VMI pod IP:
-```bash
-kubectl get vmi cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}'
-```
-
-### Routable node IP (exec/logs/DNS)
-
-Because every VM's only local address is `10.0.2.2`, all nodes register
-`InternalIP = 10.0.2.2` by default. The apiserver then dials `10.0.2.2:10250`
-for `kubectl exec`/`logs`/`port-forward` and always hits cp's own kubelet —
-`pod does not exist` for any pod not on cp. Cilium also uses the InternalIP as
-its VXLAN tunnel endpoint, so cross-node pod traffic and worker→coredns DNS loop
-back to the sender.
-
-**Workaround (all three nodes, applied by `cluster-setup`, ephemeral):** pin
-`--node-ip` to the node's routable VMI pod IP. kubelet rejects a `--node-ip` not
-present on a local interface, so the IP is also added as a `/32` alias on `lo`:
-```bash
-sudo ip addr add <vmi pod IP>/32 dev lo
-echo 'KUBELET_EXTRA_ARGS=--node-ip=<vmi pod IP>' | sudo tee /etc/default/kubelet
-sudo systemctl restart kubelet
-```
-Inbound masquerade still DNATs `<vmi pod IP>:10250` → `10.0.2.2:10250`, so the
-apiserver reaches the kubelet. VMI pod IPs change on VM restart — re-run
-`cluster-setup` (or re-pin) afterward.
-
-### Cilium VXLAN port collision
-
-The host (talos) cluster runs Cilium with VXLAN on the default UDP port `8472`.
-The VMs share the host network via masquerade, so the host's vxlan socket
-swallows the inner cluster's `8472` packets — cross-node pod networking and DNS
-silently break (raw UDP on any other port traverses fine; only `8472` is eaten).
-
-**Workaround:** the inner cluster's Cilium runs VXLAN on `8473`
-(`cilium install --set tunnelPort=8473`, applied by `cluster-setup`). To fix a
-live cluster:
-```bash
-kubectl -n kube-system patch cm cilium-config --type merge -p '{"data":{"tunnel-port":"8473"}}'
-kubectl -n kube-system rollout restart ds/cilium
-```
-
-## Known issues
-
-### kubeadm init timeout
-
-`kubeadm init` sometimes times out while bootstrapping RBAC (`context deadline exceeded`). The apiserver and etcd are still running. The setup script handles this by catching the error and running the remaining phases individually:
-
-```bash
-sudo kubeadm init phase upload-config all
-sudo kubeadm init phase mark-control-plane
-sudo kubeadm init phase bootstrap-token
-sudo kubeadm init phase kubelet-finalize all
-sudo kubeadm init phase addon all --pod-network-cidr=10.244.0.0/16
-```
-
-### admin.conf vs super-admin.conf
-
-When the init RBAC bootstrap times out, `kubernetes-admin` in `admin.conf` lacks the ClusterRoleBinding to `cluster-admin`. `super-admin.conf` always works because its certificate carries `O=system:masters`. The setup script uses `super-admin.conf`.
-
-### Hostname DNS warnings
-
-All VMs lack DNS entries so `kubeadm join` emits hostname warnings. These are non-fatal — the setup script passes `--ignore-preflight-errors=Hostname`.
-
-## Manual cluster setup (step by step)
-
-If `just cluster-setup` fails, run manually.
-
-### On each VM
-
-```bash
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
-sudo rm -f /etc/containerd/config.toml && sudo systemctl restart containerd
-sudo rm -f /etc/apt/sources.list.d/kubernetes.list /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt-get update && sudo apt-get install -yq --allow-change-held-packages kubelet=1.35.1-1.1 kubeadm=1.35.1-1.1 kubectl=1.35.1-1.1
-sudo apt-mark hold kubelet kubeadm kubectl
-```
-
-### Control plane (cp)
-
-Get CP VMI IP from laptop first:
-```bash
-CP_IP=$(kubectl get vmi cp -n cka-labs -o jsonpath='{.status.interfaces[0].ipAddress}')
-```
-
-Then on cp:
-```bash
-sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.2.2 --apiserver-cert-extra-sans=$CP_IP
-mkdir -p ~/.kube
-sudo cp /etc/kubernetes/super-admin.conf ~/.kube/config
-sudo chown $(id -u):$(id -g) ~/.kube/config
-```
-
-If init times out, run the phases above, then:
-```bash
-cilium install --version 1.19.4
-kubectl get nodes -w   # wait for Ready
-kubeadm token create --print-join-command
-```
-
-### Workers (worker-1, worker-2)
-
-Replace `<CP_IP>` with the VMI pod IP:
-```bash
-sudo iptables -t nat -A OUTPUT -d 10.0.2.2 -p tcp --dport 6443 -j DNAT --to-destination <CP_IP>:6443
-sudo kubeadm join <CP_IP>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash> --ignore-preflight-errors=Hostname
-```
-
-### Verify
-
-```bash
-kubectl get nodes
-# NAME       STATUS   ROLES           VERSION
-# cp         Ready    control-plane   v1.35.1
-# worker-1   Ready    <none>          v1.35.1
-# worker-2   Ready    <none>          v1.35.1
-```
-
-## Reset lab (full disk wipe)
-
-To reprovision from the base Ubuntu image (slower, full reset):
-```bash
-just lab-down
-kubectl delete dv cp-disk worker-1-disk worker-2-disk -n cka-labs
-just lab-up   # CDI re-imports from ubuntu-22-04-base
-just cluster-setup
-```
-
-## VPN access
-
-VMs accessible only via `virtctl` → Kubernetes API → Headscale VPN. No external Gateway created.
-
-## Upgrading KubeVirt/CDI versions
-
-1. Update `kubevirt_version` / `cdi_version` in `justfile`
-2. `just fetch-manifests`
-3. Commit and push — Flux reconciles automatically, live VMs unaffected
-
-## Versions
-
-| Component | Version |
-|-----------|---------|
-| KubeVirt  | v1.8.3  |
-| CDI       | v1.65.0 |
-| Kubernetes | v1.35.1 |
-| Cilium    | v1.19.4 |
-| Ubuntu    | 22.04   |
-
-Pinned in `justfile` (`kubevirt_version`, `cdi_version`). Update there and re-run `just fetch-manifests` to upgrade.
+The lab formerly lived in this repo (`apps/*/cka-labs`, `scripts/cluster-setup.sh`,
+`scripts/lab-rejoin.sh`) using masquerade networking with post-boot re-pinning. It was
+replaced 2026-07 by the WireGuard-mesh design in the dedicated repo; see that repo's
+`ISA.md` for the architecture and rationale. Historical design docs:
+`docs/specs/2026-06-10-ckx-env-setup-design.md`, `docs/plans/2026-06-10-ckx-env-setup.md`.
