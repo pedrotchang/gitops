@@ -12,7 +12,5 @@ resources:
   - cert-manager
   - headscale-operator
   - istio
-  - kubevirt
-  - cdi
   - velero
   # - newt
