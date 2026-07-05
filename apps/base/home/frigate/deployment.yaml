@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: home
+spec:
+  # GATED: no camera yet. Camera day → set to 1 (see PR.md).
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+        policy-type: app
+    spec:
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:0.16.0
+          env:
+            - name: TZ
+              value: "America/Los_Angeles"
+            - name: FRIGATE_MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-creds
+                  key: mqtt-password
+            # CAMERA DAY: set to the DHCP-reserved camera IP on 192.168.7.0/24.
+            - name: FRIGATE_CAM_HOST
+              value: "192.168.7.50"
+            # ── CAMERA DAY: uncomment once the KV entries + secret keys exist ──
+            # - name: FRIGATE_CAM_USER
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: frigate-creds
+            #       key: cam-user
+            # - name: FRIGATE_CAM_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: frigate-creds
+            #       key: cam-password
+          ports:
+            - containerPort: 5000
+              name: http
+            - containerPort: 8554
+              name: rtsp
+            - containerPort: 8555
+              name: webrtc-tcp
+              protocol: TCP
+            - containerPort: 8555
+              name: webrtc-udp
+              protocol: UDP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: config-file
+              mountPath: /config/config.yml
+              subPath: config.yml
+              readOnly: true
+            - name: recordings
+              mountPath: /media/frigate
+            - name: shm
+              mountPath: /dev/shm
+            - name: cache
+              mountPath: /tmp/cache
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: frigate-config
+        - name: config-file
+          configMap:
+            name: frigate-config
+        - name: recordings
+          persistentVolumeClaim:
+            claimName: frigate-recordings
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi

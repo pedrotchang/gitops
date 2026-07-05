@@ -1,0 +1,55 @@
+# Defense-in-depth network policy for the home namespace (Cilium idiom per
+# apps/base/forgejo/network-policy.yaml and apps/base/media/network-policy.yaml).
+#
+# All three workloads (home-assistant, frigate, mosquitto) carry policy-type: app.
+# Ingress: from cluster + gateway. Egress: DNS, in-cluster (MQTT bus, Frigate<->HA),
+# web (HA updates / integrations), and RTSP/554 for Frigate to reach the LAN camera.
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: home-apps
+  namespace: home
+spec:
+  endpointSelector:
+    matchLabels:
+      policy-type: app
+  ingress:
+    - fromEntities:
+        - cluster
+    - fromEntities:
+        - ingress
+  egress:
+    # Cluster DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # In-cluster traffic (MQTT bus, Frigate API <-> HA)
+    - toEndpoints:
+        - {}
+    # Web egress: HA core/integration updates, Frigate image pulls handled by kubelet.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+        - ports:
+            - port: "80"
+              protocol: TCP
+    # RTSP to the LAN camera (192.168.7.0/24). 'world' covers non-cluster IPs;
+    # port-scoped to 554 so only camera pulls leave, nothing else on the LAN.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "554"
+              protocol: TCP

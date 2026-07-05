@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  namespace: home
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+        policy-type: app
+    spec:
+      initContainers:
+        # Seed bootstrap config into the PVC copy-if-absent (jellyfin seed idiom).
+        # HA owns the files after first boot; edits in the UI are preserved.
+        - name: seed-config
+          image: busybox:1.37
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /config/packages
+              [ -f /config/configuration.yaml ] || cp /seed/configuration.yaml /config/configuration.yaml
+              [ -f /config/packages/nursery.yaml ] || cp /seed/nursery.yaml /config/packages/nursery.yaml
+              echo "config seeded"
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+            - name: config
+              mountPath: /config
+      containers:
+        - name: home-assistant
+          image: ghcr.io/home-assistant/home-assistant:2026.6
+          env:
+            - name: TZ
+              value: "America/Los_Angeles"
+          ports:
+            - containerPort: 8123
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+      volumes:
+        - name: seed
+          configMap:
+            name: home-assistant-seed
+        - name: config
+          persistentVolumeClaim:
+            claimName: home-assistant-config

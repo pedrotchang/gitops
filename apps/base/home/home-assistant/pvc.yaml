@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home-assistant-config
+  namespace: home
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # local-path (node block) — HA config + its SQLite recorder DB. NOT NFS.
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
