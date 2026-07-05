@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frigate-config
+  namespace: home
+data:
+  # NOTE: Frigate config keys shift between minor versions. Validate this against
+  # the pinned image's schema on camera day (see PR.md). Written for 0.16.x.
+  config.yml: |
+    mqtt:
+      enabled: true
+      host: mosquitto.home.svc.cluster.local
+      port: 1883
+      user: mqtt
+      password: "{FRIGATE_MQTT_PASSWORD}"
+      topic_prefix: frigate
+
+    # go2rtc restream — one pull from the camera, fanned out to detect + record
+    # + WebRTC live view (low-latency). Creds/host come from env substitution.
+    go2rtc:
+      streams:
+        nursery:
+          - "rtsp://{FRIGATE_CAM_USER}:{FRIGATE_CAM_PASSWORD}@{FRIGATE_CAM_HOST}:554/h264Preview_01_main"
+        nursery_sub:
+          - "rtsp://{FRIGATE_CAM_USER}:{FRIGATE_CAM_PASSWORD}@{FRIGATE_CAM_HOST}:554/h264Preview_01_sub"
+
+    cameras:
+      nursery:
+        enabled: true
+        ffmpeg:
+          inputs:
+            - path: rtsp://127.0.0.1:8554/nursery_sub
+              input_args: preset-rtsp-restream
+              roles:
+                - detect
+            - path: rtsp://127.0.0.1:8554/nursery
+              input_args: preset-rtsp-restream
+              roles:
+                - record
+        detect:
+          # Object detection OFF — motion-only (no Coral/GPU). Frigate still runs
+          # motion detection, which is what drives recordings + alerts.
+          enabled: false
+          width: 640
+          height: 480
+          fps: 5
+        record:
+          enabled: true
+          retain:
+            days: 10
+            mode: motion
+        snapshots:
+          # No object detection → no event snapshots. Live/latest frame
+          # (latest.jpg) still works for the HA notification image.
+          enabled: false
+
+    # No detectors block → CPU motion detection only. No hardware accelerator.

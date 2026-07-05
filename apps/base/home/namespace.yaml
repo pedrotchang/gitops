@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: home
+  labels:
+    app.kubernetes.io/name: home
+    # Baseline PodSecurity (cluster default) is sufficient — Home Assistant runs
+    # as root but needs no privileged/hostPath. No override labels required.

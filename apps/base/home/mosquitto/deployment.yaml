@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: home
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+        policy-type: app
+    spec:
+      securityContext:
+        fsGroup: 1883
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        # Hash the KV-sourced password into a mosquitto passwd file on an
+        # emptyDir the main container reads. Keeps only the ciphered form on
+        # disk; plaintext lives solely in Azure KV + the mounted Secret env.
+        - name: gen-passwd
+          image: eclipse-mosquitto:2.0.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mosquitto_passwd -b -c /mosquitto/passwd/passwd "$MQTT_USER" "$MQTT_PASSWORD"
+              echo "passwd generated for user $MQTT_USER"
+          env:
+            - name: MQTT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mosquitto-creds
+                  key: username
+            - name: MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mosquitto-creds
+                  key: password
+          volumeMounts:
+            - name: passwd
+              mountPath: /mosquitto/passwd
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0.20
+          ports:
+            - containerPort: 1883
+              name: mqtt
+          volumeMounts:
+            - name: config
+              mountPath: /mosquitto/config/mosquitto.conf
+              subPath: mosquitto.conf
+              readOnly: true
+            - name: passwd
+              mountPath: /mosquitto/passwd
+            - name: data
+              mountPath: /mosquitto/data
+          livenessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 1883
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: mosquitto-config
+        - name: passwd
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: mosquitto-data

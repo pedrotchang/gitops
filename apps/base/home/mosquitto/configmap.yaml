@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: home
+data:
+  mosquitto.conf: |
+    # Internal MQTT bus for the home stack. Cluster-only (ClusterIP), auth
+    # required. The passwd file is generated at boot by an init container that
+    # hashes the KV-sourced password (see deployment.yaml) — never in git.
+    listener 1883
+    allow_anonymous false
+    password_file /mosquitto/passwd/passwd
+    persistence true
+    persistence_location /mosquitto/data/
+    log_dest stdout
+    log_type warning
+    log_type notice

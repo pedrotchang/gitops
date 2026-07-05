@@ -16,4 +16,5 @@ resources:
   - headscale
   - hermes-agent
   - headroom
+  - home
   - whisper

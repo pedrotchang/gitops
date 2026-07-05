@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-assistant-seed
+  namespace: home
+data:
+  # Bootstrap config, seeded copy-if-absent into the PVC by an init container
+  # (see deployment.yaml). HA owns these files afterward — edit freely in the UI.
+  configuration.yaml: |
+    default_config:
+
+    # HA sits behind the Cilium gateway; without this the reverse-proxied login
+    # is rejected. trusted_proxies = pod CIDR (the gateway's source range).
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 10.244.0.0/16
+
+    # Nap Mode + nursery automations live in a package.
+    homeassistant:
+      packages: !include_dir_named packages
+
+  nursery.yaml: |
+    # ── Baby monitor: Nap Mode + motion alerts ──────────────────────────────
+    # The camera only arms while Nap Mode is on. Motion-only (no object
+    # detection), so alerts trigger off Frigate's per-camera motion topic.
+    input_boolean:
+      nap_mode:
+        name: Nap Mode
+        icon: mdi:sleep
+
+    automation:
+      - id: nursery_arm_with_nap_mode
+        alias: "Nursery — arm/disarm recordings with Nap Mode"
+        trigger:
+          - platform: state
+            entity_id: input_boolean.nap_mode
+        action:
+          # Frigate runtime control over MQTT: gate recording + snapshots on nap.
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/recordings/set"
+              payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/snapshots/set"
+              payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
+
+      - id: nursery_motion_alert
+        alias: "Nursery — motion alert (Nap Mode only)"
+        # mode:single + trailing delay = ~1 alert per 5 min, so a wriggling baby
+        # doesn't spam you. Normal priority (not a DND-piercing critical alert).
+        mode: single
+        max_exceeded: silent
+        trigger:
+          - platform: mqtt
+            topic: "frigate/nursery/motion"
+            payload: "ON"
+        condition:
+          - condition: state
+            entity_id: input_boolean.nap_mode
+            state: "on"
+        action:
+          # Rename mobile_app_phone to your device once the Companion app is
+          # registered (Settings → Companion App → device name).
+          - service: notify.mobile_app_phone
+            data:
+              title: "Nursery"
+              message: "Motion detected in the nursery"
+              data:
+                # Latest snapshot via the HA Frigate integration proxy.
+                image: "/api/frigate/nursery/latest.jpg"
+          - delay: "00:05:00"
