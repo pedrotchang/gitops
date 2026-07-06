@@ -53,5 +53,15 @@ data:
           # No object detection → no event snapshots. Live/latest frame
           # (latest.jpg) still works for the HA notification image.
           enabled: false
+        onvif:
+          # PTZ control for the E1 pan/tilt. This E1 firmware serves ONVIF over
+          # the HTTP port (80), NOT the 8000 the Reolink app shows — verified with
+          # a live GetSystemDateAndTime SOAP response on :80 while :8000 timed out.
+          # Manual nudges arrive over MQTT (frigate/nursery/ptz); no autotracking
+          # (that needs object detection, which is off here).
+          host: "{FRIGATE_CAM_HOST}"
+          port: 80
+          user: "{FRIGATE_CAM_USER}"
+          password: "{FRIGATE_CAM_PASSWORD}"
 
     # No detectors block → CPU motion detection only. No hardware accelerator.

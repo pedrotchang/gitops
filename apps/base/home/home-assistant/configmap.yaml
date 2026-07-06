@@ -94,3 +94,62 @@ data:
                 # Latest snapshot via the HA Frigate integration proxy.
                 image: "/api/frigate/nursery/latest.jpg"
           - delay: "00:05:00"
+
+    # ── PTZ control (E1 pan/tilt) ───────────────────────────────────────────
+    # Frigate bridges ONVIF PTZ onto MQTT (frigate/nursery/ptz). Each script
+    # fires a continuous MOVE then a STOP after a short beat = one discrete
+    # nudge. These show up as script.nursery_ptz_* entities — drop them on a
+    # dashboard as arrow buttons, or call them from voice/automations.
+    script:
+      nursery_ptz_left:
+        alias: "Nursery — pan left"
+        icon: mdi:arrow-left-bold
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "MOVE_LEFT"
+          - delay: "00:00:00.5"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "STOP"
+      nursery_ptz_right:
+        alias: "Nursery — pan right"
+        icon: mdi:arrow-right-bold
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "MOVE_RIGHT"
+          - delay: "00:00:00.5"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "STOP"
+      nursery_ptz_up:
+        alias: "Nursery — tilt up"
+        icon: mdi:arrow-up-bold
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "MOVE_UP"
+          - delay: "00:00:00.5"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "STOP"
+      nursery_ptz_down:
+        alias: "Nursery — tilt down"
+        icon: mdi:arrow-down-bold
+        sequence:
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "MOVE_DOWN"
+          - delay: "00:00:00.5"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/ptz"
+              payload: "STOP"
