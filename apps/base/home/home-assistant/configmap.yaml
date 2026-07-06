@@ -96,60 +96,53 @@ data:
           - delay: "00:05:00"
 
     # ── PTZ control (E1 pan/tilt) ───────────────────────────────────────────
-    # Frigate bridges ONVIF PTZ onto MQTT (frigate/nursery/ptz). Each script
-    # fires a continuous MOVE then a STOP after a short beat = one discrete
-    # nudge. These show up as script.nursery_ptz_* entities — drop them on a
-    # dashboard as arrow buttons, or call them from voice/automations.
+    # This camera keeps ONVIF (8000) and Baichuan (9000) closed, so both
+    # Frigate ONVIF-PTZ and the native HA Reolink integration fail on it. PTZ
+    # instead goes through the Reolink HTTP API on port 80 (verified: rspCode
+    # 200 + physical movement) via the seeded helper /config/reolink_ptz.sh.
+    # Each shell_command sends one MOVE + STOP = a discrete nudge. The script.*
+    # wrappers are the dashboard-friendly entities — drop them on a card as
+    # arrow buttons, or call from voice/automations.
+    shell_command:
+      nursery_ptz_left: "bash /config/reolink_ptz.sh Left"
+      nursery_ptz_right: "bash /config/reolink_ptz.sh Right"
+      nursery_ptz_up: "bash /config/reolink_ptz.sh Up"
+      nursery_ptz_down: "bash /config/reolink_ptz.sh Down"
+
     script:
       nursery_ptz_left:
         alias: "Nursery — pan left"
         icon: mdi:arrow-left-bold
         sequence:
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "MOVE_LEFT"
-          - delay: "00:00:00.5"
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "STOP"
+          - service: shell_command.nursery_ptz_left
       nursery_ptz_right:
         alias: "Nursery — pan right"
         icon: mdi:arrow-right-bold
         sequence:
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "MOVE_RIGHT"
-          - delay: "00:00:00.5"
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "STOP"
+          - service: shell_command.nursery_ptz_right
       nursery_ptz_up:
         alias: "Nursery — tilt up"
         icon: mdi:arrow-up-bold
         sequence:
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "MOVE_UP"
-          - delay: "00:00:00.5"
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "STOP"
+          - service: shell_command.nursery_ptz_up
       nursery_ptz_down:
         alias: "Nursery — tilt down"
         icon: mdi:arrow-down-bold
         sequence:
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "MOVE_DOWN"
-          - delay: "00:00:00.5"
-          - service: mqtt.publish
-            data:
-              topic: "frigate/nursery/ptz"
-              payload: "STOP"
+          - service: shell_command.nursery_ptz_down
+
+  # Port-80 PTZ helper (see nursery.yaml → shell_command). Seeded to
+  # /config/reolink_ptz.sh copy-always. Sends one MOVE then STOP = a nudge.
+  # Creds/host from env (home-assistant-reolink secret) — no secrets in git.
+  reolink_ptz.sh: |
+    #!/bin/sh
+    set -eu
+    OP="${1:?usage: reolink_ptz.sh <Left|Right|Up|Down|Stop>}"
+    case "$OP" in Left|Right|Up|Down|Stop) ;; *) echo "bad op: $OP" >&2; exit 2 ;; esac
+    PW_ENC=$(printf '%s' "$REOLINK_PW" | jq -sRr @uri)
+    API="http://${REOLINK_HOST}/cgi-bin/api.cgi?cmd=PtzCtrl&user=${REOLINK_USER}&password=${PW_ENC}"
+    send() { curl -s -m 5 -X POST -H 'Content-Type: application/json' -d "$1" "$API" >/dev/null; }
+    send "[{\"cmd\":\"PtzCtrl\",\"param\":{\"channel\":0,\"op\":\"${OP}\",\"speed\":32}}]"
+    [ "$OP" = "Stop" ] && exit 0
+    sleep 0.5
+    send "[{\"cmd\":\"PtzCtrl\",\"param\":{\"channel\":0,\"op\":\"Stop\"}}]"

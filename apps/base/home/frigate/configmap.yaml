@@ -53,20 +53,9 @@ data:
           # No object detection → no event snapshots. Live/latest frame
           # (latest.jpg) still works for the HA notification image.
           enabled: false
-        onvif:
-          # PTZ control for the E1 pan/tilt. This E1 firmware serves ONVIF over
-          # the HTTP port (80), NOT the 8000 the Reolink app shows — verified with
-          # a live GetSystemDateAndTime SOAP response on :80 while :8000 timed out.
-          # Manual nudges arrive over MQTT (frigate/nursery/ptz); no autotracking
-          # (that needs object detection, which is off here).
-          #
-          # host is the literal reserved IP, NOT {FRIGATE_CAM_HOST}: Frigate only
-          # env-substitutes fields typed as EnvString (user/password below do
-          # substitute), and onvif.host is a plain string — leaving {FRIGATE_CAM_HOST}
-          # in place makes ONVIF init fail with "Name or service not known".
-          host: "192.168.10.107"
-          port: 80
-          user: "{FRIGATE_CAM_USER}"
-          password: "{FRIGATE_CAM_PASSWORD}"
+        # No onvif block: this E1 firmware keeps ONVIF (8000) closed even with
+        # the toggle on + a reboot, so Frigate ONVIF-PTZ can't connect. PTZ is
+        # done instead through the Reolink HTTP API on port 80, driven from Home
+        # Assistant (see home-assistant configmap → reolink_ptz.sh).
 
     # No detectors block → CPU motion detection only. No hardware accelerator.

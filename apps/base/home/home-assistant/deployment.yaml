@@ -31,6 +31,7 @@ spec:
               mkdir -p /config/packages
               cp /seed/configuration.yaml /config/configuration.yaml
               cp /seed/nursery.yaml /config/packages/nursery.yaml
+              cp /seed/reolink_ptz.sh /config/reolink_ptz.sh
               echo "config seeded (copy-always)"
           volumeMounts:
             - name: seed
@@ -90,6 +91,22 @@ spec:
           env:
             - name: TZ
               value: "America/Los_Angeles"
+            # Reolink E1 creds/host for the port-80 PTZ helper
+            # (/config/reolink_ptz.sh, driven by shell_command.nursery_ptz_*).
+            # Password never lands in git — sourced from the
+            # home-assistant-reolink ExternalSecret (Azure KV).
+            - name: REOLINK_HOST
+              value: "192.168.10.107"
+            - name: REOLINK_USER
+              valueFrom:
+                secretKeyRef:
+                  name: home-assistant-reolink
+                  key: cam-user
+            - name: REOLINK_PW
+              valueFrom:
+                secretKeyRef:
+                  name: home-assistant-reolink
+                  key: cam-password
           ports:
             - containerPort: 8123
               name: http
