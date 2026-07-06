@@ -59,10 +59,6 @@ data:
           header: true
           style: row
           columns: 6
-      - Data:
-          header: true
-          style: row
-          columns: 4
       - Developer:
           header: true
           style: row
@@ -348,34 +344,6 @@ data:
               url: http://qbittorrent.media.svc.cluster.local:8080
               username: admin
               password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
-
-    - Data:
-      # CNPG PostgreSQL fleet on the data cluster (no web UIs — informational
-      # tiles; live metrics need a monitoring stack on data, see PR notes)
-      - Authentik DB:
-            icon: postgresql.png
-            description: 192.168.4.164:5432
-      - Commafeed DB:
-            icon: postgresql.png
-            description: 192.168.4.160:5432
-      - Forgejo DB:
-            icon: postgresql.png
-            description: 192.168.4.168:5432
-      - Headscale DB:
-            icon: postgresql.png
-            description: 192.168.4.169:5432
-      - Immich DB:
-            icon: postgresql.png
-            description: 192.168.4.166:5432
-      - Linkding DB:
-            icon: postgresql.png
-            description: 192.168.4.161:5432
-      - N8N DB:
-            icon: postgresql.png
-            description: 192.168.4.163:5432
-      - Nextcloud DB:
-            icon: postgresql.png
-            description: 192.168.4.167:5432
 
     - Developer:
       - Github:
