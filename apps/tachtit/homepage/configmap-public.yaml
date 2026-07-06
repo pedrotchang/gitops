@@ -46,7 +46,7 @@ data:
       - Home:
           header: true
           style: row
-          columns: 3
+          columns: 5
       - Professional:
           header: false
           style: row
@@ -67,14 +67,6 @@ data:
           header: true
           style: row
           columns: 5
-      - Read:
-          header: true
-          style: row
-          columns: 4
-      - Learn:
-          header: false
-          style: row
-          columns: 3
 
 
   custom.css: |
@@ -268,6 +260,12 @@ data:
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png
+      - Linkding:
+            href: https://linkding.seyzahl.com
+            icon: linkding.png
+      - Commafeed:
+            href: https://commafeed.seyzahl.com
+            icon: commafeed.png
 
     - Professional:
       - N8N:
@@ -399,25 +397,6 @@ data:
             href: https://claude.ai/new
             description: Claude
             icon: claude-ai.png
-
-    - Read:
-      - Linkding:
-            href: https://linkding.seyzahl.com
-            icon: linkding.png
-      - Commafeed:
-            href: https://commafeed.seyzahl.com
-            icon: commafeed.png
-
-    - Learn:
-      - KubeCraft:
-            href: https://www.skool.com/kubecraft
-            icon: kubecraft.png
-      - Boot.dev:
-            href: https://www.boot.dev/tracks/backend
-      - Udemy:
-            href: https://www.udemy.com/
-
-
 
   widgets.yaml: |
 
