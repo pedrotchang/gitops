@@ -53,6 +53,33 @@ spec:
             - containerPort: 8555
               name: webrtc-udp
               protocol: UDP
+          # Gate the Service endpoint on Frigate's unauthenticated :5000 actually
+          # answering. Without readiness, a restart adds the pod to the Service
+          # before nginx:5000 is up (~30-60s), so anything proxying to it — the
+          # Authentik outpost for frigate.seyzahl.com AND the HA Frigate
+          # integration — gets "connection refused" / Bad Gateway in that window.
+          # startupProbe gives Frigate's slow init (go2rtc + detectors) headroom
+          # so liveness never kills a still-booting pod.
+          startupProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: 5000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /config
