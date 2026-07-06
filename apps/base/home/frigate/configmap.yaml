@@ -59,7 +59,12 @@ data:
           # a live GetSystemDateAndTime SOAP response on :80 while :8000 timed out.
           # Manual nudges arrive over MQTT (frigate/nursery/ptz); no autotracking
           # (that needs object detection, which is off here).
-          host: "{FRIGATE_CAM_HOST}"
+          #
+          # host is the literal reserved IP, NOT {FRIGATE_CAM_HOST}: Frigate only
+          # env-substitutes fields typed as EnvString (user/password below do
+          # substitute), and onvif.host is a plain string — leaving {FRIGATE_CAM_HOST}
+          # in place makes ONVIF init fail with "Name or service not known".
+          host: "192.168.10.107"
           port: 80
           user: "{FRIGATE_CAM_USER}"
           password: "{FRIGATE_CAM_PASSWORD}"
