@@ -37,25 +37,50 @@ data:
               input_args: preset-rtsp-restream
               roles:
                 - record
+                - audio
         detect:
-          # Object detection OFF — motion-only (no Coral/GPU). Frigate still runs
-          # motion detection, which is what drives recordings + alerts.
-          enabled: false
+          # Object detection ENABLED — NOT because we track objects, but because
+          # Frigate only RUNS motion detection (and publishes frigate/nursery/motion)
+          # inside the detect process. With detect disabled it never fired a single
+          # motion event (verified: 4 min of real movement, zero events). CPU
+          # detector (auto-default), only runs on motion, cheap at 5fps. Alerts key
+          # off raw MOTION, not objects. Nap Mode gates this via detect/set (gating
+          # detect — not motion/set — avoids Frigate's "can't disable motion while
+          # detect is on" rule).
+          enabled: true
           width: 640
           height: 480
           fps: 5
+        motion:
+          # Tuned SENSITIVE on purpose: the baby stirring is the earliest wake
+          # signal (he moves before he cries), so motion is the primary/early alert.
+          # Lower threshold + smaller contour_area catch small movements. Trade-off:
+          # more false positives from light/shadow/IR day-night switch — raise these
+          # (or add a mask) if it gets noisy.
+          threshold: 20
+          contour_area: 5
+          improve_contrast: true
         record:
           enabled: true
           retain:
             days: 10
             mode: motion
         snapshots:
-          # No object detection → no event snapshots. Live/latest frame
-          # (latest.jpg) still works for the HA notification image.
+          # No event snapshots needed; latest.jpg (live frame) still serves the HA
+          # notification image.
           enabled: false
+        audio:
+          # Built-in CPU audio model → cry ESCALATION alert. Needs the `audio` role
+          # on an audio-carrying stream (main has an AAC mic track). Publishes
+          # frigate/nursery/audio/crying ON/OFF; HA sends a critical push on it.
+          # Nap Mode gates it at runtime via frigate/nursery/audio/set.
+          enabled: true
+          listen:
+            - crying
         # No onvif block: this E1 firmware keeps ONVIF (8000) closed even with
         # the toggle on + a reboot, so Frigate ONVIF-PTZ can't connect. PTZ is
         # done instead through the Reolink HTTP API on port 80, driven from Home
         # Assistant (see home-assistant configmap → reolink_ptz.sh).
 
-    # No detectors block → CPU motion detection only. No hardware accelerator.
+    # No explicit detectors block → Frigate auto-creates one CPU detector (no
+    # Coral/GPU). Fine for a single 5fps camera where detection only runs on motion.
