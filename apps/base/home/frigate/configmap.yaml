@@ -15,6 +15,15 @@ data:
       password: "{FRIGATE_MQTT_PASSWORD}"
       topic_prefix: frigate
 
+    # Forward-auth: frigate.seyzahl.com is fronted by the "home" Authentik proxy
+    # outpost (blueprint-frigate + apps/base/home/authentik-outpost.yaml), which
+    # authenticates the user and injects X-authentik-username. Frigate trusts
+    # that header as the logged-in identity. The outpost forwards to Frigate's
+    # unauthenticated :5000 port, so Frigate's own login (:8971) stays unused.
+    proxy:
+      header_map:
+        user: X-authentik-username
+
     # go2rtc restream — one pull from the camera, fanned out to detect + record
     # + WebRTC live view (low-latency). Creds/host come from env substitution.
     go2rtc:

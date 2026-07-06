@@ -9,6 +9,7 @@ resources:
   - blueprint-immich.yaml
   - blueprint-media.yaml
   - blueprint-home-assistant.yaml
+  - blueprint-frigate.yaml
   - repository.yaml
   - release.yaml
 
