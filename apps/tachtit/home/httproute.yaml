@@ -3,17 +3,18 @@ kind: HTTPRoute
 metadata:
   name: home-assistant
   namespace: home
-  # INTERNAL ONLY. The .local.seyzahl.com host is published to internal DNS and
-  # served straight off the cilium-gateway — no cloudflared tunnel, no public
-  # exposure. A baby camera must never be reachable from the WAN.
+  # INTERNAL ONLY (immich-local pattern). exclude:true keeps the host OUT of
+  # public DNS; it resolves internally via the *.seyzahl.com wildcard to the
+  # private gateway (Headscale/LAN only). No cloudflared tunnel = never public.
+  # A baby camera must never be reachable from the WAN.
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: ha.local.seyzahl.com
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - name: cilium-gateway
       namespace: default
   hostnames:
-    - ha.local.seyzahl.com
+    - ha.seyzahl.com
   rules:
     - matches:
         - path:
