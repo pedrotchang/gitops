@@ -19,8 +19,8 @@ spec:
       initContainers:
         # Seed GitOps-owned config into the PVC copy-ALWAYS. These files are the
         # source of truth; HA persists account + UI state in /config/.storage, not
-        # here, so overwriting them each boot keeps external_url + auth_oidc SSO
-        # declarative (a copy-if-absent seed never reaches an already-running HA).
+        # here, so overwriting them each boot keeps configuration.yaml + the PTZ
+        # helper declarative (a copy-if-absent seed never reaches a running HA).
         - name: seed-config
           image: busybox:1.37
           command:
@@ -36,25 +36,6 @@ spec:
           volumeMounts:
             - name: seed
               mountPath: /seed
-            - name: config
-              mountPath: /config
-        # Seed the hass-oidc-auth component (authentik SSO client) from the
-        # carrier image, copy-ALWAYS: the image is the source of truth, so bumping
-        # its tag deploys the new component version. The component holds no user
-        # state — OIDC settings live in HA's .storage — so overwriting each boot
-        # is idempotent.
-        - name: seed-oidc
-          image: forgejo.seyzahl.com/platform-infrastructure/home-assistant-oidc:1.1.1
-          command:
-            - /bin/sh
-            - -c
-            - |
-              set -eu
-              mkdir -p /config/custom_components
-              rm -rf /config/custom_components/auth_oidc
-              cp -r /component/auth_oidc /config/custom_components/auth_oidc
-              echo "auth_oidc seeded (v1.1.1)"
-          volumeMounts:
             - name: config
               mountPath: /config
         # Seed the Frigate HA integration (blakeblackshear/frigate-hass-integration)
