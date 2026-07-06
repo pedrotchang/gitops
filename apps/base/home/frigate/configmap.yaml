@@ -62,6 +62,17 @@ data:
           threshold: 30
           contour_area: 10
           improve_contrast: true
+          # Scope motion to the RIGHT side of the bed, where the baby sleeps.
+          # Everything else is MASKED (ignored): the crib (far left), the centre
+          # of the bed where a parent sits, the floor, and the bright window-lit
+          # wall above the right bed (avoids daylight-flicker false positives).
+          # Coords are normalised (0–1) fractions of the 640x480 detect frame, so
+          # they survive a detect-resolution change. Active zone left unmasked =
+          # x[0.62–1.0], y[0.28–1.0] (the right bed). If the baby's spot shifts
+          # after a PTZ re-aim, re-cut these against a fresh latest.jpg?motion=1.
+          mask:
+            - "0,0,0.62,0,0.62,1,0,1"          # left 62%: crib + centre bed + floor
+            - "0.62,0,1,0,1,0.28,0.62,0.28"    # top-right: bright wall above the bed
         record:
           enabled: true
           retain:
