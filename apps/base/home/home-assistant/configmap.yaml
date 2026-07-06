@@ -32,9 +32,10 @@ data:
     # auth_oidc block + the seed-oidc initContainer + the authentik application.
 
   nursery.yaml: |
-    # ── Baby monitor: Nap Mode + motion alerts ──────────────────────────────
-    # The camera only arms while Nap Mode is on. Motion-only (no object
-    # detection), so alerts trigger off Frigate's per-camera motion topic.
+    # ── Baby monitor: Nap Mode + motion/cry alerts ──────────────────────────
+    # The camera arms only while Nap Mode is on. Two-tier alerting: MOTION is the
+    # early warning (baby stirs before he cries) → time-sensitive push; CRYING is
+    # the escalation → loud/critical push. Both key off Frigate MQTT topics.
     input_boolean:
       nap_mode:
         name: Nap Mode
@@ -45,11 +46,10 @@ data:
         alias: "Nursery — arm/disarm camera with Nap Mode"
         # Re-asserts Frigate's runtime toggles whenever Nap Mode changes, HA
         # starts, or Frigate (re)connects. The last two matter: Frigate resets
-        # these toggles to their config defaults on every restart (motion
-        # defaults ON), so without re-asserting, a Frigate/HA reboot would
-        # silently leave the motion detector running with Nap Mode off — the
-        # exact bug. frigate/available is a retained birth topic, so HA also
-        # re-syncs on every MQTT reconnect.
+        # these toggles to their config defaults on every restart (detect + audio
+        # default ON), so without re-asserting, a reboot would leave detection
+        # running with Nap Mode off. frigate/available is a retained birth topic,
+        # so HA re-syncs on every MQTT reconnect.
         trigger:
           - platform: state
             entity_id: input_boolean.nap_mode
@@ -59,12 +59,18 @@ data:
             topic: "frigate/available"
             payload: "online"
         action:
-          # Frigate runtime control over MQTT: gate motion detection + recording
-          # + snapshots on Nap Mode. motion/set OFF only succeeds when object
-          # detection is already off — it is (detect.enabled: false in Frigate).
+          # Gate the whole camera on Nap Mode over MQTT. We toggle detect/set
+          # (NOT motion/set): motion detection lives inside the detect process, so
+          # detect OFF stops motion too — and it sidesteps Frigate's rule that
+          # motion can't be disabled while object detection is on. audio/set gates
+          # cry detection. All four arm/disarm together with the nap.
           - service: mqtt.publish
             data:
-              topic: "frigate/nursery/motion/set"
+              topic: "frigate/nursery/detect/set"
+              payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/audio/set"
               payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
           - service: mqtt.publish
             data:
@@ -77,8 +83,9 @@ data:
 
       - id: nursery_motion_alert
         alias: "Nursery — motion alert (Nap Mode only)"
-        # mode:single + trailing delay = ~1 alert per 5 min, so a wriggling baby
-        # doesn't spam you. Normal priority (not a DND-piercing critical alert).
+        # TIER 1 (early warning): baby is stirring/moving — the first sign he's
+        # waking, before he cries. Time-sensitive push (breaks through Focus but
+        # not a full alarm). mode:single + 3-min trailing delay throttles repeats.
         mode: single
         max_exceeded: silent
         trigger:
@@ -90,27 +97,67 @@ data:
             entity_id: input_boolean.nap_mode
             state: "on"
         action:
-          # Push to BOTH parents' Companion apps. Service = notify.mobile_app_<slug>
-          # where <slug> is the device name slugified by HA — verified against HA's
-          # entity registry (notify.pedro_iphone / notify.hanna_changs_iphone), NOT
-          # the old placeholder "phone" (which silently ServiceNotFound'd → no alert).
-          # Note Hanna's slug drops the apostrophe: hanna_changs_iphone. If a phone is
-          # re-registered the slug may gain a numeric suffix — re-check the registry.
-          # Legacy mobile_app_* service (not notify.send_message) so data.image works.
+          # Push to BOTH parents. Service = notify.mobile_app_<slug> (slug verified
+          # against HA's entity registry: pedro_iphone / hanna_changs_iphone — the
+          # apostrophe drops). Legacy mobile_app_* service so data.image works.
           - service: notify.mobile_app_pedro_iphone
             data:
               title: "Nursery"
-              message: "Motion detected in the nursery"
+              message: "Movement — baby may be waking"
               data:
-                # Latest snapshot via the HA Frigate integration proxy.
+                push:
+                  interruption-level: time-sensitive
                 image: "/api/frigate/nursery/latest.jpg"
           - service: notify.mobile_app_hanna_changs_iphone
             data:
               title: "Nursery"
-              message: "Motion detected in the nursery"
+              message: "Movement — baby may be waking"
               data:
+                push:
+                  interruption-level: time-sensitive
                 image: "/api/frigate/nursery/latest.jpg"
-          - delay: "00:05:00"
+          - delay: "00:03:00"
+
+      - id: nursery_cry_alert
+        alias: "Nursery — cry alert (Nap Mode only)"
+        # TIER 2 (escalation): baby is actually crying — loud/critical push that
+        # pierces silent/DND so a sleeping parent wakes. Keyed off Frigate's
+        # built-in audio model (frigate/nursery/audio/crying). Critical alerts
+        # require "Allow Critical Alerts" granted to the HA app in iOS settings.
+        mode: single
+        max_exceeded: silent
+        trigger:
+          - platform: mqtt
+            topic: "frigate/nursery/audio/crying"
+            payload: "ON"
+        condition:
+          - condition: state
+            entity_id: input_boolean.nap_mode
+            state: "on"
+        action:
+          - service: notify.mobile_app_pedro_iphone
+            data:
+              title: "Nursery"
+              message: "👶 Baby is crying"
+              data:
+                push:
+                  sound:
+                    name: "default"
+                    critical: 1
+                    volume: 1.0
+                image: "/api/frigate/nursery/latest.jpg"
+          - service: notify.mobile_app_hanna_changs_iphone
+            data:
+              title: "Nursery"
+              message: "👶 Baby is crying"
+              data:
+                push:
+                  sound:
+                    name: "default"
+                    critical: 1
+                    volume: 1.0
+                image: "/api/frigate/nursery/latest.jpg"
+          - delay: "00:02:00"
 
     # ── PTZ control (E1 pan/tilt) ───────────────────────────────────────────
     # This camera keeps ONVIF (8000) and Baichuan (9000) closed, so both
