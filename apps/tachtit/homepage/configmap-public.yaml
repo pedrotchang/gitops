@@ -48,7 +48,7 @@ data:
           style: row
           columns: 3
       - Professional:
-          header: false
+          header: true
           style: row
           columns: 4
       - Admin:
@@ -58,7 +58,7 @@ data:
       - Media:
           header: true
           style: row
-          columns: 5
+          columns: 6
       - Data:
           header: true
           style: row
