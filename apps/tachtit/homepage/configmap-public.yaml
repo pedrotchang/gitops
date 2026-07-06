@@ -52,7 +52,7 @@ data:
           style: row
           columns: 4
       - Admin:
-          header: false
+          header: true
           style: row
           columns: 5
       - Media:
