@@ -50,7 +50,7 @@ data:
       - Professional:
           header: true
           style: row
-          columns: 4
+          columns: 5
       - Admin:
           header: true
           style: row
@@ -59,10 +59,6 @@ data:
           header: true
           style: row
           columns: 6
-      - Developer:
-          header: true
-          style: row
-          columns: 5
 
 
   custom.css: |
@@ -245,14 +241,9 @@ data:
               key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
               enableBlocks: true
               enableNowPlaying: true
-      - Jellyseerr:
-            href: https://jellyseerr.seyzahl.com
-            icon: jellyseerr.png
-            description: Request
-            widget:
-              type: jellyseerr
-              url: http://jellyseerr.media.svc.cluster.local:5055
-              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
+      - Immich:
+            href: https://immich.seyzahl.com
+            icon: immich.png
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png
@@ -273,9 +264,13 @@ data:
       - Azure:
             href: https://portal.azure.com/#home
             icon: azure.png
-      - Blog:
-            href: https://pedrotchang.dev
-            icon: ghost.png
+      - Kubernetes:
+            href: https://kubernetes.io/docs/home/
+            icon: kubernetes.png
+            description: Kubernetes Docs
+      - Forgejo:
+            href: https://forgejo.seyzahl.com
+            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/forgejo.png
 
     - Admin:
       - Truenas:
@@ -300,9 +295,14 @@ data:
             icon: talos.png
 
     - Media:
-      - Immich:
-            href: https://immich.seyzahl.com
-            icon: immich.png
+      - Jellyseerr:
+            href: https://jellyseerr.seyzahl.com
+            icon: jellyseerr.png
+            description: Request
+            widget:
+              type: jellyseerr
+              url: http://jellyseerr.media.svc.cluster.local:5055
+              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
       - Sonarr:
             href: https://sonarr.seyzahl.com
             icon: sonarr.png
@@ -344,27 +344,6 @@ data:
               url: http://qbittorrent.media.svc.cluster.local:8080
               username: admin
               password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
-
-    - Developer:
-      - Github:
-            href: https://github.com/pedrotchang
-            icon: github.png
-            description: GitHub
-      - Forgejo:
-            href: https://forgejo.seyzahl.com
-            icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/forgejo.png
-      - CloudFlare:
-            href: https://cloudflare.com/
-            icon: cloudflare.png
-            description: CloudFlare
-      - Kubernetes:
-            href: https://kubernetes.io/docs/home/
-            icon: kubernetes.png
-            description: Kubernetes Docs
-      - Claude:
-            href: https://claude.ai/new
-            description: Claude
-            icon: claude-ai.png
 
   widgets.yaml: |
 
