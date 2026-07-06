@@ -81,42 +81,15 @@ data:
               topic: "frigate/nursery/snapshots/set"
               payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
 
-      - id: nursery_motion_alert
-        alias: "Nursery — motion alert (Nap Mode only)"
-        # TIER 1 (early warning): baby is stirring/moving — the first sign he's
-        # waking, before he cries. Time-sensitive push (breaks through Focus but
-        # not a full alarm). mode:single + 3-min trailing delay throttles repeats.
-        mode: single
-        max_exceeded: silent
-        trigger:
-          - platform: mqtt
-            topic: "frigate/nursery/motion"
-            payload: "ON"
-        condition:
-          - condition: state
-            entity_id: input_boolean.nap_mode
-            state: "on"
-        action:
-          # Push to BOTH parents. Service = notify.mobile_app_<slug> (slug verified
-          # against HA's entity registry: pedro_iphone / hanna_changs_iphone — the
-          # apostrophe drops). Legacy mobile_app_* service so data.image works.
-          - service: notify.mobile_app_pedro_iphone
-            data:
-              title: "Nursery"
-              message: "Movement — baby may be waking"
-              data:
-                push:
-                  interruption-level: time-sensitive
-                image: "/api/frigate/nursery/latest.jpg"
-          - service: notify.mobile_app_hanna_changs_iphone
-            data:
-              title: "Nursery"
-              message: "Movement — baby may be waking"
-              data:
-                push:
-                  interruption-level: time-sensitive
-                image: "/api/frigate/nursery/latest.jpg"
-          - delay: "00:03:00"
+      # ── TIER 1 (motion alert) DISABLED 2026-07-06 (owner: "too sensitive") ──
+      # The hallway framing + foreground fabric peg motion (Frigate detected on
+      # nearly every frame), so the motion alert fired on the room, not the baby.
+      # Removed until the camera is PTZ-aimed at the crib AND a motion mask is
+      # added; then restore the nursery_motion_alert automation from git (PR #203
+      # /#204). The camera timestamp OSD (another motion source) was also turned
+      # off on the device via the Reolink SetOsd API the same day. Frigate detect
+      # itself stays enabled (still gated on Nap Mode via detect/set) — only the
+      # push alert is off. Cry detection (Tier 2, below) remains active.
 
       - id: nursery_cry_alert
         alias: "Nursery — cry alert (Nap Mode only)"
