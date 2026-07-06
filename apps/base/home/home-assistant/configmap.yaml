@@ -26,22 +26,10 @@ data:
       internal_url: "https://ha.seyzahl.com"
       packages: !include_dir_named packages
 
-    # authentik OIDC SSO (hass-oidc-auth). PUBLIC client — no client_secret, so
-    # PKCE is used (on by default). With copy-always seeding this registers the
-    # provider on boot and "authentik" appears on the login screen — zero clicks.
-    # force_https guarantees the redirect scheme is https behind the Cilium
-    # gateway, matching the strict redirect in the authentik blueprint.
-    auth_oidc:
-      client_id: "RluG9D5GmhxoeUq9GZ4N6RtK4Hsc1IUr7b15BuKq"
-      discovery_url: "https://auth.seyzahl.com/application/o/home-assistant/.well-known/openid-configuration"
-      display_name: "authentik"
-      features:
-        force_https: true
-        # Skip the (unstyled) welcome page and auto-redirect straight to
-        # authentik's login. Also fixes "Login aborted" on the default login
-        # page (HA auto-starting the OIDC provider without the cookie). Password
-        # fallback stays reachable at https://ha.seyzahl.com/?skip_oidc_redirect=true
-        default_redirect: true
+    # authentik OIDC SSO removed 2026-07-06 — it fought the login flow too much
+    # ("Login aborted", forced redirects). HA now uses local username/password
+    # only (accounts: pedro=owner, hanna). To re-add SSO later, restore the
+    # auth_oidc block + the seed-oidc initContainer + the authentik application.
 
   nursery.yaml: |
     # ── Baby monitor: Nap Mode + motion alerts ──────────────────────────────
