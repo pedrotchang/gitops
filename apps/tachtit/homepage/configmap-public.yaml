@@ -47,6 +47,14 @@ data:
           header: true
           style: row
           columns: 3
+      # Headerless continuation of Home: 7 Home items (HA+Jellyfin+Immich in the
+      # 3-col group above, then these 4) can't tile cleanly in one grid, so the
+      # tall widget cards get a 3-col row and the plain tiles a 4-col row. No
+      # header = renders as one seamless "Home" section.
+      - Home Apps:
+          header: false
+          style: row
+          columns: 4
       - Professional:
           header: true
           style: row
@@ -244,6 +252,12 @@ data:
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
+
+    - Home Apps:
+      - Frigate:
+            href: https://frigate.seyzahl.com
+            icon: frigate.png
+            description: Baby camera (NVR)
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png

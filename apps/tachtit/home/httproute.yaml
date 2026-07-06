@@ -30,3 +30,43 @@ spec:
       backendRefs:
         - name: home-assistant
           port: 8123
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frigate
+  namespace: home
+  # INTERNAL ONLY, same as home-assistant above. A baby camera must never be
+  # reachable from the WAN — exclude:true keeps frigate.seyzahl.com out of
+  # public DNS (resolves via the *.seyzahl.com wildcard to the private gateway,
+  # Headscale/LAN only), and there is NO cloudflared tunnel for this host.
+  #
+  # Auth: every request goes through the "home" Authentik proxy outpost
+  # (authentik-outpost-home). The outpost authenticates against auth.seyzahl.com
+  # and reverse-proxies to Frigate's internal :5000. No gethomepage annotations
+  # here — Frigate is added as a static Homepage service for layout ordering.
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - frigate.seyzahl.com
+  rules:
+    # Authentik outpost callback/verify endpoints (must reach the outpost).
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /outpost.goauthentik.io/
+      backendRefs:
+        - name: authentik-outpost-home
+          port: 9000
+    # Everything else is authenticated by the outpost, then proxied to Frigate.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: authentik-outpost-home
+          port: 9000

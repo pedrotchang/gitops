@@ -76,3 +76,4 @@ blueprints:
     - authentik-blueprint-immich
     - authentik-blueprint-media
     - authentik-blueprint-home-assistant
+    - authentik-blueprint-frigate

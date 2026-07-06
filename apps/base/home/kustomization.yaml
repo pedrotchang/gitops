@@ -6,3 +6,4 @@ resources:
   - mosquitto
   - home-assistant
   - frigate
+  - authentik-outpost.yaml
