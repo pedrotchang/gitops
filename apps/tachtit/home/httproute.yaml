@@ -9,6 +9,13 @@ metadata:
   # A baby camera must never be reachable from the WAN.
   annotations:
     external-dns.alpha.kubernetes.io/exclude: "true"
+    # Homepage dashboard auto-discovery (gethomepage.dev annotations on the route).
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Home Assistant"
+    gethomepage.dev/group: "Home"
+    gethomepage.dev/icon: "home-assistant.png"
+    gethomepage.dev/href: "https://ha.seyzahl.com"
+    gethomepage.dev/description: "Baby monitor & home automation"
 spec:
   parentRefs:
     - name: cilium-gateway
