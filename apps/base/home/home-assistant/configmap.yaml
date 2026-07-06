@@ -90,14 +90,25 @@ data:
             entity_id: input_boolean.nap_mode
             state: "on"
         action:
-          # Rename mobile_app_phone to your device once the Companion app is
-          # registered (Settings → Companion App → device name).
-          - service: notify.mobile_app_phone
+          # Push to BOTH parents' Companion apps. Service = notify.mobile_app_<slug>
+          # where <slug> is the device name slugified by HA — verified against HA's
+          # entity registry (notify.pedro_iphone / notify.hanna_changs_iphone), NOT
+          # the old placeholder "phone" (which silently ServiceNotFound'd → no alert).
+          # Note Hanna's slug drops the apostrophe: hanna_changs_iphone. If a phone is
+          # re-registered the slug may gain a numeric suffix — re-check the registry.
+          # Legacy mobile_app_* service (not notify.send_message) so data.image works.
+          - service: notify.mobile_app_pedro_iphone
             data:
               title: "Nursery"
               message: "Motion detected in the nursery"
               data:
                 # Latest snapshot via the HA Frigate integration proxy.
+                image: "/api/frigate/nursery/latest.jpg"
+          - service: notify.mobile_app_hanna_changs_iphone
+            data:
+              title: "Nursery"
+              message: "Motion detected in the nursery"
+              data:
                 image: "/api/frigate/nursery/latest.jpg"
           - delay: "00:05:00"
 
