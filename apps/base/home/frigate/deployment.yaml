@@ -4,8 +4,8 @@ metadata:
   name: frigate
   namespace: home
 spec:
-  # GATED: no camera yet. Camera day → set to 1 (see PR.md).
-  replicas: 0
+  # Camera live (Reolink E1, reserved 192.168.10.107, WAN-blocked in UniFi).
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -28,20 +28,20 @@ spec:
                 secretKeyRef:
                   name: frigate-creds
                   key: mqtt-password
-            # CAMERA DAY: set to the DHCP-reserved camera IP on 192.168.7.0/24.
+            # Reolink E1 — DHCP-reserved 192.168.10.107 on Main (192.168.10.0/24),
+            # blocked from WAN in UniFi (no managed switch → no VLAN isolation).
             - name: FRIGATE_CAM_HOST
-              value: "192.168.7.50"
-            # ── CAMERA DAY: uncomment once the KV entries + secret keys exist ──
-            # - name: FRIGATE_CAM_USER
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: frigate-creds
-            #       key: cam-user
-            # - name: FRIGATE_CAM_PASSWORD
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: frigate-creds
-            #       key: cam-password
+              value: "192.168.10.107"
+            - name: FRIGATE_CAM_USER
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-creds
+                  key: cam-user
+            - name: FRIGATE_CAM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-creds
+                  key: cam-password
           ports:
             - containerPort: 5000
               name: http
