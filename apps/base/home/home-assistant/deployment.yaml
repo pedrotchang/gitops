@@ -56,6 +56,34 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+        # Seed the Frigate HA integration (blakeblackshear/frigate-hass-integration)
+        # copy-ALWAYS from the pinned GitHub release. HA has no native Frigate
+        # support and we deliberately avoid HACS (runtime click-ops that drops
+        # untracked files on the box); vendoring the component here keeps it
+        # declarative + version-pinned. Component is code only (config lives in HA's
+        # .storage) so re-vendoring each boot is idempotent — bump VER to upgrade.
+        # NOTE: upstream alpine + GitHub fetch at boot is acknowledged supply-chain
+        # debt (same tier as the busybox/HA/Frigate upstream images); harden to a
+        # carrier image (like seed-oidc) later — see PR.md.
+        - name: seed-frigate
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              VER=5.15.4
+              URL="https://codeload.github.com/blakeblackshear/frigate-hass-integration/tar.gz/refs/tags/v${VER}"
+              mkdir -p /config/custom_components
+              rm -rf /config/custom_components/frigate
+              cd /tmp
+              wget -qO f.tgz "$URL" || { apk add --no-cache curl >/dev/null && curl -fsSL -o f.tgz "$URL"; }
+              tar xzf f.tgz
+              cp -r "frigate-hass-integration-${VER}/custom_components/frigate" /config/custom_components/frigate
+              echo "frigate integration seeded (v${VER})"
+          volumeMounts:
+            - name: config
+              mountPath: /config
       containers:
         - name: home-assistant
           image: ghcr.io/home-assistant/home-assistant:2026.6
