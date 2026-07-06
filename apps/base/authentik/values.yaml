@@ -75,3 +75,4 @@ blueprints:
   configMaps:
     - authentik-blueprint-immich
     - authentik-blueprint-media
+    - authentik-blueprint-home-assistant

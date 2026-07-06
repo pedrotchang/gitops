@@ -35,6 +35,25 @@ spec:
               mountPath: /seed
             - name: config
               mountPath: /config
+        # Seed the hass-oidc-auth component (authentik SSO client) from the
+        # carrier image. Copy-ALWAYS (unlike seed-config's copy-if-absent): the
+        # image is the source of truth, so bumping its tag deploys the new
+        # component version. The component holds no user state — OIDC settings
+        # live in HA's .storage — so overwriting on every boot is idempotent.
+        - name: seed-oidc
+          image: forgejo.seyzahl.com/platform-infrastructure/home-assistant-oidc:1.1.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /config/custom_components
+              rm -rf /config/custom_components/auth_oidc
+              cp -r /component/auth_oidc /config/custom_components/auth_oidc
+              echo "auth_oidc seeded (v1.1.1)"
+          volumeMounts:
+            - name: config
+              mountPath: /config
       containers:
         - name: home-assistant
           image: ghcr.io/home-assistant/home-assistant:2026.6
