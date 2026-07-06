@@ -42,12 +42,30 @@ data:
 
     automation:
       - id: nursery_arm_with_nap_mode
-        alias: "Nursery — arm/disarm recordings with Nap Mode"
+        alias: "Nursery — arm/disarm camera with Nap Mode"
+        # Re-asserts Frigate's runtime toggles whenever Nap Mode changes, HA
+        # starts, or Frigate (re)connects. The last two matter: Frigate resets
+        # these toggles to their config defaults on every restart (motion
+        # defaults ON), so without re-asserting, a Frigate/HA reboot would
+        # silently leave the motion detector running with Nap Mode off — the
+        # exact bug. frigate/available is a retained birth topic, so HA also
+        # re-syncs on every MQTT reconnect.
         trigger:
           - platform: state
             entity_id: input_boolean.nap_mode
+          - platform: homeassistant
+            event: start
+          - platform: mqtt
+            topic: "frigate/available"
+            payload: "online"
         action:
-          # Frigate runtime control over MQTT: gate recording + snapshots on nap.
+          # Frigate runtime control over MQTT: gate motion detection + recording
+          # + snapshots on Nap Mode. motion/set OFF only succeeds when object
+          # detection is already off — it is (detect.enabled: false in Frigate).
+          - service: mqtt.publish
+            data:
+              topic: "frigate/nursery/motion/set"
+              payload: "{{ 'ON' if is_state('input_boolean.nap_mode','on') else 'OFF' }}"
           - service: mqtt.publish
             data:
               topic: "frigate/nursery/recordings/set"
