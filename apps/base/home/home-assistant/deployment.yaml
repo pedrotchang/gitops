@@ -17,8 +17,10 @@ spec:
         policy-type: app
     spec:
       initContainers:
-        # Seed bootstrap config into the PVC copy-if-absent (jellyfin seed idiom).
-        # HA owns the files after first boot; edits in the UI are preserved.
+        # Seed GitOps-owned config into the PVC copy-ALWAYS. These files are the
+        # source of truth; HA persists account + UI state in /config/.storage, not
+        # here, so overwriting them each boot keeps external_url + auth_oidc SSO
+        # declarative (a copy-if-absent seed never reaches an already-running HA).
         - name: seed-config
           image: busybox:1.37
           command:
@@ -27,19 +29,19 @@ spec:
             - |
               set -eu
               mkdir -p /config/packages
-              [ -f /config/configuration.yaml ] || cp /seed/configuration.yaml /config/configuration.yaml
-              [ -f /config/packages/nursery.yaml ] || cp /seed/nursery.yaml /config/packages/nursery.yaml
-              echo "config seeded"
+              cp /seed/configuration.yaml /config/configuration.yaml
+              cp /seed/nursery.yaml /config/packages/nursery.yaml
+              echo "config seeded (copy-always)"
           volumeMounts:
             - name: seed
               mountPath: /seed
             - name: config
               mountPath: /config
         # Seed the hass-oidc-auth component (authentik SSO client) from the
-        # carrier image. Copy-ALWAYS (unlike seed-config's copy-if-absent): the
-        # image is the source of truth, so bumping its tag deploys the new
-        # component version. The component holds no user state — OIDC settings
-        # live in HA's .storage — so overwriting on every boot is idempotent.
+        # carrier image, copy-ALWAYS: the image is the source of truth, so bumping
+        # its tag deploys the new component version. The component holds no user
+        # state — OIDC settings live in HA's .storage — so overwriting each boot
+        # is idempotent.
         - name: seed-oidc
           image: forgejo.seyzahl.com/platform-infrastructure/home-assistant-oidc:1.1.1
           command:

@@ -4,8 +4,9 @@ metadata:
   name: home-assistant-seed
   namespace: home
 data:
-  # Bootstrap config, seeded copy-if-absent into the PVC by an init container
-  # (see deployment.yaml). HA owns these files afterward — edit freely in the UI.
+  # GitOps-owned config, seeded copy-ALWAYS into the PVC by an init container
+  # (see deployment.yaml). HA persists account + UI state in /config/.storage —
+  # NOT these files — so re-seeding from git each boot keeps config declarative.
   configuration.yaml: |
     default_config:
 
@@ -19,14 +20,23 @@ data:
     # Nap Mode + nursery automations live in a package.
     # external_url pins the base URL so hass-oidc-auth builds the OIDC
     # redirect_uri as https://ha.seyzahl.com/auth/oidc/callback (must match the
-    # strict redirect registered in the authentik blueprint, or login is
-    # rejected). NOTE: this file is seeded copy-if-absent, so on an already-
-    # running HA the live file is NOT updated — set the URL once via the UI
-    # (Settings -> System -> Network -> Home Assistant URL). See PR.md runbook.
+    # strict redirect registered in the authentik blueprint, or login is rejected).
     homeassistant:
       external_url: "https://ha.seyzahl.com"
       internal_url: "https://ha.seyzahl.com"
       packages: !include_dir_named packages
+
+    # authentik OIDC SSO (hass-oidc-auth). PUBLIC client — no client_secret, so
+    # PKCE is used (on by default). With copy-always seeding this registers the
+    # provider on boot and "authentik" appears on the login screen — zero clicks.
+    # force_https guarantees the redirect scheme is https behind the Cilium
+    # gateway, matching the strict redirect in the authentik blueprint.
+    auth_oidc:
+      client_id: "RluG9D5GmhxoeUq9GZ4N6RtK4Hsc1IUr7b15BuKq"
+      discovery_url: "https://auth.seyzahl.com/application/o/home-assistant/.well-known/openid-configuration"
+      display_name: "authentik"
+      features:
+        force_https: true
 
   nursery.yaml: |
     # ── Baby monitor: Nap Mode + motion alerts ──────────────────────────────
