@@ -43,6 +43,10 @@ data:
         rel: stylesheet
 
     layout:
+      - Home:
+          header: true
+          style: row
+          columns: 3
       - Professional:
           header: false
           style: row
@@ -51,10 +55,6 @@ data:
           header: false
           style: row
           columns: 5
-      - Space:
-          header: true
-          style: row
-          columns: 4
       - Media:
           header: true
           style: row
@@ -246,6 +246,29 @@ data:
 
   services.yaml: |
 
+    - Home:
+      - Jellyfin:
+            href: https://jellyfin.seyzahl.com
+            icon: jellyfin.png
+            description: Watch
+            widget:
+              type: jellyfin
+              url: http://jellyfin.media.svc.cluster.local:8096
+              key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+              enableBlocks: true
+              enableNowPlaying: true
+      - Jellyseerr:
+            href: https://jellyseerr.seyzahl.com
+            icon: jellyseerr.png
+            description: Request
+            widget:
+              type: jellyseerr
+              url: http://jellyseerr.media.svc.cluster.local:5055
+              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
+      - Nextcloud:
+            href: https://nextcloud.seyzahl.com
+            icon: nextcloud.png
+
     - Professional:
       - N8N:
             href: https://n8n.seyzahl.com/
@@ -282,69 +305,10 @@ data:
             href: https://pedrotchang.omni.siderolabs.io/
             icon: talos.png
 
-    - Space:
-      - Confluence:
-            href: https://confluence.trueanomaly.io
-            icon: confluence.png
-      - DevOps:
-            href: http://jira.trueanomaly.io/projects/DEVOPS/summary
-            icon: jira.png
-      - DevOps SVC:
-            href: http://jira.trueanomaly.io/projects/DEVOPSSVC/
-            icon: jira.png
-      - Glossary:
-            href: http://confluence.trueanomaly.io/display/TA/terms/all
-            icon: confluence.png
-      - Apps:
-            href: http://myapplications.azure.us
-            icon: application-gateways.png
-      - Claude-Gov:
-            href: http://claude.fedstart.com/new
-            icon: claude-ai.png
-      - Github:
-            href: http://github.trueanomaly.space/MCS
-            icon: github.png
-      - Azure:
-            href: http://portal.azure.us
-            icon: azure.png
-      - Artifactory:
-            href: http://artifactory.trueanomaly.space
-            icon: artifactory.png
-      - Chainguard:
-            href: http://console.chainguard.dev/org/trueanomaly
-            icon: chainguard.png
-      - Keeper:
-            href: https://govcloud.keepersecurity.us/vault/
-            icon: keeper-security.png
-      - Learn:
-            href: https://learn.trueanomaly.io
-            icon: bookstack.png
-
     - Media:
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
-      - Nextcloud:
-            href: https://nextcloud.seyzahl.com
-            icon: nextcloud.png
-      - Jellyfin:
-            href: https://jellyfin.seyzahl.com
-            icon: jellyfin.png
-            description: Watch
-            widget:
-              type: jellyfin
-              url: http://jellyfin.media.svc.cluster.local:8096
-              key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
-              enableBlocks: true
-              enableNowPlaying: true
-      - Jellyseerr:
-            href: https://jellyseerr.seyzahl.com
-            icon: jellyseerr.png
-            description: Request
-            widget:
-              type: jellyseerr
-              url: http://jellyseerr.media.svc.cluster.local:5055
-              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
       - Sonarr:
             href: https://sonarr.seyzahl.com
             icon: sonarr.png
