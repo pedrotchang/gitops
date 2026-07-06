@@ -17,7 +17,15 @@ data:
         - 10.244.0.0/16
 
     # Nap Mode + nursery automations live in a package.
+    # external_url pins the base URL so hass-oidc-auth builds the OIDC
+    # redirect_uri as https://ha.seyzahl.com/auth/oidc/callback (must match the
+    # strict redirect registered in the authentik blueprint, or login is
+    # rejected). NOTE: this file is seeded copy-if-absent, so on an already-
+    # running HA the live file is NOT updated — set the URL once via the UI
+    # (Settings -> System -> Network -> Home Assistant URL). See PR.md runbook.
     homeassistant:
+      external_url: "https://ha.seyzahl.com"
+      internal_url: "https://ha.seyzahl.com"
       packages: !include_dir_named packages
 
   nursery.yaml: |

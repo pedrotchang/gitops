@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-home-assistant
+  namespace: authentik
+data:
+  home-assistant.yaml: |
+    # Managed in GitOps — declares BOTH the OIDC provider and the application for
+    # Home Assistant SSO (via the hass-oidc-auth custom component). Unlike the
+    # immich blueprint (which only pins a pre-existing provider), this is a
+    # net-new integration, so it must also create the authentik_core.application
+    # binding — without it the provider has no access boundary and login fails.
+    #
+    # PUBLIC client (client_type: public): hass-oidc-auth uses PKCE and holds no
+    # client_secret, so nothing to plumb through ExternalSecret. The HA side is
+    # finalized once in the UI at onboarding (client_id + discovery URL below).
+    #
+    # Discovery URL (enter in HA):
+    #   https://auth.seyzahl.com/application/o/home-assistant/.well-known/openid-configuration
+    # Redirect URI (registered below, strict):
+    #   https://ha.seyzahl.com/auth/oidc/callback
+    #
+    # Flow / signing-key / property-mapping UUIDs are the shared authentik
+    # defaults (same set immich reuses): default authorization + invalidation
+    # flows, the RS256 signing key, and the openid/email/profile scope mappings.
+    version: 1
+    metadata:
+      name: Home Assistant OIDC (GitOps managed)
+    entries:
+      - id: home-assistant-oauth2-provider
+        model: authentik_providers_oauth2.oauth2provider
+        state: present
+        identifiers:
+          name: "Home Assistant OIDC"
+        attrs:
+          authorization_flow: 4e8745dd-e19b-4450-b9a6-4b0ee816f88a
+          invalidation_flow: dc089b4e-601c-4b12-bae7-5063a1e092bc
+          client_type: public
+          client_id: "RluG9D5GmhxoeUq9GZ4N6RtK4Hsc1IUr7b15BuKq"
+          access_code_validity: "minutes=1"
+          access_token_validity: "hours=24"
+          refresh_token_validity: "days=30"
+          include_claims_in_id_token: true
+          issuer_mode: per_provider
+          sub_mode: hashed_user_id
+          signing_key: e6747b32-b04a-40e7-b118-c6cabd6c63cf
+          redirect_uris:
+            - matching_mode: strict
+              url: "https://ha.seyzahl.com/auth/oidc/callback"
+          property_mappings:
+            - 2a23b800-1f2a-4bbc-8063-a7c55f8bd258
+            - d120dd83-650e-4d1d-af8e-e0b0b3b91413
+            - 49341e76-dbb2-47dc-9acb-35359575510d
+      - id: home-assistant-application
+        model: authentik_core.application
+        state: present
+        identifiers:
+          slug: home-assistant
+        attrs:
+          name: "Home Assistant"
+          slug: home-assistant
+          provider: !KeyOf home-assistant-oauth2-provider
+          meta_launch_url: "https://ha.seyzahl.com"
+          meta_description: "Nursery baby monitor & home automation"
+          meta_publisher: "Home Assistant"
+          # No policy bindings → any authentik user may sign in (family homelab).
+          # Add a group-membership policy here later to restrict access.
+          policy_engine_mode: any
