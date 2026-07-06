@@ -37,6 +37,16 @@ data:
           invalidation_flow: dc089b4e-601c-4b12-bae7-5063a1e092bc
           client_type: public
           client_id: "RluG9D5GmhxoeUq9GZ4N6RtK4Hsc1IUr7b15BuKq"
+          # authentik 2026.x requires grant_types to be set explicitly. A
+          # blueprint-created provider defaults to [] (empty) → every grant is
+          # rejected ("Invalid grant_type for provider" → the authorize request
+          # comes back invalid_request/malformed). immich's provider only works
+          # because it was created in the UI, which pre-populates this field.
+          # OIDC code flow needs authorization_code; refresh_token lets HA renew
+          # its session without a full re-login.
+          grant_types:
+            - authorization_code
+            - refresh_token
           access_code_validity: "minutes=1"
           access_token_validity: "hours=24"
           refresh_token_validity: "days=30"
