@@ -52,13 +52,15 @@ data:
           height: 480
           fps: 5
         motion:
-          # Tuned SENSITIVE on purpose: the baby stirring is the earliest wake
-          # signal (he moves before he cries), so motion is the primary/early alert.
-          # Lower threshold + smaller contour_area catch small movements. Trade-off:
-          # more false positives from light/shadow/IR day-night switch — raise these
-          # (or add a mask) if it gets noisy.
-          threshold: 20
-          contour_area: 5
+          # Frigate defaults. An earlier sensitive tune (threshold 20 /
+          # contour_area 5) sat in the low-light/IR sensor-noise floor and pegged
+          # detection at process_fps (motion "on" every frame with a still baby) —
+          # useless. Defaults are the quiescent-at-rest baseline: motion fires on
+          # real movement (baby stirring), not noise. If it MISSES small stirs,
+          # lower threshold toward ~25 and/or contour_area toward ~8 a step at a
+          # time; if it's NOISY, raise threshold / contour_area or add a mask.
+          threshold: 30
+          contour_area: 10
           improve_contrast: true
         record:
           enabled: true
