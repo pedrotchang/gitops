@@ -37,6 +37,11 @@ data:
       display_name: "authentik"
       features:
         force_https: true
+        # Skip the (unstyled) welcome page and auto-redirect straight to
+        # authentik's login. Also fixes "Login aborted" on the default login
+        # page (HA auto-starting the OIDC provider without the cookie). Password
+        # fallback stays reachable at https://ha.seyzahl.com/?skip_oidc_redirect=true
+        default_redirect: true
 
   nursery.yaml: |
     # ── Baby monitor: Nap Mode + motion alerts ──────────────────────────────
