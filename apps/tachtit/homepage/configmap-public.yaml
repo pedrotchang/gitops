@@ -46,7 +46,7 @@ data:
       - Home:
           header: true
           style: row
-          columns: 5
+          columns: 3
       - Professional:
           header: false
           style: row
