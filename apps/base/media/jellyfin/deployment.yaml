@@ -27,7 +27,7 @@ spec:
         # via API. Copy-if-absent → idempotent across restarts; a plugin bump
         # ships a new versioned dir, which Jellyfin prefers automatically.
         - name: seed-sso
-          image: forgejo.seyzahl.com/platform-infrastructure/jellyfin-sso-plugin:4.0.0.4
+          image: forgejo.seyzahl.com/platform-infrastructure/jellyfin-sso-plugin:4.0.0.4@sha256:22484de10fbd8ccb3c09da36483660c25b3a6e7c53038710cbf152fb6bcd99e6
           command:
             - /bin/sh
             - -c

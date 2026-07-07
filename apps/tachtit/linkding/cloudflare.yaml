@@ -18,7 +18,7 @@ spec:
           # Served from the org's scanned mirror (supply-chain gate: grype+trivy,
           # blocks Critical/High). Upstream version kept as the tag. Anonymous
           # pull — org packages are public, no imagePullSecret needed.
-          image: forgejo.seyzahl.com/platform-infrastructure/cloudflared:2026.6.1
+          image: forgejo.seyzahl.com/platform-infrastructure/cloudflared:2026.6.1@sha256:95de18ccf4e51bd9d2ba28fe7218e423adc6a88fad1aee910eb67c306b7af2c4
           args:
             - tunnel
             - --config
