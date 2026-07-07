@@ -22,7 +22,7 @@ spec:
         # here, so overwriting them each boot keeps configuration.yaml + the PTZ
         # helper declarative (a copy-if-absent seed never reaches a running HA).
         - name: seed-config
-          image: busybox:1.37
+          image: busybox:1.38
           command:
             - /bin/sh
             - -c
