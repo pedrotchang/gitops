@@ -116,18 +116,6 @@ function releaseGroupSpec(name: string, regex: string) {
     fields: [{ name: "value", value: regex }],
   };
 }
-// Matches Radarr's *parsed* source (positional, not a title regex), so a film
-// literally titled "Cam" or "TS" is never mis-hit. Movie source enum:
-// 1=CAM, 2=TELESYNC, 3=TELECINE, 4=WORKPRINT, 5=DVD, 7=WEBDL, 8=WEBRIP, 9=BLURAY.
-function sourceSpec(name: string, value: number) {
-  return {
-    name,
-    implementation: "SourceSpecification",
-    negate: false,
-    required: false,
-    fields: [{ name: "value", value }],
-  };
-}
 
 const CF_DUBS_ONLY = {
   name: "Dubs Only",
@@ -166,22 +154,23 @@ const CF_FRENCH_SCENE = {
     releaseGroupSpec("french-groups", "(Tsundere-Raws|KAF|Wawacity|FW)"),
   ],
 };
-// Theatrical cam rips — reject outright. Two mechanisms, OR'd (required:false):
-//   1. SourceSpecification on CAM/TELESYNC/TELECINE — Radarr's own parse, so
-//      correctly-labelled cams are caught with no title false positives.
-//   2. A tight title regex for cams *mislabelled* as WEB/BluRay — only the
-//      unambiguous compound tags (camrip/hdcam/hdts/hdtc), never bare
-//      cam/ts/tc (which would hit films like "Cam" (2018) or "T.S. Spivet").
-// Scored -10000 (< minFormatScore 0) so any match is rejected, like "Dubs Only".
-// Radarr-only: CAM is theatrical, so it never applies to Sonarr/TV.
+// Theatrical cam rips — reject outright, scored -10000 (< minFormatScore 0) so
+// any match is rejected, same mechanism as "Dubs Only". Two release-title specs,
+// OR'd (required:false):
+//   1. cam-tags: unambiguous cam markers anywhere in the title
+//      (camrip/hdcam/hd-ts/telesync/hd-tc/telecine/pdvd/tsrip).
+//   2. cam-after-year: bare cam/ts/tc, but only *after* a 4-digit year — i.e. in
+//      the scene quality-tag slot, never the title. Rejects "Movie.2024.CAM"
+//      while sparing films literally titled "Cam" (2018) or "T.S. Spivet".
+// SourceSpecification (parsed source) is deliberately NOT used: it is inert in
+// Radarr's custom-format calculation here — verified via /api/v3/parse, where
+// source=cam/telesync releases scored 0. Radarr-only: CAM is theatrical.
 const CF_CAM = {
   name: "CAM",
   includeCustomFormatWhenRenaming: false,
   specifications: [
-    sourceSpec("source-cam", 1),
-    sourceSpec("source-telesync", 2),
-    sourceSpec("source-telecine", 3),
-    releaseTitleSpec("cam-mislabeled", "\\b(cam[ ._-]?rip|hd[ ._-]?cam|hd[ ._-]?ts|hd[ ._-]?tc)\\b"),
+    releaseTitleSpec("cam-tags", "\\b(cam[ ._-]?rip|hd[ ._-]?cam|hd[ ._-]?ts|telesync|hd[ ._-]?tc|telecine|pdvd|ts[ ._-]?rip)\\b"),
+    releaseTitleSpec("cam-after-year", "\\b(19|20)\\d{2}\\b.{0,40}\\b(cam|ts|tc)\\b"),
   ],
 };
 
