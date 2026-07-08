@@ -116,6 +116,18 @@ function releaseGroupSpec(name: string, regex: string) {
     fields: [{ name: "value", value: regex }],
   };
 }
+// Matches Radarr's *parsed* source (positional, not a title regex), so a film
+// literally titled "Cam" or "TS" is never mis-hit. Movie source enum:
+// 1=CAM, 2=TELESYNC, 3=TELECINE, 4=WORKPRINT, 5=DVD, 7=WEBDL, 8=WEBRIP, 9=BLURAY.
+function sourceSpec(name: string, value: number) {
+  return {
+    name,
+    implementation: "SourceSpecification",
+    negate: false,
+    required: false,
+    fields: [{ name: "value", value }],
+  };
+}
 
 const CF_DUBS_ONLY = {
   name: "Dubs Only",
@@ -154,11 +166,30 @@ const CF_FRENCH_SCENE = {
     releaseGroupSpec("french-groups", "(Tsundere-Raws|KAF|Wawacity|FW)"),
   ],
 };
+// Theatrical cam rips — reject outright. Two mechanisms, OR'd (required:false):
+//   1. SourceSpecification on CAM/TELESYNC/TELECINE — Radarr's own parse, so
+//      correctly-labelled cams are caught with no title false positives.
+//   2. A tight title regex for cams *mislabelled* as WEB/BluRay — only the
+//      unambiguous compound tags (camrip/hdcam/hdts/hdtc), never bare
+//      cam/ts/tc (which would hit films like "Cam" (2018) or "T.S. Spivet").
+// Scored -10000 (< minFormatScore 0) so any match is rejected, like "Dubs Only".
+// Radarr-only: CAM is theatrical, so it never applies to Sonarr/TV.
+const CF_CAM = {
+  name: "CAM",
+  includeCustomFormatWhenRenaming: false,
+  specifications: [
+    sourceSpec("source-cam", 1),
+    sourceSpec("source-telesync", 2),
+    sourceSpec("source-telecine", 3),
+    releaseTitleSpec("cam-mislabeled", "\\b(cam[ ._-]?rip|hd[ ._-]?cam|hd[ ._-]?ts|hd[ ._-]?tc)\\b"),
+  ],
+};
 
 const CF_SCORES: Record<string, number> = {
   "Dubs Only": -10000,
   "Anime Raws": -10000,
   "French Scene (no English subs)": -10000,
+  "CAM": -10000,
   "Anime Web Tier 04 (Official Subs)": 500,
   "Anime Web Tier 05 (FanSubs)": 400,
 };
@@ -177,7 +208,7 @@ type QualityProfile = {
 async function ensureCustomFormats(
   app: "sonarr" | "radarr",
   api: ReturnType<typeof servarr>,
-  formats: Array<typeof CF_DUBS_ONLY>,
+  formats: Array<{ name: string; includeCustomFormatWhenRenaming: boolean; specifications: unknown[] }>,
 ): Promise<Map<string, number>> {
   const existing = await api.get<CustomFormat[]>("/customformat");
   const ids = new Map(existing.map((cf) => [cf.name, cf.id]));
@@ -374,7 +405,7 @@ async function provisionRadarr() {
   await ensureRootFolder("radarr", api, "/data/movies");
   await ensureDownloadClient("radarr", api, "movies", "movieCategory");
   await ensureExtraFileImport("radarr", api);
-  const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE]);
+  const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE, CF_CAM]);
   await scoreFormatsInAllProfiles("radarr", api, cfIds);
 }
 
