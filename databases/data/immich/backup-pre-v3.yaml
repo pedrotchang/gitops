@@ -1,0 +1,11 @@
+# One-shot on-demand backup taken before the Immich v3.0.0 app upgrade.
+# v3 is a major release and downgrades are unsupported — this pins a fresh
+# base backup (plus continuous WAL) as the rollback point. Safe to delete
+# after the upgrade is verified; barman retention (10d) ages it out anyway.
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: immich-db-pre-v3
+spec:
+  cluster:
+    name: immich-db-tachtit-cnpg-v0

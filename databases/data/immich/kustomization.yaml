@@ -6,3 +6,4 @@ resources:
   - database.yaml
   - secrets.yaml
   - scheduled-backups.yaml
+  - backup-pre-v3.yaml
