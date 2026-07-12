@@ -1,0 +1,32 @@
+# The provisioner mints credentials at runtime (komf user password, komga API
+# key) and persists them as the manga-generated-credentials Secret — scoped to
+# exactly the secret verbs it needs, namespace-local.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: manga-provisioner
+  namespace: manga
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: manga-provisioner
+  namespace: manga
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: manga-provisioner
+  namespace: manga
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: manga-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: manga-provisioner
+    namespace: manga

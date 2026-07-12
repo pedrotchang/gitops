@@ -1,0 +1,62 @@
+# INTERNAL ONLY (home/immich-local pattern). exclude:true keeps both hosts OUT
+# of public DNS; they resolve internally via the *.seyzahl.com wildcard to the
+# private gateway (Headscale/LAN only). No cloudflared tunnel = never public.
+# No authentik outpost by design: a forward-auth proxy would break Komf's API
+# access, OPDS, and mobile reader clients. Komga enforces its own users
+# (API-bootstrapped); Suwayomi runs authMode NONE behind the VPN — revisit if
+# exposure ever changes.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: suwayomi
+  namespace: manga
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Suwayomi"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "suwayomi.png"
+    gethomepage.dev/href: "https://suwayomi.seyzahl.com"
+    gethomepage.dev/description: "Manga downloader"
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - suwayomi.seyzahl.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: suwayomi
+          port: 4567
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: komga
+  namespace: manga
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Komga"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "komga.png"
+    gethomepage.dev/href: "https://komga.seyzahl.com"
+    gethomepage.dev/description: "Manga reader"
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - komga.seyzahl.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: komga
+          port: 25600

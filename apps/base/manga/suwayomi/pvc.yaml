@@ -1,0 +1,14 @@
+# Fresh config volume (2026-07-12, Pedro): the pre-teardown Suwayomi config PV
+# is intentionally NOT reclaimed — new instance, zero old settings.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: suwayomi-config
+  namespace: manga
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 5Gi
