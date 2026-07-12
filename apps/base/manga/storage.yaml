@@ -1,0 +1,43 @@
+# Shared manga library — ONE static RWX PV against the TrueNAS media export,
+# mounted by BOTH Suwayomi (RW) and Komga (RO) via subPath manga-v2. Suwayomi
+# writes CBZ + ComicInfo.xml here (downloadsPath=/library, set by the
+# provisioner via GraphQL); Komga scans the same files.
+#
+# The PV points at the export root (/mnt/tank/media) rather than a subdir so
+# kubelet's subPath auto-mkdir creates manga-v2 on first mount — no manual
+# TrueNAS step. manga-v2 is a FRESH directory (2026-07-12, Pedro): the old
+# /mnt/tank/media/manga contents from the pre-teardown Suwayomi are never
+# referenced and are left for manual archive/delete. Pods only ever mount the
+# manga-v2 subPath, never the export root.
+#
+# Config volumes are dynamic truenas-nfs PVCs (per-component pvc.yaml), same as
+# immich/n8n/frigate — NFS only, never iSCSI, per the stack requirements.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: manga-library-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.7.14
+    path: /mnt/tank/media
+  mountOptions:
+    - nfsvers=4.2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: manga-library
+  namespace: manga
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: manga-library-pv
+  resources:
+    requests:
+      storage: 500Gi

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: komga
+  namespace: manga
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: komga
+  template:
+    metadata:
+      labels:
+        app: komga
+        policy-type: app
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: komga
+          # Renovate-tracked; latest release verified against ghcr pre-commit.
+          image: ghcr.io/gotson/komga:1.25.0
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: TZ
+              value: "America/Los_Angeles"
+            - name: KOMGA_CONFIGDIR
+              value: /config
+          ports:
+            - containerPort: 25600
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 25600
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 25600
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            # Library scans/analysis are CPU-spiky — cap so a full scan can't
+            # starve the node.
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          volumeMounts:
+            - name: komga-config
+              mountPath: /config
+            # Same shared library as Suwayomi; read-only is sufficient — Komf
+            # updates metadata via the Komga API (updateModes: [API]), never
+            # by writing files.
+            - name: manga-library
+              mountPath: /library
+              subPath: manga-v2
+              readOnly: true
+      volumes:
+        - name: komga-config
+          persistentVolumeClaim:
+            claimName: komga-config
+        - name: manga-library
+          persistentVolumeClaim:
+            claimName: manga-library

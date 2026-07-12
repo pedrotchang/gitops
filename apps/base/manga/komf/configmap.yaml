@@ -1,0 +1,59 @@
+# Komf application.yml — the hands-off metadata layer. eventListener makes Komf
+# react to every Komga scan (new series -> auto-match -> metadata + covers via
+# API, no human matching). Providers are keyless: MangaUpdates > AniList >
+# MangaDex (MAL needs a client id — intentionally omitted). Komga credentials
+# come from env (KOMF_KOMGA_*, see deployment) so nothing sensitive lives here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: komf-config
+  namespace: manga
+data:
+  application.yml: |
+    komga:
+      baseUri: http://komga:25600
+      eventListener:
+        enabled: true
+      metadataUpdate:
+        default:
+          libraryType: "MANGA"
+          # API only: Komga's own DB is updated; files are never rewritten
+          # (Komga mounts the library read-only; Suwayomi's ComicInfo.xml
+          # already carries chapter-level metadata).
+          updateModes: [ API ]
+          aggregate: true
+          mergeTags: true
+          mergeGenres: true
+          bookCovers: true
+          seriesCovers: true
+          overrideExistingCovers: false
+          postProcessing:
+            seriesTitle: true
+            seriesTitleLanguage: "en"
+            alternativeSeriesTitles: true
+            alternativeSeriesTitleLanguages:
+              - "en"
+              - "ja"
+              - "ja-ro"
+            orderBooks: true
+    database:
+      file: /config/database.sqlite
+    metadataProviders:
+      defaultProviders:
+        mangaUpdates:
+          priority: 10
+          enabled: true
+          mediaType: "MANGA"
+        aniList:
+          priority: 20
+          enabled: true
+          mediaType: "MANGA"
+        mangaDex:
+          priority: 30
+          enabled: true
+          coverLanguages:
+            - "en"
+            - "ja"
+    server:
+      port: 8085
+    logLevel: INFO

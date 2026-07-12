@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: manga
+  labels:
+    app.kubernetes.io/name: manga
+    # Baseline PodSecurity (cluster default) is sufficient — all workloads run
+    # unprivileged as uid 1000 with no hostPath/privileged requirements.
