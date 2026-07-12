@@ -24,7 +24,7 @@ spec:
         # emptyDir the main container reads. Keeps only the ciphered form on
         # disk; plaintext lives solely in Azure KV + the mounted Secret env.
         - name: gen-passwd
-          image: eclipse-mosquitto:2.0.20
+          image: eclipse-mosquitto:2.0.22
           command:
             - /bin/sh
             - -c
@@ -48,7 +48,7 @@ spec:
               mountPath: /mosquitto/passwd
       containers:
         - name: mosquitto
-          image: eclipse-mosquitto:2.0.20
+          image: eclipse-mosquitto:2.0.22
           ports:
             - containerPort: 1883
               name: mqtt
