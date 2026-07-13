@@ -47,13 +47,14 @@ data:
           header: true
           style: row
           columns: 5
-      # Headerless continuation of Home: 9 Home items tile as a 5-col matrix
-      # (HA+Jellyfin+Immich+Komga+Suwayomi on top, these 4 plain tiles below).
-      # No header = renders as one seamless "Home" section.
+      # Headerless continuation of Home (renders as one seamless "Home"
+      # section). Top Home row is 5-col (HA+Jellyfin+Immich+Komga+Suwayomi);
+      # this continuation has only 4 tiles, so it's 4-col — each stretches to
+      # 1/4 width and fills the row edge-to-edge (no ragged gap under Suwayomi).
       - Home Apps:
           header: false
           style: row
-          columns: 5
+          columns: 4
       - Professional:
           header: true
           style: row
