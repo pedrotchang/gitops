@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-manga
+  namespace: authentik
+data:
+  manga.yaml: |
+    # Managed in GitOps — Komga OIDC SSO per the official integration guide
+    # (https://integrations.goauthentik.io/media/komga/). Browser logins go
+    # through authentik; Komga API keys / basic auth keep working for Komf,
+    # OPDS, and mobile reader clients (no proxy outpost by design).
+    #
+    # Komga refuses OIDC logins unless the email scope returns
+    # email_verified=true; authentik >=2025.10 defaults it to false, so a
+    # custom email scope mapping replaces the default one on this provider.
+    #
+    # client_secret comes from KV komga-oidc-client-secret (staged by
+    # scripts/manga/stage-secrets.ts) -> authentik-env Secret -> !Env.
+    version: 1
+    metadata:
+      name: manga stack (GitOps managed)
+    entries:
+      - id: komga-email-verified-scope
+        model: authentik_providers_oauth2.scopemapping
+        state: present
+        identifiers:
+          name: "OpenID 'email' with email_verified (komga)"
+        attrs:
+          scope_name: email
+          description: "Email address (email_verified pinned true for Komga)"
+          expression: |
+            return {
+                "email": request.user.email,
+                "email_verified": True,
+            }
+      - id: komga-oauth2-provider
+        model: authentik_providers_oauth2.oauth2provider
+        state: present
+        identifiers:
+          name: "komga oauth2"
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          client_type: confidential
+          client_id: "komga-manga-sso"
+          client_secret: !Env KOMGA_OIDC_CLIENT_SECRET
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          redirect_uris:
+            - matching_mode: strict
+              url: "https://komga.seyzahl.com/login/oauth2/code/authentik"
+          property_mappings:
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+            # Custom email mapping (by name — scope_name 'email' is ambiguous
+            # now that two mappings carry it); the default email mapping is
+            # deliberately NOT attached.
+            - !Find [authentik_providers_oauth2.scopemapping, [name, "OpenID 'email' with email_verified (komga)"]]
+      - id: komga-application
+        model: authentik_core.application
+        state: present
+        identifiers:
+          slug: komga
+        attrs:
+          name: Komga
+          provider: !KeyOf komga-oauth2-provider
+          meta_launch_url: https://komga.seyzahl.com

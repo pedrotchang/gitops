@@ -77,3 +77,4 @@ blueprints:
     - authentik-blueprint-media
     - authentik-blueprint-home-assistant
     - authentik-blueprint-frigate
+    - authentik-blueprint-manga

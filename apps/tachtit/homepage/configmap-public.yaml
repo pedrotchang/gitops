@@ -46,10 +46,9 @@ data:
       - Home:
           header: true
           style: row
-          columns: 3
-      # Headerless continuation of Home: 7 Home items (HA+Jellyfin+Immich in the
-      # 3-col group above, then these 4) can't tile cleanly in one grid, so the
-      # tall widget cards get a 3-col row and the plain tiles a 4-col row. No
+          columns: 4
+      # Headerless continuation of Home: 8 Home items tile as two aligned 4-col
+      # rows (HA+Jellyfin+Immich+Komga above, these 4 plain tiles below). No
       # header = renders as one seamless "Home" section.
       - Home Apps:
           header: false
@@ -252,6 +251,12 @@ data:
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
+      # Static entry (not route-injected — komga's HTTPRoute deliberately has
+      # no gethomepage annotations so it doesn't ALSO land in Media).
+      - Komga:
+            href: https://komga.seyzahl.com
+            icon: komga.png
+            description: Manga
 
     - Home Apps:
       - Frigate:
