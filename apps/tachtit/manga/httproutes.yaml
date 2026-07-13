@@ -40,12 +40,8 @@ metadata:
   namespace: manga
   annotations:
     external-dns.alpha.kubernetes.io/exclude: "true"
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Komga"
-    gethomepage.dev/group: "Media"
-    gethomepage.dev/icon: "komga.png"
-    gethomepage.dev/href: "https://komga.seyzahl.com"
-    gethomepage.dev/description: "Manga reader"
+    # No gethomepage annotations: Komga is a STATIC entry in the homepage Home
+    # group (right of Immich) — annotations here would duplicate it into Media.
 spec:
   parentRefs:
     - name: cilium-gateway

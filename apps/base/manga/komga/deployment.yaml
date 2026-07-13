@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: komga
   namespace: manga
+  annotations:
+    # application.yml is a subPath mount (updates don't propagate in-place) —
+    # reloader restarts the pod when komga-app-config changes.
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   strategy:
@@ -32,6 +36,13 @@ spec:
               value: "America/Los_Angeles"
             - name: KOMGA_CONFIGDIR
               value: /config
+            # Referenced by ${KOMGA_OIDC_CLIENT_SECRET} in application.yml;
+            # same value the authentik blueprint provider gets via !Env.
+            - name: KOMGA_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: komga-oidc-credentials
+                  key: KOMGA_OIDC_CLIENT_SECRET
           ports:
             - containerPort: 25600
               protocol: TCP
@@ -59,6 +70,9 @@ spec:
           volumeMounts:
             - name: komga-config
               mountPath: /config
+            - name: komga-app-config
+              mountPath: /config/application.yml
+              subPath: application.yml
             # Same shared library as Suwayomi; read-only is sufficient — Komf
             # updates metadata via the Komga API (updateModes: [API]), never
             # by writing files.
@@ -70,6 +84,9 @@ spec:
         - name: komga-config
           persistentVolumeClaim:
             claimName: komga-config
+        - name: komga-app-config
+          configMap:
+            name: komga-app-config
         - name: manga-library
           persistentVolumeClaim:
             claimName: manga-library

@@ -13,9 +13,12 @@
 
 const VAULT = "seyzahl";
 
-type Plan = { name: string; kind: "alnum24" };
+type Plan = { name: string; kind: "alnum24" | "alnum64" };
 
-const GENERATED: Plan[] = [{ name: "manga-komga-admin-password", kind: "alnum24" }];
+const GENERATED: Plan[] = [
+  { name: "manga-komga-admin-password", kind: "alnum24" },
+  { name: "komga-oidc-client-secret", kind: "alnum64" },
+];
 
 async function az(args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   const proc = Bun.spawn(["az", ...args], { stdout: "pipe", stderr: "pipe" });
@@ -62,7 +65,7 @@ for (const plan of GENERATED) {
     console.log(`${plan.name}: already staged, leaving as-is`);
     continue;
   }
-  await setSecret(plan.name, randomAlnum(24));
+  await setSecret(plan.name, randomAlnum(plan.kind === "alnum64" ? 64 : 24));
   console.log(`${plan.name}: generated and staged`);
 }
 console.log("done");
