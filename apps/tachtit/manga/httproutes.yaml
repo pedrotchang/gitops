@@ -12,12 +12,9 @@ metadata:
   namespace: manga
   annotations:
     external-dns.alpha.kubernetes.io/exclude: "true"
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Suwayomi"
-    gethomepage.dev/group: "Media"
-    gethomepage.dev/icon: "suwayomi.png"
-    gethomepage.dev/href: "https://suwayomi.seyzahl.com"
-    gethomepage.dev/description: "Manga downloader"
+    # No gethomepage annotations: Suwayomi is a STATIC entry in the homepage
+    # Home group (next to Komga) — annotations here would duplicate it into
+    # Media. Both manga readers live together in Home, not the arr-stack Media.
 spec:
   parentRefs:
     - name: cilium-gateway
