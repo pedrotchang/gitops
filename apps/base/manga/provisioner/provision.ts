@@ -39,12 +39,15 @@ const LIBRARY_NAME = "Manga";
 const LIBRARY_ROOT = "/library";
 const API_KEY_COMMENT = "ops-bootstrap";
 const KEIYOUSHI_INDEX = "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json";
-// Curated non-NSFW source list (Pedro, 2026-07-12). All nsfw=0 in the
-// Keiyoushi index. Bato.to no longer exists in the repo (site shut down).
+// Installed source list (Pedro, 2026-07-12). MangaDex, Comick, and Weeb
+// Central were removed by choice: although their Keiyoushi index nsfw flag is
+// 0, Suwayomi classifies those aggregators as NSFW-capable (the red "18+"
+// browse badge) because their catalogs include adult-rated titles. Only the
+// two scanlation-site sources remain — both report isNsfw=false. This block
+// is install-only, so the removal was also done live via updateExtension
+// uninstall; keeping them out of this list prevents a future rerun re-adding
+// them. Bato.to is absent from the repo entirely (site shut down).
 const EXTENSIONS = [
-  "eu.kanade.tachiyomi.extension.all.mangadex", // MangaDex
-  "eu.kanade.tachiyomi.extension.all.comicklive", // Comick (Unoriginal)
-  "eu.kanade.tachiyomi.extension.en.weebcentral", // Weeb Central
   "eu.kanade.tachiyomi.extension.en.asurascans", // Asura Scans
   "eu.kanade.tachiyomi.extension.en.thunderscans", // Thunder Scans
 ];
