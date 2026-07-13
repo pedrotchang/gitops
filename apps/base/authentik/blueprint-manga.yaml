@@ -45,6 +45,13 @@ data:
           client_id: "komga-manga-sso"
           client_secret: !Env KOMGA_OIDC_CLIENT_SECRET
           signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          # authentik >=2026.5 gates the authorize endpoint on provider.grant_types
+          # (empty default → "Invalid grant_type for provider" → invalid_request).
+          # UI-created and pre-2026.5 providers get these implicitly; a blueprint
+          # provider does NOT, so set them explicitly. Matches jellyfin's provider.
+          grant_types:
+            - authorization_code
+            - refresh_token
           redirect_uris:
             - matching_mode: strict
               url: "https://komga.seyzahl.com/login/oauth2/code/authentik"
