@@ -46,11 +46,11 @@ data:
       - Home:
           header: true
           style: row
-          columns: 5
+          columns: 3
       # Headerless continuation of Home (renders as one seamless "Home"
-      # section). Top Home row is 5-col (HA+Jellyfin+Immich+Komga+Suwayomi);
-      # this continuation has only 4 tiles, so it's 4-col — each stretches to
-      # 1/4 width and fills the row edge-to-edge (no ragged gap under Suwayomi).
+      # section). Top Home row is 3-col (HA+Jellyfin+Immich); this
+      # continuation has 4 tiles, so it's 4-col — each stretches to 1/4
+      # width and fills the row edge-to-edge.
       - Home Apps:
           header: false
           style: row
@@ -252,17 +252,6 @@ data:
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
-      # Static entries (not route-injected — komga's & suwayomi's HTTPRoutes
-      # deliberately carry no gethomepage annotations so they don't ALSO land
-      # in Media). Both manga readers sit together at the end of the Home row.
-      - Komga:
-            href: https://komga.seyzahl.com
-            icon: komga.png
-            description: Manga
-      - Suwayomi:
-            href: https://suwayomi.seyzahl.com
-            icon: suwayomi.png
-            description: Manga downloader
 
     - Home Apps:
       - Frigate:
