@@ -1,0 +1,185 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: video-creator-workflow
+  labels:
+    app.kubernetes.io/name: video-creator
+    app.kubernetes.io/component: workflow-executor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: video-creator-sensor
+  labels:
+    app.kubernetes.io/name: video-creator
+    app.kubernetes.io/component: event-sensor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: video-creator-eventsource
+  labels:
+    app.kubernetes.io/name: video-creator
+    app.kubernetes.io/component: event-source
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: video-creator-workflow-executor
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - workflowtaskresults
+    verbs:
+      - create
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: video-creator-workflow-executor
+subjects:
+  - kind: ServiceAccount
+    name: video-creator-workflow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: video-creator-workflow-executor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: video-creator-sensor
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - workflows
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - workflowtemplates
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: video-creator-sensor
+subjects:
+  - kind: ServiceAccount
+    name: video-creator-sensor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: video-creator-sensor
+---
+# Argo Events runs in argo-events and watches this managed namespace. The
+# chart creates controller RBAC only in its release namespace, so duplicate
+# those permissions here without granting access to other tenant namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-events-controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - sensors
+      - sensors/finalizers
+      - sensors/status
+      - eventsources
+      - eventsources/finalizers
+      - eventsources/status
+      - eventbus
+      - eventbus/finalizers
+      - eventbus/status
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/exec
+      - configmaps
+      - services
+      - persistentvolumeclaims
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - get
+      - list
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - statefulsets
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-events-controller
+subjects:
+  - kind: ServiceAccount
+    name: argo-events-controller-manager
+    namespace: argo-events
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-events-controller
