@@ -1,0 +1,11 @@
+# Public repository: Flux clones anonymously over the in-cluster Forgejo service.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: video-creator
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: http://forgejo.forgejo.svc.cluster.local:3000/content-creation/video-creator.git
+  ref:
+    branch: main
