@@ -4,7 +4,7 @@ metadata:
   name: forgejo-repos
   namespace: renovate-operator
 spec:
-  image: renovate/renovate:43.249.5
+  image: renovate/renovate:43.288.0
   schedule: "0 8 * * *"
   parallelism: 1
   provider:
