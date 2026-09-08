@@ -18,16 +18,31 @@ spec:
   storage:
     size: 1Gi
 
+  # 2026-09-07 rebuild: restore from backup. headscale is the one cluster with
+  # a same-day backup (base 20260907T203951 + WAL to 21:15) — it took one on
+  # pod start today because its ScheduledBackup sets immediate: true.
   bootstrap:
-    initdb:
-      database: headscale
-      owner: headscale
-      secret:
-        name: headscale-db-creds
+    recovery:
+      source: headscale-db-prev
+
+  externalClusters:
+    - name: headscale-db-prev
+      barmanObjectStore:
+        destinationPath: https://seyzahldata.blob.core.windows.net/headscale
+        serverName: headscale-db-tachtit-cnpg-v0
+        azureCredentials:
+          connectionString:
+            name: azure-creds
+            key: headscale-connection-string
+        wal:
+          compression: gzip
 
   backup:
     barmanObjectStore:
       destinationPath: https://seyzahldata.blob.core.windows.net/headscale
+      # Archive under a fresh serverName so the backup we are restoring from
+      # stays pristine and re-runnable if this restore needs a retry.
+      serverName: headscale-db-tachtit-cnpg-v0-r1
       azureCredentials:
         connectionString:
           name: azure-creds

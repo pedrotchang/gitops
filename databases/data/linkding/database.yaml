@@ -18,27 +18,30 @@ spec:
   storage:
     size: 1Gi
 
+  # 2026-09-07 rebuild: restore from the 2026-07-30 backup (cluster was shut
+  # down 07-30, so that backup is the last live state — no data loss).
   bootstrap:
-    initdb:
-      database: linkding
-      owner: linkding
-      secret:
-        name: linkding-db-creds
+    recovery:
+      source: linkding-db-prev
 
-
-  # externalClusters:
-  #   - name: clusterBackup
-  #     barmanObjectStore:
-  #       destinationPath: https://seyzahldata.blob.core.windows.net/linkding
-  #       serverName: linkding-db-tachtit-cnpg-v1
-  #       azureCredentials:
-  #         connectionString:
-  #           name: azure-creds
-  #           key: linkding-connection-string
+  externalClusters:
+    - name: linkding-db-prev
+      barmanObjectStore:
+        destinationPath: https://seyzahldata.blob.core.windows.net/linkding
+        serverName: linkding-db-tachtit-cnpg-v0
+        azureCredentials:
+          connectionString:
+            name: azure-creds
+            key: linkding-connection-string
+        wal:
+          compression: gzip
 
   backup:
     barmanObjectStore:
       destinationPath: https://seyzahldata.blob.core.windows.net/linkding
+      # Archive under a fresh serverName so the 07-30 backup we are restoring
+      # from stays pristine and re-runnable if this restore needs a retry.
+      serverName: linkding-db-tachtit-cnpg-v0-r1
       azureCredentials:
         connectionString:
           name: azure-creds

@@ -15,26 +15,31 @@ spec:
   monitoring:
     enablePodMonitor: true
 
+  # 2026-09-07 rebuild: recover to the LATEST available backup, not the old
+  # 2026-06-16 PITR point. The targetTime below was for the one-off v0->v1
+  # migration in June; leaving it in would have rolled authentik back ~6 weeks.
+  # Source is now v1 (its own last backups: base 20260730T030004 + WAL to 07-30
+  # 12:02), which is the last live state before the 07-30 shutdown.
   bootstrap:
     recovery:
-      source: authentik-db-v0
-      recoveryTarget:
-        targetTime: "2026-06-16T17:20:00Z"
+      source: authentik-db-prev
 
   externalClusters:
-    - name: authentik-db-v0
+    - name: authentik-db-prev
       plugin:
         name: barman-cloud.cloudnative-pg.io
         parameters:
           barmanObjectName: authentik-aws-store
-          serverName: authentik-db-tachtit-cnpg-v0
+          serverName: authentik-db-tachtit-cnpg-v1
 
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
       parameters:
         barmanObjectName: authentik-aws-store
-        serverName: authentik-db-tachtit-cnpg-v1
+        # Archive under a fresh serverName so the 07-30 backup we are restoring
+        # from stays pristine and re-runnable if this restore needs a retry.
+        serverName: authentik-db-tachtit-cnpg-v1-r1
 
   resources:
     requests:

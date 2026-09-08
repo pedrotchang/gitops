@@ -33,18 +33,22 @@ spec:
   #           name: azure-creds
   #           key: n8n-connection-string
 
-  # backup:
-  #   barmanObjectStore:
-  #     destinationPath: https://seyzahldata.blob.core.windows.net/n8n
-  #     azureCredentials:
-  #       connectionString:
-  #         name: azure-creds
-  #         key: n8n-connection-string
-  #     wal:
-  #       compression: gzip
-  #     data:
-  #       compression: gzip
-  #   retentionPolicy: "14d"
+  # 2026-09-07: backups were commented out here, so the n8n Azure container was
+  # empty and this database was NOT recoverable after the rebuild — it is the
+  # only one that came back blank. Enabled so that cannot happen again.
+  backup:
+    barmanObjectStore:
+      destinationPath: https://seyzahldata.blob.core.windows.net/n8n
+      serverName: n8n-db-tachtit-cnpg-v0
+      azureCredentials:
+        connectionString:
+          name: azure-creds
+          key: n8n-connection-string
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "14d"
 
   resources:
     requests:
