@@ -9,6 +9,15 @@ spec:
       namespace: default
   hostnames:
     - n8n.seyzahl.com
+    # auto.seyzahl.com is the OAuth callback host registered with the LinkedIn
+    # app (https://auto.seyzahl.com/rest/oauth2-credential/callback). It already
+    # resolves to this gateway (192.168.4.221) but was not listed here, so the
+    # callback matched no route and returned 404 — breaking the OAuth handshake.
+    #
+    # Stays private: 192.168.4.221 is RFC1918, reachable over LAN/headscale only.
+    # OAuth still works behind the VPN because the callback is a *browser*
+    # redirect; LinkedIn never connects to this host itself.
+    - auto.seyzahl.com
   rules:
     - matches:
         - path:
