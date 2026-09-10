@@ -5,7 +5,10 @@ metadata:
 spec:
   description: Restored authentik DB — PITR recovery from v0 S3 object store to just before the 2026 migration damage (2026-06-16T17:20:00Z)
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
-  instances: 3
+  # Single-node data cluster: replicas share one failure domain, so they add
+  # no HA. Read services are disabled (see managed.services below), so they
+  # serve no traffic either. Raise this if data ever gets a second node.
+  instances: 1
 
   inheritedMetadata:
     labels:

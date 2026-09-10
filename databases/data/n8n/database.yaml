@@ -5,7 +5,10 @@ metadata:
 spec:
   description: Postgres cluster for the n8n application
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
-  instances: 3
+  # Single-node data cluster: replicas share one failure domain, so they add
+  # no HA. Read services are disabled (see managed.services below), so they
+  # serve no traffic either. Raise this if data ever gets a second node.
+  instances: 1
 
   inheritedMetadata:
     labels:

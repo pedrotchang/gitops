@@ -6,7 +6,10 @@ spec:
   description: Postgres cluster for Immich with VectorChord extension
   # Using tensorchord image which includes VectorChord for ML embeddings
   imageName: ghcr.io/tensorchord/cloudnative-vectorchord:17-0.4.0
-  instances: 2
+  # Single-node data cluster: replicas share one failure domain, so they add
+  # no HA. Read services are disabled (see managed.services below), so they
+  # serve no traffic either. Raise this if data ever gets a second node.
+  instances: 1
 
   inheritedMetadata:
     labels:
