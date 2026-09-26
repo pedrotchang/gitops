@@ -273,7 +273,7 @@ data:
             href: https://n8n.seyzahl.com/
             icon: n8n.png
       - AWS:
-            href: https://us-west-1.console.aws.amazon.com
+            href: https://d-9167748418.awsapps.com/start
             icon: aws.png
       - Azure:
             href: https://portal.azure.com/#home
