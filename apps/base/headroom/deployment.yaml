@@ -28,7 +28,7 @@ spec:
       containers:
         - name: headroom
           # Published by custom-images; baked Kompress model → no runtime HuggingFace.
-          image: forgejo.seyzahl.com/platform-infrastructure/headroom:0.26.0@sha256:8ba05a96e68ee9275fcfcdd00c456988dc0576fc851b72c363ddbdea6312b135
+          image: forgejo.seyzahl.com/platform-infrastructure/headroom:0.26.0@sha256:aae575f2a8c8a796c36bc4caeada6f99d0c27bcf66f987037b20cf230f1d1620
           # Entrypoint is `headroom proxy`; the image CMD already binds 0.0.0.0:8787.
           env:
             - name: HOME
