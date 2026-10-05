@@ -28,7 +28,8 @@ spec:
     ttl: 168h0m0s
     includedNamespaces:
       - headscale
-      - hermes-agent
+      # hermes-agent excluded: its PVB is canceled and stalls the whole
+      # backup (2026-10-04). Re-add after Hermes moves to the GPU node.
       - home
       - linkding
       - media
