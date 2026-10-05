@@ -13,4 +13,5 @@ resources:
   - headscale-operator
   - istio
   - velero
+  - nvidia
   # - newt

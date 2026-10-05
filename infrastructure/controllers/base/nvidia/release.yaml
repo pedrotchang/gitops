@@ -1,0 +1,30 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nvidia-device-plugin
+  namespace: nvidia
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nvidia-device-plugin
+      version: "0.20.1"
+      sourceRef:
+        kind: HelmRepository
+        name: nvdp
+        namespace: nvidia
+  values:
+    # Upstream image pinned by digest; mirror via supply-chain later (#177).
+    image:
+      repository: nvcr.io/nvidia/k8s-device-plugin
+      tag: v0.20.1@sha256:27c1b2553a690ca3d29889dcd61df97525d46f58272c0be8dc63c2b18f120075
+    runtimeClassName: nvidia
+    # Chart's default affinity schedules on nodes labelled
+    # nvidia.com/gpu.present=true (set via the Omni cluster template).
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3

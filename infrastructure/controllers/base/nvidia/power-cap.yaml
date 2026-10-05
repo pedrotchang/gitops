@@ -1,0 +1,61 @@
+# Caps GPU board power to keep the fanless-case Aorus (RTX 5060, ~145 W stock)
+# cool, and logs temp/power every minute. nvidia-smi is injected from the host
+# driver by the nvidia runtime; the pod does not request nvidia.com/gpu, so it
+# never takes the GPU away from workloads.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-power-cap
+  namespace: nvidia
+spec:
+  selector:
+    matchLabels:
+      app: gpu-power-cap
+  template:
+    metadata:
+      labels:
+        app: gpu-power-cap
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      priorityClassName: system-node-critical
+      containers:
+        - name: power-cap
+          # Upstream image pinned by digest; mirror via supply-chain later (#177).
+          image: docker.io/library/debian:12-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+          env:
+            - name: TARGET_WATTS
+              value: "90"
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: utility
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              apply() {
+                min=$(nvidia-smi --query-gpu=power.min_limit --format=csv,noheader,nounits | head -1 | cut -d. -f1)
+                w=$TARGET_WATTS
+                if [ "$w" -lt "$min" ]; then echo "target ${w}W below card minimum ${min}W, using ${min}W"; w=$min; fi
+                nvidia-smi -pm 1 >/dev/null
+                nvidia-smi -pl "$w"
+              }
+              apply
+              i=0
+              while true; do
+                nvidia-smi --query-gpu=temperature.gpu,power.draw,power.limit,pstate,utilization.gpu,fan.speed --format=csv,noheader
+                i=$((i+1))
+                # Re-assert every 10 min in case a driver reset clears it.
+                if [ $((i % 10)) -eq 0 ]; then apply >/dev/null; fi
+                sleep 60
+              done
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
