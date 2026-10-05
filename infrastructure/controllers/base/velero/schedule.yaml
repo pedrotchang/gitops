@@ -11,3 +11,49 @@ spec:
       - forgejo
     defaultVolumesToFsBackup: false
     snapshotVolumes: false
+---
+# Daily file-system backup of stateful app volumes on node-local / iSCSI
+# storage. Added after the 2026-10-04 ThinkPad re-add wiped 15 local-path
+# PVCs that had no backup (only `forgejo` was scheduled). The resource policy
+# below opts in local-path + truenas-iscsi volumes; everything else (NFS media
+# library, static PVs) is skipped, so the 5 TB media-data is never uploaded.
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: stateful-daily
+  namespace: velero
+spec:
+  schedule: "0 11 * * *"
+  template:
+    ttl: 168h0m0s
+    includedNamespaces:
+      - headscale
+      - hermes-agent
+      - home
+      - linkding
+      - media
+      - monitoring
+      - nextcloud
+    snapshotVolumes: false
+    resourcePolicy:
+      kind: configmap
+      name: stateful-volume-policy
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stateful-volume-policy
+  namespace: velero
+data:
+  policy.yaml: |
+    version: v1
+    volumePolicies:
+      - conditions:
+          storageClass:
+            - local-path
+            - truenas-iscsi
+        action:
+          type: fs-backup
+    # No catch-all: unmatched volumes (NFS, static PVs) fall through to the
+    # schedule default (defaultVolumesToFsBackup false + snapshotVolumes
+    # false), i.e. skipped.
