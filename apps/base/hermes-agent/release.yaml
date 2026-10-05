@@ -25,6 +25,9 @@ spec:
       # TODO: fix the chart's default image.tag + appVersion upstream.
       tag: "v2026.6.19"
     replicaCount: 1
+    # Run alongside whisper on the Aorus GPU node (the household AI node).
+    nodeSelector:
+      nvidia.com/gpu.present: "true"
     strategy:
       type: Recreate
 
@@ -60,9 +63,9 @@ spec:
           # STT_OPENAI_MODEL env. The config key WINS over the env, so without this
           # override Hermes sends "whisper-1", which Speaches aliases to its built-in
           # default `Systran/faster-whisper-large-v3` (not baked, HF offline) → 404.
-          # Pin the baked model name here so the request matches what Speaches has.
+          # Pin the model Speaches has installed (large-v3-turbo on the GPU).
           openai:
-            model: Systran/faster-whisper-small
+            model: deepdml/faster-whisper-large-v3-turbo-ct2
         # Phase 1 calendar + tasks — CalDAV/CardDAV/VTODO via the `dav-mcp` npm package
         # as a STDIO MCP server (image ships npx + pod has egress; `-y` auto-installs
         # non-interactively, fetched at runtime → NOT offline-baked, revisit later).

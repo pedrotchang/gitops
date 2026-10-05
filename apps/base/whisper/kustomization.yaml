@@ -4,5 +4,6 @@ namespace: whisper
 
 resources:
   - namespace.yaml
+  - pvc.yaml
   - deployment.yaml
   - service.yaml
