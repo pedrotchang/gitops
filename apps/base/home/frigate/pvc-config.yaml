@@ -6,8 +6,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  # local-path (node block) — Frigate's SQLite DB (frigate.db) + config. NOT NFS.
-  storageClassName: local-path
+  # truenas-iscsi (block, not node-pinned) — Frigate's SQLite DB (frigate.db) + config. NOT NFS.
+  storageClassName: truenas-iscsi
   resources:
     requests:
       storage: 2Gi

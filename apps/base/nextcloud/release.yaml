@@ -8,14 +8,16 @@ spec:
   chart:
     spec:
       chart: nextcloud
-      version: "*"
+      version: "9.4.0"
       sourceRef:
         kind: HelmRepository
         name: nextcloud
   values:
     image:
       repository: nextcloud
-      tag: stable
+      # Pinned: a floating `stable` jumped 32→34 on reschedule (2026-10-04),
+      # which Nextcloud refuses. Bump one major at a time.
+      tag: 34.0.4-apache
 
     nextcloud:
       host: nextcloud.seyzahl.com
@@ -81,7 +83,7 @@ spec:
 
     persistence:
       enabled: true
-      storageClass: local-path
+      storageClass: truenas-iscsi
       size: 20Gi
       nextcloudData:
         enabled: true
