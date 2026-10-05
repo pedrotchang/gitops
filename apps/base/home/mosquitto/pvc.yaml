@@ -6,8 +6,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  # local-path (node block) — Mosquitto persistence store; NFS not needed.
-  storageClassName: local-path
+  # truenas-iscsi (block, not node-pinned) — Mosquitto persistence store; NFS not needed.
+  storageClassName: truenas-iscsi
   resources:
     requests:
       storage: 1Gi

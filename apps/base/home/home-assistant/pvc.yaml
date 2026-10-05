@@ -6,8 +6,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  # local-path (node block) — HA config + its SQLite recorder DB. NOT NFS.
-  storageClassName: local-path
+  # truenas-iscsi (block, not node-pinned) — HA config + its SQLite recorder DB. NOT NFS.
+  storageClassName: truenas-iscsi
   resources:
     requests:
       storage: 5Gi
