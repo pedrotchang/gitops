@@ -104,6 +104,10 @@ spec:
               CALDAV_SERVER_URL: "http://nextcloud.nextcloud.svc.cluster.local:8080/remote.php/dav"
               CALDAV_USERNAME: "${CALDAV_USERNAME}"
               CALDAV_PASSWORD: "${CALDAV_PASSWORD}"
+              # dotenv 17 prints a "◇ injected env" banner to STDOUT, which the
+              # STDIO MCP client tries to parse as JSON-RPC (logged ERROR every boot;
+              # harmless but noisy). Silence it.
+              DOTENV_CONFIG_QUIET: "true"
 
     # Agent persona + standing instructions. The chart renders this into the bootstrap
     # ConfigMap and (bootstrap.overwrite=true) writes it to HERMES_HOME/SOUL.md on each
