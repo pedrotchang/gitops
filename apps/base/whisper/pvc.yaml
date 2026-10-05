@@ -1,0 +1,13 @@
+# Hugging Face model cache — holds faster-whisper-large-v3-turbo (~1.6 GB) so it
+# downloads once instead of on every pod start.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisper-models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 10Gi

@@ -1,9 +1,8 @@
 # Self-hosted Whisper (Speaches, OpenAI-compatible STT) — transcribes Telegram voice
-# memos for Hermes. Stateless: the faster-whisper-small model is baked into the image
-# and audio is processed in an emptyDir /tmp, so NO PVC and nothing audio-related
-# persists. (small chosen over large-v3-turbo: large's ~18s auto language-detection on
-# this CPU-only node flirted with Hermes' hardcoded 30s STT timeout; small keeps
-# multilingual auto-detect but runs in single-digit seconds.)
+# memos for Hermes. Runs large-v3-turbo on the Aorus RTX 5060 (GPU makes large's
+# accuracy affordable; on CPU it flirted with Hermes' hardcoded 30s STT timeout).
+# The model lives in the `whisper-models` PVC; audio is processed in an emptyDir
+# /tmp and never persisted.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,6 +11,9 @@ metadata:
     app: whisper
 spec:
   replicas: 1
+  # The GPU is a single non-shared device: stop the old pod before starting the new.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: whisper
@@ -20,6 +22,9 @@ spec:
       labels:
         app: whisper
     spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -29,32 +34,26 @@ spec:
           type: RuntimeDefault
       containers:
         - name: whisper
-          # Speaches + baked faster-whisper-small (offline, no runtime HF).
-          image: forgejo.seyzahl.com/platform-infrastructure/speaches:small@sha256:23d89e0f1c85499615ee0ad6f26931c709e030c520296a9b474a59802602274f
+          # Upstream image pinned by digest; mirror via supply-chain later (#177).
+          image: ghcr.io/speaches-ai/speaches:0.8.3-cuda-12.6.3@sha256:c0da392c37e76a01ba479239b43124c67baf8913ae0f491071d6ac544641dad7
           ports:
             - name: http
               containerPort: 8000
           env:
-            # ctranslate2 reads the NODE core count (nproc=16) and over-subscribes,
-            # then gets CFS-throttled onto this container's 4-core limit — so the
-            # language-detection encoder pass crawled (~18s) and blew past Hermes'
-            # hardcoded 30s STT client timeout. Pin threads to the CPU limit so it
-            # uses 4 cores efficiently instead of thrashing 16. Speeds detect + decode.
-            - name: WHISPER__CPU_THREADS
-              value: "4"
-            - name: OMP_NUM_THREADS
-              value: "4"
-            # Keep the model resident instead of offloading after 300s idle (which
-            # forced a ~3s reload on the next memo). ~1.5GB steady RAM, well within
-            # the 5Gi limit. -1 = never evict.
+            - name: HF_HUB_CACHE
+              value: /models/hub
+            - name: WHISPER__INFERENCE_DEVICE
+              value: cuda
+            # Unload the model after 5 min idle so the GPU drops back to its P8
+            # idle state (fanless ITX case); reload from the PVC takes seconds.
             - name: WHISPER__TTL
-              value: "-1"
+              value: "300"
           startupProbe:
             tcpSocket:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 5
-            failureThreshold: 24
+            failureThreshold: 60
           readinessProbe:
             tcpSocket:
               port: 8000
@@ -65,20 +64,25 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: "1"
+              cpu: 500m
               memory: 2Gi
             limits:
-              cpu: "4"
-              memory: 5Gi
+              memory: 6Gi
+              nvidia.com/gpu: 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
           volumeMounts:
+            - name: models
+              mountPath: /models
             # Audio is processed here and discarded — ephemeral, never persisted.
             - name: tmp
               mountPath: /tmp
       volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: whisper-models
         - name: tmp
           emptyDir: {}
