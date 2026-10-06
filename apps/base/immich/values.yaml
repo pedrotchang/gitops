@@ -16,7 +16,7 @@ controllers:
     containers:
       main:
         image:
-          tag: v3.0.2
+          tag: v3.2.4
         envFrom:
           - configMapRef:
               name: immich-configmap
@@ -44,6 +44,10 @@ server:
     #   originalPath -> /usr/src/app/upload/...   (64327 assets)
     #   external lib -> /external/...             (38435 assets, subPath upload)
     data:
+      # Chart 0.13 validates values against a schema: the library volume must
+      # name its type + claim explicitly (0.12 inferred them from immich.persistence).
+      type: persistentVolumeClaim
+      existingClaim: immich-library-pvc-nfs
       globalMounts:
         - path: /usr/src/app/upload
         - path: /external
@@ -65,7 +69,7 @@ machine-learning:
       containers:
         main:
           image:
-            tag: v3.0.2-cuda
+            tag: v3.2.4-cuda
           resources:
             limits:
               nvidia.com/gpu: 1
