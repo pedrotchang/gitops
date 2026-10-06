@@ -32,6 +32,13 @@ immich:
 
 server:
   enabled: true
+  # Runs on the Aorus GPU node (household AI node). RollingUpdate with the
+  # default 25% surge = new pod Ready before the old one stops → no downtime.
+  controllers:
+    main:
+      pod:
+        nodeSelector:
+          nvidia.com/gpu.present: "true"
   persistence:
     # Library mounts MUST match the absolute paths stored in the DB:
     #   originalPath -> /usr/src/app/upload/...   (64327 assets)
@@ -47,6 +54,21 @@ valkey:
 
 machine-learning:
   enabled: true
+  # CUDA build on the time-sliced RTX 5060 (smart search / face recognition).
+  # Tag must track the server's image.tag (+ "-cuda").
+  controllers:
+    main:
+      pod:
+        runtimeClassName: nvidia
+        nodeSelector:
+          nvidia.com/gpu.present: "true"
+      containers:
+        main:
+          image:
+            tag: v3.0.2-cuda
+          resources:
+            limits:
+              nvidia.com/gpu: 1
   persistence:
     cache:
       enabled: true
