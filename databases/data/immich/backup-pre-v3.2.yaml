@@ -1,0 +1,9 @@
+# One-shot CNPG backup before the v3.0.2 → v3.2.4 upgrade (Immich can't
+# downgrade once migrations run). Safe to remove after the upgrade is verified.
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: immich-db-pre-v3-2
+spec:
+  cluster:
+    name: immich-db-tachtit-cnpg-v0
