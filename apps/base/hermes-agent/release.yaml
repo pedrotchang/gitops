@@ -28,6 +28,10 @@ spec:
     # Run alongside whisper on the Aorus GPU node (the household AI node).
     nodeSelector:
       nvidia.com/gpu.present: "true"
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
     strategy:
       type: Recreate
 
