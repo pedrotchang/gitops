@@ -39,6 +39,10 @@ server:
       pod:
         nodeSelector:
           nvidia.com/gpu.present: "true"
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
   persistence:
     # Library mounts MUST match the absolute paths stored in the DB:
     #   originalPath -> /usr/src/app/upload/...   (64327 assets)
@@ -66,6 +70,10 @@ machine-learning:
         runtimeClassName: nvidia
         nodeSelector:
           nvidia.com/gpu.present: "true"
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
       containers:
         main:
           image:

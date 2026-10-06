@@ -19,6 +19,10 @@ spec:
       runtimeClassName: nvidia
       nodeSelector:
         nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
       priorityClassName: system-node-critical
       containers:
         - name: power-cap
