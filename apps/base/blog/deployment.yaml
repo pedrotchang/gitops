@@ -26,6 +26,15 @@ spec:
         app.kubernetes.io/instance: blog
         app.kubernetes.io/component: web
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: blog
+                topologyKey: kubernetes.io/hostname
       containers:
       - name: blog
         image: ghcr.io/pedrotchang/blog:build-20260910065746 # {"$imagepolicy": "flux-system:blog"}
