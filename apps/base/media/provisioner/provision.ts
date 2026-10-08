@@ -744,13 +744,18 @@ async function provisionSeerrInner() {
   //     it -> 500 NO_ADMIN_USER even for a real Jellyfin admin.
   //   - once the owner exists, re-sending the server details -> 500
   //     "hostname already configured"; log in with credentials-only instead.
-  let login: Response;
-  if (pub.initialized) {
-    login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
+  //   - a half-finished first run (host saved, wizard never completed) is
+  //     initialized=false yet still rejects server details the same way, so
+  //     fall back to credentials-only there too (seen after the 2026-10-04 wipe).
+  const credentialsOnly = () =>
+    req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "admin", password: env("JELLYFIN_ADMIN_PASSWORD"), serverType: 2 }),
     });
+  let login: Response;
+  if (pub.initialized) {
+    login = await credentialsOnly();
   } else {
     login = await req(`${URLS.seerr}/api/v1/auth/jellyfin`, {
       method: "POST",
@@ -766,6 +771,10 @@ async function provisionSeerrInner() {
         email: "admin@seyzahl.com",
       }),
     });
+    if (!login.ok && /already configured/i.test(await login.clone().text())) {
+      console.log(`[seerr] Jellyfin host already saved (half-finished setup): retrying credentials-only`);
+      login = await credentialsOnly();
+    }
   }
   if (!login.ok) throw new Error(`seerr jellyfin auth -> ${login.status}: ${(await login.text()).slice(0, 200)}`);
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
@@ -849,6 +858,13 @@ async function provisionSeerrInner() {
     console.log(`[seerr] Radarr server: created (profile ${p.name})`);
   } else {
     console.log(`[seerr] Radarr server: exists, skipping`);
+  }
+
+  // Mark the setup wizard complete; without this Seerr keeps serving /setup.
+  if (!pub.initialized) {
+    const r = await req(`${URLS.seerr}/api/v1/settings/initialize`, { method: "POST", headers: sh });
+    if (!r.ok) throw new Error(`seerr initialize -> ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    console.log(`[seerr] setup wizard: marked initialized`);
   }
 }
 
