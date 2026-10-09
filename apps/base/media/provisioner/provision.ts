@@ -326,6 +326,10 @@ async function provisionQbittorrent() {
     temp_path_enabled: false,
     max_ratio_enabled: true,
     max_ratio: 2,
+    // Fake releases ship as "<Show> S04E08 1080p WEB h264.exe"; never download
+    // executables (Sonarr refuses to import them, so they also stall the queue).
+    excluded_file_names_enabled: true,
+    excluded_file_names: ["*.exe", "*.scr", "*.lnk", "*.bat", "*.cmd", "*.msi", "*.vbs", "*.js"].join("\n"),
     web_ui_password: env("QBITTORRENT_PASSWORD"), // hash not readable back; harmless to reassert
   };
   const drift = Object.keys(desired).filter((k) => k !== "web_ui_password" && prefs[k] !== desired[k]);
