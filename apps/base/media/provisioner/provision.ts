@@ -665,6 +665,9 @@ async function provisionJellyfin() {
     EnableAuthorization: true,
     EnableAllFolders: true,
     RoleClaim: "groups",
+    // EnableAuthorization recomputes IsAdministrator on every SSO login, so
+    // admin must come from a group; "Authorized Users" also holds family.
+    AdminRoles: ["authentik Admins"],
     // NB: no "EnabledForAdmins" — that key is not in the plugin's config
     // schema (never stored, so comparing it re-POSTs on every run).
     OidScopes: ["openid", "profile", "email"],
