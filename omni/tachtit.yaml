@@ -3,7 +3,7 @@ name: tachtit
 kubernetes:
   version: v1.34.3
 talos:
-  version: v1.11.5
+  version: v1.12.12
 features:
   enableWorkloadProxy: true
   useEmbeddedDiscoveryService: true
