@@ -56,7 +56,8 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "update", "patch"]
-    resourceNames: ["tailscale-subnet-router-state"]
+    # one state Secret per StatefulSet replica (TS_KUBE_SECRET = pod name)
+    resourceNames: ["tailscale-subnet-router-0", "tailscale-subnet-router-1"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -73,14 +74,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
-kind: Deployment
+# Two routers advertising the same routes: headscale keeps one primary and
+# fails over to the other when it goes offline. A StatefulSet gives each
+# replica a stable node identity (hostname + state Secret = pod name).
+kind: StatefulSet
 metadata:
   name: tailscale-subnet-router
   namespace: headscale
   labels:
     app: tailscale-subnet-router
 spec:
-  replicas: 1
+  serviceName: tailscale-subnet-router
+  replicas: 2
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: tailscale-subnet-router
@@ -91,6 +97,27 @@ spec:
         policy-type: "app"
     spec:
       serviceAccountName: tailscale-subnet-router
+      # One replica per node; the GPU node is overflow only (tolerated, but
+      # the non-GPU nodes are preferred).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: tailscale-subnet-router
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: nvidia.com/gpu.present
+                    operator: DoesNotExist
       containers:
         - name: tailscale
           image: ghcr.io/tailscale/tailscale:v1.98.4
@@ -108,10 +135,14 @@ spec:
               value: /var/lib/tailscale
             - name: TS_USERSPACE
               value: "false"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: TS_HOSTNAME
-              value: tachtit-subnet-router
+              value: $(POD_NAME)
             - name: TS_KUBE_SECRET
-              value: tailscale-subnet-router-state
+              value: $(POD_NAME)
           securityContext:
             capabilities:
               add:

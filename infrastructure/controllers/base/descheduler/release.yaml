@@ -1,0 +1,60 @@
+# Rebalances pods after node outages: the scheduler only places new pods, so
+# everything that failed over to one node stays there. Evicted pods are
+# rescheduled normally. Pods with PVCs and system-critical pods are protected
+# (chart defaults), so this only moves stateless/emptyDir workloads.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: descheduler
+  namespace: descheduler
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: descheduler
+      version: "0.37.0"
+      sourceRef:
+        kind: HelmRepository
+        name: descheduler
+        namespace: descheduler
+  values:
+    kind: Deployment
+    deschedulingInterval: 10m
+    deschedulerPolicy:
+      # Gradual: at most 5 evictions per node per 10-minute run.
+      maxNoOfPodsToEvictPerNode: 5
+      profiles:
+        - name: default
+          pluginConfig:
+            - name: DefaultEvictor
+              args:
+                nodeFit: true
+                podProtections:
+                  defaultDisabled:
+                    - PodsWithLocalStorage
+                  extraEnabled:
+                    - PodsWithPVC
+            - name: RemoveDuplicates
+            - name: RemovePodsViolatingInterPodAntiAffinity
+            - name: RemovePodsViolatingTopologySpreadConstraint
+            # Requests-based %: the 4-core HP sits at ~92% CPU requested
+            # while the 16-core ThinkPad is nearly idle.
+            - name: LowNodeUtilization
+              args:
+                thresholds:
+                  cpu: 20
+                  memory: 20
+                  pods: 20
+                targetThresholds:
+                  cpu: 60
+                  memory: 60
+                  pods: 50
+          plugins:
+            balance:
+              enabled:
+                - RemoveDuplicates
+                - RemovePodsViolatingTopologySpreadConstraint
+                - LowNodeUtilization
+            deschedule:
+              enabled:
+                - RemovePodsViolatingInterPodAntiAffinity

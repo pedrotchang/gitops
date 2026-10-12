@@ -11,6 +11,44 @@ spec:
     name: letsencrypt-production
     kind: ClusterIssuer
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-gateway-options
+  namespace: headscale
+data:
+  # Overlay merged by istiod into the generated gateway Deployment: two
+  # replicas, one per node, GPU node as overflow only.
+  deployment: |
+    spec:
+      replicas: 2
+      template:
+        spec:
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  gateway.networking.k8s.io/gateway-name: headscale-gateway
+              matchLabelKeys:
+                - pod-template-hash
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions:
+                      - key: nvidia.com/gpu.present
+                        operator: DoesNotExist
+  podDisruptionBudget: |
+    spec:
+      minAvailable: 1
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -21,6 +59,10 @@ spec:
   infrastructure:
     labels:
       cilium-lb-pool: apps-pool
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: headscale-gateway-options
   listeners:
     - name: https
       protocol: HTTPS
