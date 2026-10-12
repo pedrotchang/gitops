@@ -1,0 +1,62 @@
+kind: Cluster
+name: tachtit
+kubernetes:
+  version: v1.34.3
+talos:
+  version: v1.11.5
+features:
+  enableWorkloadProxy: true
+  useEmbeddedDiscoveryService: true
+patches:
+  - idOverride: 200-tachtit
+    annotations:
+      name: ""
+    inline: "cluster:\n  allowSchedulingOnControlPlanes: true\n  \n  extraManifests:\n
+      \   - https://raw.githubusercontent.com/alex1989hu/kubelet-serving-cert-approver/main/deploy/standalone-install.yaml\n
+      \   - https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml\n\n
+      \ network:\n    cni:\n      name: none\n  proxy:\n    disabled: true\n\nmachine:\n
+      \ kubelet:\n\n    # for kube-state-metrics\n    extraArgs:\n      rotate-server-certificates:
+      \"true\"\n\n    # for local-path-provisioner\n    extraMounts:\n      - destination:
+      /var/local-path-provisioner\n        type: bind\n        source: /var/local-path-provisioner\n
+      \       options:\n          - bind\n          - rshared\n          - rw\n"
+---
+kind: ControlPlane
+machines:
+  - 03560274-043c-05b5-6406-de0700080009
+  - e0824ecc-329b-11b2-a85c-98e59f33df34
+  - eac01559-a13a-11e6-9c43-bc0000600000
+---
+kind: Workers
+---
+kind: Machine
+systemExtensions:
+  - siderolabs/iscsi-tools
+  - siderolabs/nvidia-open-gpu-kernel-modules-production
+  - siderolabs/nvidia-container-toolkit-production
+name: 03560274-043c-05b5-6406-de0700080009
+patches:
+  - idOverride: 400-cm-03560274-043c-05b5-6406-de0700080009-nvidia-gpu
+    annotations:
+      name: nvidia-gpu
+    inline: |
+      machine:
+          kernel:
+              modules:
+                  - name: nvidia
+                  - name: nvidia_uvm
+                  - name: nvidia_drm
+                  - name: nvidia_modeset
+          nodeLabels:
+              nvidia.com/gpu.present: "true"
+          nodeTaints:
+              nvidia.com/gpu: present:NoSchedule
+          sysctls:
+              net.core.bpf_jit_harden: "1"
+---
+kind: Machine
+systemExtensions:
+  - siderolabs/iscsi-tools
+name: e0824ecc-329b-11b2-a85c-98e59f33df34
+---
+kind: Machine
+name: eac01559-a13a-11e6-9c43-bc0000600000
