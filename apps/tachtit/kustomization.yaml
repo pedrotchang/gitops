@@ -3,10 +3,8 @@ kind: Kustomization
 resources:
   - authentik
   - blog
-  - commafeed
   - forgejo
   - forgejo-runner
-  - garden
   - homepage
   - immich
   - linkding

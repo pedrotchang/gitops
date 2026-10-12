@@ -94,7 +94,7 @@ eval "$(mise env -E data)"
 # Hibernate every CNPG cluster (clean checkpoint, no data loss). Repeat per cluster:
 for c in forgejo-db-data-cnpg-v0 immich-db-tachtit-cnpg-v0 authentik-db-tachtit-cnpg-v1 \
          nextcloud-db-tachtit-cnpg-v0 n8n-db-tachtit-cnpg-v0 headscale-db-tachtit-cnpg-v0 \
-         linkding-db-tachtit-cnpg-v0 commafeed-db-tachtit-cnpg-v0; do
+         linkding-db-tachtit-cnpg-v0; do
   ns=$(kubectl get cluster.postgresql.cnpg.io -A -o jsonpath="{range .items[?(@.metadata.name=='$c')]}{.metadata.namespace}{end}")
   echo ">> hibernate $c (ns=$ns)"
   kubectl cnpg hibernate on "$c" -n "$ns"
@@ -152,7 +152,7 @@ kubectl get nodes -o wide            # both Ready
 # Reverse the hibernation from A2 (only if you hibernated):
 for c in forgejo-db-data-cnpg-v0 immich-db-tachtit-cnpg-v0 authentik-db-tachtit-cnpg-v1 \
          nextcloud-db-tachtit-cnpg-v0 n8n-db-tachtit-cnpg-v0 headscale-db-tachtit-cnpg-v0 \
-         linkding-db-tachtit-cnpg-v0 commafeed-db-tachtit-cnpg-v0; do
+         linkding-db-tachtit-cnpg-v0; do
   ns=$(kubectl get cluster.postgresql.cnpg.io -A -o jsonpath="{range .items[?(@.metadata.name=='$c')]}{.metadata.namespace}{end}")
   kubectl cnpg hibernate off "$c" -n "$ns" 2>/dev/null || true
 done
@@ -314,7 +314,7 @@ eval "$(mise env -E data)"
 #   forgejo-db-data-cnpg-v0          immich-db-tachtit-cnpg-v0
 #   authentik-db-tachtit-cnpg-v1     nextcloud-db-tachtit-cnpg-v0
 #   n8n-db-tachtit-cnpg-v0           headscale-db-tachtit-cnpg-v0
-#   linkding-db-tachtit-cnpg-v0      commafeed-db-tachtit-cnpg-v0
+#   linkding-db-tachtit-cnpg-v0   
 ```
 
 **Related:** `docs/runbooks/immich.md` (photo/DB restore), `docs/backups.md`, repo `CLAUDE.md`

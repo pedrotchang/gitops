@@ -64,7 +64,6 @@ I have them in this structure:
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/linkding.png" width="30" alt="Linkding logo"> | [Linkding](https://github.com/sissbruecker/linkding) | A self-hosted bookmark manager with tagging and search functionality. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/wallabag.png" width="30" alt="Wallabag logo"> | [Wallabag](https://wallabag.org/) | A self-hosted read-it-later application that saves web articles and strips away clutter for comfortable reading. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/n8n.png" width="30" alt="n8n logo"> | [n8n](https://n8n.io/) | A self-hosted workflow automation tool that connects apps and services with a visual node-based editor. |
-| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/commafeed.png" width="30" alt="CommaFeed logo"> | [CommaFeed](https://www.commafeed.com/) | A self-hosted RSS reader inspired by Google Reader with a clean, responsive interface. |
 
 #### Media & Content
 | Icon | Name | Description |

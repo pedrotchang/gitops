@@ -264,9 +264,6 @@ data:
       - Linkding:
             href: https://linkding.seyzahl.com
             icon: linkding.png
-      - Commafeed:
-            href: https://commafeed.seyzahl.com
-            icon: commafeed.png
 
     - Professional:
       - N8N:
