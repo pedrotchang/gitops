@@ -9,7 +9,7 @@ data:
     # cannot drift in the admin UI (same rationale as the immich blueprint).
     #
     #   proxy providers (mode: proxy)  → sonarr, radarr, prowlarr, bazarr,
-    #                                    qbittorrent, jellyseerr
+    #                                    jellyseerr
     #   oauth2/OIDC provider           → jellyfin (9p4 SSO plugin)
     #   one proxy outpost "media"      → served by authentik-outpost-media
     #                                    Deployment in the media namespace
@@ -70,18 +70,6 @@ data:
           mode: proxy
           external_host: https://bazarr.seyzahl.com
           internal_host: http://bazarr.media.svc.cluster.local:6767
-          internal_host_ssl_validation: false
-      - id: qbittorrent-provider
-        model: authentik_providers_proxy.proxyprovider
-        state: present
-        identifiers:
-          name: "qbittorrent proxy"
-        attrs:
-          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
-          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
-          mode: proxy
-          external_host: https://qbittorrent.seyzahl.com
-          internal_host: http://qbittorrent.media.svc.cluster.local:8080
           internal_host_ssl_validation: false
       - id: jellyseerr-provider
         model: authentik_providers_proxy.proxyprovider
@@ -170,15 +158,12 @@ data:
           name: Bazarr
           provider: !KeyOf bazarr-provider
           meta_launch_url: https://bazarr.seyzahl.com
+      # qbittorrent removed (2026-10-12): absent so authentik deletes it
       - id: qbittorrent-app
         model: authentik_core.application
-        state: present
+        state: absent
         identifiers:
           slug: qbittorrent
-        attrs:
-          name: qBittorrent
-          provider: !KeyOf qbittorrent-provider
-          meta_launch_url: https://qbittorrent.seyzahl.com
       - id: jellyseerr-app
         model: authentik_core.application
         state: present
@@ -211,8 +196,12 @@ data:
             - !KeyOf radarr-provider
             - !KeyOf prowlarr-provider
             - !KeyOf bazarr-provider
-            - !KeyOf qbittorrent-provider
             - !KeyOf jellyseerr-provider
           config:
             authentik_host: https://auth.seyzahl.com
             authentik_host_insecure: false
+      # qbittorrent removed (2026-10-12): delete the provider after the app
+      - model: authentik_providers_proxy.proxyprovider
+        state: absent
+        identifiers:
+          name: "qbittorrent proxy"

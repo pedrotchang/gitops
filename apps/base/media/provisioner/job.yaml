@@ -1,7 +1,7 @@
 # Idempotent provisioning Job — wires the whole stack via app APIs so a rebuild
 # comes up configured with zero clicks: Prowlarr indexers (AnimeTosho) + app
-# sync, Sonarr/Radarr download client + root folders + TRaSH anime no-dub
-# custom formats, Bazarr English-subs-everywhere, qBittorrent categories,
+# sync, Sonarr/Radarr root folders + TRaSH anime no-dub
+# custom formats, Bazarr English-subs-everywhere,
 # Jellyfin setup + SSO plugin, Seerr wiring.
 #
 # The script is a configMapGenerator (media-provision-script); its hash suffix

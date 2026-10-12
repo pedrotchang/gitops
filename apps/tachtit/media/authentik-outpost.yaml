@@ -1,7 +1,7 @@
 # One shared authentik proxy outpost for the whole media namespace.
 # Providers/applications are declared in apps/base/authentik/blueprint-media.yaml
 # (GitOps-managed, no admin-UI drift); the outpost routes by Host header, so all
-# six proxied UIs (sonarr, radarr, prowlarr, bazarr, qbittorrent, jellyseerr)
+# five proxied UIs (sonarr, radarr, prowlarr, bazarr, jellyseerr)
 # share this Deployment. Jellyfin is NOT proxied — native OIDC via SSO plugin.
 apiVersion: apps/v1
 kind: Deployment

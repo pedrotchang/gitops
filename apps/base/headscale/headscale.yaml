@@ -46,9 +46,6 @@ spec:
         - name: bazarr.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: qbittorrent.seyzahl.com
-          type: A
-          value: "10.104.130.214"
         - name: nextcloud.seyzahl.com
           type: A
           value: "10.104.130.214"

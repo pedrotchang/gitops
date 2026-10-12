@@ -349,15 +349,6 @@ data:
               type: bazarr
               url: http://bazarr.media.svc.cluster.local:6767
               key: "{{HOMEPAGE_VAR_BAZARR_API_KEY}}"
-      - qBittorrent:
-            href: https://qbittorrent.seyzahl.com
-            icon: qbittorrent.png
-            description: Downloads (VPN)
-            widget:
-              type: qbittorrent
-              url: http://qbittorrent.media.svc.cluster.local:8080
-              username: admin
-              password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
 
   widgets.yaml: |
 

@@ -6,9 +6,8 @@
  * Secret media-app-secrets — Key Vault is the source of truth) and configures
  * every app via its API so a rebuild comes up fully wired with zero clicks:
  *
- *   qBittorrent  categories/paths (+password), API reachable via subnet whitelist
- *   Sonarr       root folder, download client, TRaSH anime no-dub custom formats
- *   Radarr       root folder, download client, dub-reject custom format
+ *   Sonarr       root folder, TRaSH anime no-dub custom formats
+ *   Radarr       root folder, dub-reject custom format
  *   Prowlarr     public indexers (YTS/Knaben/Tokyo Toshokan) + full-sync apps
  *   Bazarr       English-everywhere language profile, Sonarr/Radarr link
  *   Jellyfin     startup wizard, libraries, API key, KnownProxies, SSO plugin
@@ -27,7 +26,6 @@ const env = (k: string): string => {
 };
 
 const URLS = {
-  qbit: "http://qbittorrent.media.svc.cluster.local:8080",
   sonarr: "http://sonarr.media.svc.cluster.local:8989",
   radarr: "http://radarr.media.svc.cluster.local:7878",
   prowlarr: "http://prowlarr.media.svc.cluster.local:9696",
@@ -88,6 +86,10 @@ function servarr(base: string, apiVersion: string, apiKey: string) {
       const r = await req(`${base}/api/${apiVersion}${path}`, { method: "POST", headers: h, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(`POST ${path} -> ${r.status}: ${await r.text()}`);
       return (await r.json()) as T;
+    },
+    async del(path: string): Promise<void> {
+      const r = await req(`${base}/api/${apiVersion}${path}`, { method: "DELETE", headers: h });
+      if (!r.ok) throw new Error(`DELETE ${path} -> ${r.status}: ${await r.text()}`);
     },
     async put<T>(path: string, body: unknown): Promise<T> {
       const r = await req(`${base}/api/${apiVersion}${path}`, { method: "PUT", headers: h, body: JSON.stringify(body) });
@@ -266,92 +268,17 @@ async function ensureRootFolder(app: string, api: ReturnType<typeof servarr>, pa
   console.log(`[${app}] root folder ${path}: created`);
 }
 
-// categoryField: Servarr apps name it differently — Sonarr "tvCategory",
-// Radarr "movieCategory". A generic "category" field is SILENTLY IGNORED by
-// both create and update (unknown provider fields don't error), which is how
-// the clients ended up on the apps' internal defaults (tv-sonarr / radarr).
-async function ensureDownloadClient(app: string, api: ReturnType<typeof servarr>, category: string, categoryField: string) {
-  type Client = { id: number; name: string; fields: Array<{ name: string; value?: unknown }> } & Record<string, unknown>;
-  const clients = await api.get<Client[]>("/downloadclient");
+// qBittorrent was removed (2026-10-12); drop its download client so the apps
+// stop health-warning about an unreachable client.
+async function removeQbittorrentClient(app: string, api: ReturnType<typeof servarr>) {
+  const clients = await api.get<Array<{ id: number; name: string }>>("/downloadclient");
   const existing = clients.find((c) => c.name === "qBittorrent");
   if (!existing) {
-    await api.post("/downloadclient", {
-      name: "qBittorrent",
-      implementation: "QBittorrent",
-      implementationName: "qBittorrent",
-      configContract: "QBittorrentSettings",
-      protocol: "torrent",
-      enable: true,
-      priority: 1,
-      fields: [
-        { name: "host", value: "qbittorrent.media.svc.cluster.local" },
-        { name: "port", value: 8080 },
-        { name: "useSsl", value: false },
-        { name: "username", value: "admin" },
-        { name: "password", value: env("QBITTORRENT_PASSWORD") },
-        { name: categoryField, value: category },
-      ],
-    });
-    console.log(`[${app}] download client qBittorrent (${categoryField}=${category}): created`);
+    console.log(`[${app}] download client qBittorrent: absent, skipping`);
     return;
   }
-  // Exists — assert the category field too. A client left on the app default
-  // (tv-sonarr / radarr) bypasses the qBittorrent category save paths
-  // (/data/downloads/{tv,movies}) and dumps downloads at /data/downloads root.
-  // PUTting the GET body back is safe: Servarr keeps secrets when the value
-  // is the '********' mask.
-  const catField = existing.fields.find((f) => f.name === categoryField);
-  if (!catField) throw new Error(`${app}: field ${categoryField} not in qBittorrent client schema`);
-  if (catField.value === category) {
-    console.log(`[${app}] download client qBittorrent: ${categoryField}=${category}, skipping`);
-    return;
-  }
-  catField.value = category;
-  await api.put(`/downloadclient/${existing.id}`, existing);
-  console.log(`[${app}] download client qBittorrent: ${categoryField} asserted -> ${category}`);
-}
-
-// ── qBittorrent ────────────────────────────────────────────────────────────
-// In-cluster calls skip auth via WebUI\AuthSubnetWhitelist (pod CIDR), seeded
-// by the qbittorrent-init script. The UI hostname is still behind authentik.
-
-async function provisionQbittorrent() {
-  await waitFor("qbit", `${URLS.qbit}/api/v2/app/version`);
-  const prefsRes = await req(`${URLS.qbit}/api/v2/app/preferences`);
-  if (!prefsRes.ok) throw new Error(`qbit preferences -> ${prefsRes.status} (subnet whitelist not active?)`);
-  const prefs = (await prefsRes.json()) as Record<string, unknown>;
-
-  const desired: Record<string, unknown> = {
-    save_path: "/data/downloads",
-    temp_path_enabled: false,
-    max_ratio_enabled: true,
-    max_ratio: 2,
-    web_ui_password: env("QBITTORRENT_PASSWORD"), // hash not readable back; harmless to reassert
-  };
-  const drift = Object.keys(desired).filter((k) => k !== "web_ui_password" && prefs[k] !== desired[k]);
-  const form = new URLSearchParams({ json: JSON.stringify(desired) });
-  const set = await req(`${URLS.qbit}/api/v2/app/setPreferences`, { method: "POST", body: form });
-  if (!set.ok) throw new Error(`qbit setPreferences -> ${set.status}`);
-  console.log(`[qbit] preferences asserted (${drift.length ? `drift on: ${drift.join(", ")}` : "no drift"}; password reasserted)`);
-
-  const catRes = await req(`${URLS.qbit}/api/v2/torrents/categories`);
-  const cats = (await catRes.json()) as Record<string, { name: string; savePath: string }>;
-  for (const [name, savePath] of [
-    ["tv", "/data/downloads/tv"],
-    ["movies", "/data/downloads/movies"],
-  ] as const) {
-    if (cats[name]?.savePath === savePath) {
-      console.log(`[qbit] category ${name}: exists, skipping`);
-      continue;
-    }
-    const endpoint = cats[name] ? "editCategory" : "createCategory";
-    const r = await req(`${URLS.qbit}/api/v2/torrents/${endpoint}`, {
-      method: "POST",
-      body: new URLSearchParams({ category: name, savePath }),
-    });
-    if (!r.ok) throw new Error(`qbit ${endpoint} ${name} -> ${r.status}`);
-    console.log(`[qbit] category ${name} -> ${savePath}: ${cats[name] ? "updated" : "created"}`);
-  }
+  await api.del(`/downloadclient/${existing.id}`);
+  console.log(`[${app}] download client qBittorrent: removed`);
 }
 
 // Import companion subtitle files alongside episodes/movies. OFF by default
@@ -377,7 +304,7 @@ async function provisionSonarr() {
   const api = servarr(URLS.sonarr, "v3", env("SONARR_API_KEY"));
   await waitFor("sonarr", `${URLS.sonarr}/ping`);
   await ensureRootFolder("sonarr", api, "/data/tv");
-  await ensureDownloadClient("sonarr", api, "tv", "tvCategory");
+  await removeQbittorrentClient("sonarr", api);
   await ensureExtraFileImport("sonarr", api);
   const cfIds = await ensureCustomFormats("sonarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE, CF_ANIME_TIER_04, CF_ANIME_TIER_05]);
 
@@ -392,7 +319,7 @@ async function provisionRadarr() {
   const api = servarr(URLS.radarr, "v3", env("RADARR_API_KEY"));
   await waitFor("radarr", `${URLS.radarr}/ping`);
   await ensureRootFolder("radarr", api, "/data/movies");
-  await ensureDownloadClient("radarr", api, "movies", "movieCategory");
+  await removeQbittorrentClient("radarr", api);
   await ensureExtraFileImport("radarr", api);
   const cfIds = await ensureCustomFormats("radarr", api, [CF_DUBS_ONLY, CF_ANIME_RAWS, CF_FRENCH_SCENE, CF_CAM]);
   await scoreFormatsInAllProfiles("radarr", api, cfIds);
@@ -874,7 +801,6 @@ async function provisionSeerrInner() {
 // ── main ───────────────────────────────────────────────────────────────────
 
 const steps: Array<[string, () => Promise<void>]> = [
-  ["qbittorrent", provisionQbittorrent],
   ["sonarr", provisionSonarr],
   ["radarr", provisionRadarr],
   ["prowlarr", provisionProwlarr],

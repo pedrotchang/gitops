@@ -3,7 +3,7 @@
 # across mounts and every import duplicated bytes).
 #
 # TRaSH-guides layout inside the share:
-#   /data/downloads/{tv,movies}   qBittorrent writes here
+#   /data/downloads/{tv,movies}   legacy download dir (qBittorrent removed)
 #   /data/tv  /data/movies        Sonarr/Radarr libraries (Jellyfin reads)
 apiVersion: v1
 kind: PersistentVolume

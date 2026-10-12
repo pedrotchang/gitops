@@ -18,7 +18,6 @@ excludeDomains:
   - radarr.seyzahl.com
   - prowlarr.seyzahl.com
   - bazarr.seyzahl.com
-  - qbittorrent.seyzahl.com
 
 sources:
   - service

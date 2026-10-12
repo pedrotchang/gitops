@@ -11,6 +11,4 @@ resources:
   - prowlarr
   - bazarr
   - jellyseerr
-  - qbittorrent
-  - leak-canary
   - provisioner
