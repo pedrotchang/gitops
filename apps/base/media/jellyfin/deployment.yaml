@@ -16,6 +16,16 @@ spec:
         app: jellyfin
         policy-type: app
     spec:
+      # NVENC/NVDEC transcoding on the Aorus RTX 5060 (one time-sliced share).
+      # CPU transcoding peaked at ~7 cores right before the ThinkPad froze on
+      # 2026-10-11, so the GPU does the work and a CPU limit caps fallbacks.
+      runtimeClassName: nvidia
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
@@ -68,6 +78,9 @@ spec:
               value: "https://jellyfin.seyzahl.com"
             - name: TZ
               value: "America/Los_Angeles"
+            # nvidia runtime default is compute,utility; NVENC/NVDEC need video
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: "compute,video,utility"
           ports:
             - containerPort: 8096
               name: http
@@ -95,7 +108,9 @@ spec:
               cpu: 250m
               memory: 512Mi
             limits:
+              cpu: "4"
               memory: 4Gi
+              nvidia.com/gpu: 1
       volumes:
         - name: config
           persistentVolumeClaim:

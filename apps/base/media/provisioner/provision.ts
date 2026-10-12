@@ -10,7 +10,7 @@
  *   Radarr       root folder, dub-reject custom format
  *   Prowlarr     public indexers (YTS/Knaben/Tokyo Toshokan) + full-sync apps
  *   Bazarr       English-everywhere language profile, Sonarr/Radarr link
- *   Jellyfin     startup wizard, libraries, API key, KnownProxies, SSO plugin
+ *   Jellyfin     startup wizard, libraries, API key, KnownProxies, NVENC, SSO plugin
  *                config (plugin binaries are seeded onto the config PVC by the
  *                seed-sso initContainer — carrier image jellyfin-sso-plugin —
  *                so it is loaded from first boot; no install/restart dance)
@@ -565,6 +565,29 @@ async function provisionJellyfin() {
     console.log(`[jellyfin] KnownProxies asserted: ${KNOWN_PROXIES.join(", ")} (restart required to apply)`);
   } else {
     console.log(`[jellyfin] KnownProxies already cover gateway CIDRs: skipping`);
+  }
+
+  // Hardware transcoding on the GPU node (deployment requests nvidia.com/gpu).
+  const desiredEnc: Record<string, unknown> = {
+    HardwareAccelerationType: "nvenc",
+    EnableHardwareEncoding: true,
+    HardwareDecodingCodecs: ["h264", "hevc", "mpeg2video", "vc1", "vp8", "vp9", "av1"],
+    EnableDecodingColorDepth10Hevc: true,
+    EnableDecodingColorDepth10Vp9: true,
+    EnableTonemapping: true,
+  };
+  const encCfg = (await (await req(`${URLS.jellyfin}/System/Configuration/encoding`, { headers: jh })).json()) as Record<string, unknown>;
+  const encDrift = Object.entries(desiredEnc).some(([k, v]) => JSON.stringify(encCfg[k]) !== JSON.stringify(v));
+  if (!encDrift) {
+    console.log(`[jellyfin] NVENC hardware transcoding: already set, skipping`);
+  } else {
+    const r = await req(`${URLS.jellyfin}/System/Configuration/encoding`, {
+      method: "POST",
+      headers: jh,
+      body: JSON.stringify({ ...encCfg, ...desiredEnc }),
+    });
+    if (!r.ok) throw new Error(`jellyfin encoding config -> ${r.status}`);
+    console.log(`[jellyfin] NVENC hardware transcoding: asserted`);
   }
 
   // SSO plugin config (authentik OIDC). The plugin binaries are seeded onto
