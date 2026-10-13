@@ -26,6 +26,9 @@ spec:
       # pod per namespace per run so a single app never loses all replicas.
       maxNoOfPodsToEvictPerNode: 10
       maxNoOfPodsToEvictPerNamespace: 1
+      # Balance only the two general-purpose nodes; the GPU node is overflow,
+      # so it must not count as the "empty" node that pods get sent to.
+      nodeSelector: "!nvidia.com/gpu.present"
       profiles:
         - name: default
           pluginConfig:
@@ -41,16 +44,15 @@ spec:
             # Deviation mode: nodes are compared to the cluster mean instead of
             # fixed percentages. Fixed thresholds required a node under 20% on
             # every resource, which the ThinkPad never is, so nothing moved.
-            # Over = above mean+10 points, under = below mean-10 (requests).
+            # Over = above mean+10 points, under = below mean-10 (CPU requests).
+            # CPU only: pod count kept the ThinkPad from ever qualifying.
             - name: LowNodeUtilization
               args:
                 useDeviationThresholds: true
                 thresholds:
                   cpu: 10
-                  pods: 10
                 targetThresholds:
                   cpu: 10
-                  pods: 10
           plugins:
             # LowNodeUtilization first so the CPU rebalance isn't starved by
             # the duplicate cleanup consuming the per-node eviction budget.
