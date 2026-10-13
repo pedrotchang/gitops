@@ -7,3 +7,26 @@ resources:
   - home-assistant
   - frigate
   - authentik-outpost.yaml
+# Baby-monitor stack may overflow onto the GPU node when a regular node is
+# down (2026-10-13: HP out of CPU while the ThinkPad was offline left Home
+# Assistant/Frigate Pending). Non-GPU nodes stay preferred.
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: nvidia.com/gpu.present
+                      operator: DoesNotExist
