@@ -135,6 +135,11 @@ spec:
               value: /var/lib/tailscale
             - name: TS_USERSPACE
               value: "false"
+            # Talos 1.12+ kernels ship no legacy iptables tables; tailscale's
+            # default (iptables-legacy) then fails to install its NAT rules
+            # and forwarding silently breaks. Force the nftables backend.
+            - name: TS_DEBUG_FIREWALL_MODE
+              value: nftables
             - name: POD_NAME
               valueFrom:
                 fieldRef:
