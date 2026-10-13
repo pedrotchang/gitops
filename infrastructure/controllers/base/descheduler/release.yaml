@@ -38,18 +38,19 @@ spec:
             - name: RemoveDuplicates
             - name: RemovePodsViolatingInterPodAntiAffinity
             - name: RemovePodsViolatingTopologySpreadConstraint
-            # Requests-based %: the 4-core HP sits at ~92% CPU requested
-            # while the 16-core ThinkPad is nearly idle.
+            # Deviation mode: nodes are compared to the cluster mean instead of
+            # fixed percentages. Fixed thresholds required a node under 20% on
+            # every resource, which the ThinkPad never is, so nothing moved.
+            # Over = above mean+10 points, under = below mean-10 (requests).
             - name: LowNodeUtilization
               args:
+                useDeviationThresholds: true
                 thresholds:
-                  cpu: 20
-                  memory: 20
-                  pods: 20
+                  cpu: 10
+                  pods: 10
                 targetThresholds:
-                  cpu: 60
-                  memory: 60
-                  pods: 50
+                  cpu: 10
+                  pods: 10
           plugins:
             # LowNodeUtilization first so the CPU rebalance isn't starved by
             # the duplicate cleanup consuming the per-node eviction budget.
