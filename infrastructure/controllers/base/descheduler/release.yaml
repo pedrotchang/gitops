@@ -1,7 +1,8 @@
 # Rebalances pods after node outages: the scheduler only places new pods, so
 # everything that failed over to one node stays there. Evicted pods are
-# rescheduled normally. Pods with PVCs and system-critical pods are protected
-# (chart defaults), so this only moves stateless/emptyDir workloads.
+# rescheduled normally. Pods with PVCs ARE evictable: every app volume is
+# network storage (truenas-iscsi / NFS) since the 2026-10-04 migration, so a
+# move is a detach/attach, not data loss. System-critical pods stay protected.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -19,10 +20,12 @@ spec:
         namespace: descheduler
   values:
     kind: Deployment
-    deschedulingInterval: 10m
+    deschedulingInterval: 5m
     deschedulerPolicy:
-      # Gradual: at most 5 evictions per node per 10-minute run.
-      maxNoOfPodsToEvictPerNode: 5
+      # Bounded: at most 10 evictions per node per 5-minute run, and only one
+      # pod per namespace per run so a single app never loses all replicas.
+      maxNoOfPodsToEvictPerNode: 10
+      maxNoOfPodsToEvictPerNamespace: 1
       profiles:
         - name: default
           pluginConfig:
@@ -32,8 +35,6 @@ spec:
                 podProtections:
                   defaultDisabled:
                     - PodsWithLocalStorage
-                  extraEnabled:
-                    - PodsWithPVC
             - name: RemoveDuplicates
             - name: RemovePodsViolatingInterPodAntiAffinity
             - name: RemovePodsViolatingTopologySpreadConstraint
@@ -50,11 +51,13 @@ spec:
                   memory: 60
                   pods: 50
           plugins:
+            # LowNodeUtilization first so the CPU rebalance isn't starved by
+            # the duplicate cleanup consuming the per-node eviction budget.
             balance:
               enabled:
-                - RemoveDuplicates
-                - RemovePodsViolatingTopologySpreadConstraint
                 - LowNodeUtilization
+                - RemovePodsViolatingTopologySpreadConstraint
+                - RemoveDuplicates
             deschedule:
               enabled:
                 - RemovePodsViolatingInterPodAntiAffinity
