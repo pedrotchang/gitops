@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-windows
+  namespace: authentik
+data:
+  windows.yaml: |
+    # Managed in GitOps — auth surface of the on-demand Windows 11 VM.
+    #
+    #   proxy provider (mode: proxy)  → windows-gate (no auth of its own; it
+    #                                   starts the VM and bridges noVNC)
+    #   authentik Embedded Outpost    → serves it from authentik-server, so
+    #                                   sessions live in Postgres and survive a
+    #                                   server pod restart (unlike the
+    #                                   standalone outposts).
+    #
+    # NOTE: this entry sets the embedded outpost's full provider list. Any
+    # provider moved to the embedded outpost later must be added here too.
+    version: 1
+    metadata:
+      name: windows (GitOps managed)
+    entries:
+      - id: windows-provider
+        model: authentik_providers_proxy.proxyprovider
+        state: present
+        identifiers:
+          name: "windows proxy"
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          mode: proxy
+          external_host: https://windows.seyzahl.com
+          internal_host: http://windows-gate.windows.svc.cluster.local:8080
+          internal_host_ssl_validation: false
+
+      - id: windows-app
+        model: authentik_core.application
+        state: present
+        identifiers:
+          slug: windows
+        attrs:
+          name: Windows
+          provider: !KeyOf windows-provider
+          meta_launch_url: https://windows.seyzahl.com
+
+      # Banking PC: admins only.
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          target: !KeyOf windows-app
+          group: !Find [authentik_core.group, [name, authentik Admins]]
+        attrs:
+          order: 0
+
+      - model: authentik_outposts.outpost
+        state: present
+        identifiers:
+          managed: goauthentik.io/outposts/embedded
+        attrs:
+          providers:
+            - !KeyOf windows-provider

@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: windows-gate
+  namespace: windows
+---
+# Just enough to read, start, stop and view the one VM.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: windows-gate
+  namespace: windows
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines"]
+    resourceNames: ["win11"]
+    verbs: ["get"]
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources: ["virtualmachines/start", "virtualmachines/stop"]
+    resourceNames: ["win11"]
+    verbs: ["update"]
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources: ["virtualmachineinstances/vnc"]
+    resourceNames: ["win11"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: windows-gate
+  namespace: windows
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: windows-gate
+subjects:
+  - kind: ServiceAccount
+    name: windows-gate
+    namespace: windows
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: windows-gate
+  namespace: windows
+  labels:
+    app.kubernetes.io/name: windows-gate
+spec:
+  replicas: 1
+  # The idle timer lives in this process; never run two.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: windows-gate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: windows-gate
+    spec:
+      serviceAccountName: windows-gate
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # noVNC 1.7.0 straight from the npm registry, pinned by tarball SHA-256.
+        - name: novnc
+          image: oven/bun:1.2-alpine
+          command:
+            - sh
+            - -ec
+            - |
+              wget -qO /tmp/novnc.tgz https://registry.npmjs.org/@novnc/novnc/-/novnc-1.7.0.tgz
+              echo "32689f18d6abe96bc6530828a6bd0b9ae33bda07c083a6575ed255b5a8f2e903  /tmp/novnc.tgz" | sha256sum -c -
+              tar -xzf /tmp/novnc.tgz -C /novnc
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: novnc
+              mountPath: /novnc
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: gate
+          image: oven/bun:1.2-alpine
+          command: ["bun", "run", "/app/gate.ts"]
+          env:
+            - name: NAMESPACE
+              value: windows
+            - name: VM_NAME
+              value: win11
+            - name: IDLE_MINUTES
+              value: "30"
+            - name: NODE_EXTRA_CA_CERTS
+              value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            # Root filesystem is read-only; skip bun's on-disk transpiler cache.
+            - name: BUN_RUNTIME_TRANSPILER_CACHE_PATH
+              value: "0"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: app
+              mountPath: /app
+            - name: novnc
+              mountPath: /novnc
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app
+          configMap:
+            name: windows-gate
+        - name: novnc
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: windows-gate
+  namespace: windows
+spec:
+  selector:
+    app.kubernetes.io/name: windows-gate
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

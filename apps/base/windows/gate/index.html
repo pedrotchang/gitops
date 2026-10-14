@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Windows</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
+    #bar { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: #222; }
+    #bar span { flex: 1; }
+    button { background: #333; color: #ddd; border: 1px solid #555; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+    #screen { position: absolute; top: 38px; bottom: 0; left: 0; right: 0; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <span id="status">Checking VM…</span>
+    <button id="cad" disabled>Ctrl+Alt+Del</button>
+    <button id="full">Fullscreen</button>
+    <button id="stop">Shut down</button>
+  </div>
+  <div id="screen"></div>
+  <script type="module">
+    import RFB from "/novnc/core/rfb.js";
+
+    const status = document.getElementById("status");
+    const screen = document.getElementById("screen");
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    let rfb;
+
+    async function api(path, method = "GET") {
+      const res = await fetch(path, { method });
+      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function boot() {
+      status.textContent = "Starting Windows…";
+      await api("/api/start", "POST");
+      for (;;) {
+        const vm = await api("/api/status");
+        status.textContent = `VM ${vm.status}…`;
+        if (vm.ready) break;
+        await sleep(3000);
+      }
+      connect();
+    }
+
+    function connect() {
+      screen.replaceChildren();
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      rfb = new RFB(screen, `${proto}://${location.host}/vnc`);
+      rfb.scaleViewport = true;
+      rfb.addEventListener("connect", () => {
+        status.textContent = "Connected — shuts down after 30 min without input";
+        document.getElementById("cad").disabled = false;
+      });
+      rfb.addEventListener("disconnect", () => {
+        document.getElementById("cad").disabled = true;
+        status.innerHTML = 'Disconnected. <button onclick="location.reload()">Reconnect</button>';
+      });
+    }
+
+    document.getElementById("cad").onclick = () => rfb?.sendCtrlAltDel();
+    document.getElementById("full").onclick = () => screen.requestFullscreen();
+    document.getElementById("stop").onclick = async () => {
+      if (!confirm("Shut down Windows now?")) return;
+      await api("/api/stop", "POST");
+      status.innerHTML = 'Shutting down. <button onclick="location.reload()">Start again</button>';
+    };
+
+    boot().catch((err) => { status.textContent = `Error: ${err.message}`; });
+  </script>
+</body>
+</html>

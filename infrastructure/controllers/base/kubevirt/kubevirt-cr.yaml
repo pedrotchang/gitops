@@ -13,6 +13,9 @@ spec:
   configuration:
     developerConfiguration:
       useEmulation: false
+    # Persistent vTPM + EFI vars (Windows 11 needs both) live on a small PVC
+    # per VM; iSCSI so they are not tied to one node.
+    vmStateStorageClass: truenas-iscsi
   infra:
     replicas: 1
   workloads:

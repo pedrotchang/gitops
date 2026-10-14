@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - storage.yaml
+  - vm.yaml
+  - network-policy.yaml
+  - gate
+configMapGenerator:
+  # Referenced by name from the VM's sysprep volume, which kustomize does not
+  # rewrite, so no hash suffix.
+  - name: win11-sysprep
+    namespace: windows
+    files:
+      - autounattend.xml
+    options:
+      disableNameSuffixHash: true

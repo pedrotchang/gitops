@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: windows
+  labels:
+    app.kubernetes.io/name: windows
+    # virt-launcher (the QEMU pod KubeVirt runs per VM) needs more than the
+    # baseline profile allows. The gate itself runs unprivileged.
+    pod-security.kubernetes.io/enforce: privileged

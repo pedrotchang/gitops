@@ -1,0 +1,82 @@
+# The VM is a banking PC: it may reach the internet but nothing private —
+# no LAN, no cluster services, no tailnet. VNC does not use the pod network
+# (it flows apiserver → virt-handler → QEMU socket), so no ingress is allowed.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: win11
+  namespace: windows
+spec:
+  endpointSelector:
+    matchLabels:
+      kubevirt.io/domain: win11
+  ingress:
+    - fromEntities:
+        - host
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toCIDRSet:
+        - cidr: 0.0.0.0/0
+          except:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+            - 100.64.0.0/10
+            - 169.254.0.0/16
+---
+# The gate has no auth of its own: only authentik's server pods (which run the
+# embedded outpost that does) may reach it. Egress is the kube-apiserver for
+# VM start/stop/VNC, plus the npm registry once at startup for noVNC.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: windows-gate
+  namespace: windows
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: windows-gate
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: authentik
+            app.kubernetes.io/component: server
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - fromEntities:
+        - host
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "6443"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: registry.npmjs.org
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

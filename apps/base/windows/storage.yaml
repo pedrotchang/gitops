@@ -1,0 +1,53 @@
+# OS disk: survives every stop/start (bank plugins, 공동인증서, browser state).
+# iSCSI so the VM is not tied to a node's local disk (see the 2026-10-04
+# ThinkPad wipe). prune: disabled keeps Flux from ever deleting it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: win11-os
+  namespace: windows
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  storageClassName: truenas-iscsi
+  volumeMode: Block
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 80Gi
+---
+# Windows 11 installer ISO, staged once on TrueNAS as
+# /mnt/tank/media/isos/win11/disk.img (KubeVirt expects disk.img at the root of
+# a filesystem PVC). Microsoft's download API rejects scripted requests, so the
+# ISO link is fetched in a real browser and downloaded on TrueNAS directly.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: win11-installer-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.7.14
+    path: /mnt/tank/media/isos/win11
+    readOnly: true
+  mountOptions:
+    - nfsvers=4.2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: win11-installer
+  namespace: windows
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  volumeName: win11-installer-pv
+  resources:
+    requests:
+      storage: 10Gi

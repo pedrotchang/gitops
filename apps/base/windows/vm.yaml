@@ -1,0 +1,113 @@
+# Windows 11 PC for Korean banking. runStrategy Manual: Flux owns the
+# definition, the gate (gate/) starts and stops it via the start/stop
+# subresources. Stopping deletes the VMI and its virt-launcher pod, freeing the
+# 16 GB / 4 CPU on the Aorus; the OS disk, TPM and EFI vars persist.
+#
+# Device choices favour drivers Windows ships in-box (SATA disk, e1000e NIC),
+# so Setup needs no virtio driver disk.
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: win11
+  namespace: windows
+  labels:
+    app.kubernetes.io/name: win11
+spec:
+  runStrategy: Manual
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: win11
+        kubevirt.io/domain: win11
+    spec:
+      # Only the Aorus has 16 GB free and runs virt-handler.
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 120
+      domain:
+        cpu:
+          sockets: 1
+          cores: 4
+          threads: 1
+        memory:
+          guest: 16Gi
+        # Windows 11 requires UEFI Secure Boot + TPM 2.0. Both persist across
+        # restarts (KubeVirt keeps them on a small PVC per VM).
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: true
+              persistent: true
+        features:
+          acpi: {}
+          apic: {}
+          smm:
+            enabled: true
+          hyperv:
+            relaxed: {}
+            vapic: {}
+            spinlocks:
+              spinlocks: 8191
+            vpindex: {}
+            runtime: {}
+            synic: {}
+            synictimer:
+              enabled: true
+            reset: {}
+            frequencies: {}
+            reenlightenment: {}
+            tlbflush: {}
+            ipi: {}
+        clock:
+          utc: {}
+          timer:
+            hpet:
+              present: false
+            pit:
+              tickPolicy: delay
+            rtc:
+              tickPolicy: catchup
+            hyperv: {}
+        devices:
+          tpm:
+            persistent: true
+          disks:
+            - name: os
+              bootOrder: 1
+              disk:
+                bus: sata
+            - name: installer
+              bootOrder: 2
+              cdrom:
+                bus: sata
+            - name: sysprep
+              cdrom:
+                bus: sata
+          interfaces:
+            - name: default
+              model: e1000e
+              masquerade: {}
+          # Absolute pointer so the VNC cursor tracks the browser's.
+          inputs:
+            - name: tablet
+              type: tablet
+              bus: usb
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: os
+          persistentVolumeClaim:
+            claimName: win11-os
+        - name: installer
+          persistentVolumeClaim:
+            claimName: win11-installer
+            readOnly: true
+        - name: sysprep
+          sysprep:
+            configMap:
+              name: win11-sysprep
