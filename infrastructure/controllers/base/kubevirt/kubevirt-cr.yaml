@@ -1,0 +1,26 @@
+# KubeVirt for the on-demand Windows 11 VM (apps/base/windows).
+#
+# Only the Aorus (GPU node, 32 GB) has room for a 16 GB guest and exposes
+# /dev/kvm, so virt-handler (and therefore every VM) is pinned there and
+# tolerates the GPU taint. Control-plane pieces (virt-api/virt-controller)
+# run as single replicas: VMs are started on demand, nothing live-migrates.
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  configuration:
+    developerConfiguration:
+      useEmulation: false
+  infra:
+    replicas: 1
+  workloads:
+    nodePlacement:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+  imagePullPolicy: IfNotPresent

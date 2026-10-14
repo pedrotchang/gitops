@@ -15,4 +15,5 @@ resources:
   - velero
   - nvidia
   - descheduler
+  - kubevirt
   # - newt

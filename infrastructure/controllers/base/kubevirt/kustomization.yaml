@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# kubevirt-operator.yaml is vendored from the upstream release (it also
+# creates the privileged kubevirt namespace). To bump:
+#   curl -sfL https://github.com/kubevirt/kubevirt/releases/download/<tag>/kubevirt-operator.yaml \
+#     -o infrastructure/controllers/base/kubevirt/kubevirt-operator.yaml
+resources:
+  - kubevirt-operator.yaml
+  - kubevirt-cr.yaml
