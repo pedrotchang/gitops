@@ -1,5 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: windows
 resources:
   - namespace.yaml
   - storage.yaml
@@ -10,7 +11,6 @@ configMapGenerator:
   # Referenced by name from the VM's sysprep volume, which kustomize does not
   # rewrite, so no hash suffix.
   - name: win11-sysprep
-    namespace: windows
     files:
       - autounattend.xml
     options:
