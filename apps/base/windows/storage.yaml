@@ -18,13 +18,15 @@ spec:
       storage: 80Gi
 ---
 # Windows 11 installer ISO, staged once on TrueNAS as
-# /mnt/tank/media/isos/win11/disk.img (KubeVirt expects disk.img at the root of
-# a filesystem PVC). Microsoft's download API rejects scripted requests, so the
-# ISO link is fetched in a real browser and downloaded on TrueNAS directly.
+# /mnt/tank/media/isos/win11/disk.img. Microsoft's download API rejects
+# scripted requests, so the ISO link is fetched in a real browser and
+# downloaded on TrueNAS directly. The VM cannot boot it from NFS (KubeVirt
+# chowns the volume, which a read-only NFS mount refuses), so the
+# installer-import Job copies it onto the win11-installer-disk iSCSI volume.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: win11-installer-pv
+  name: win11-iso-source-pv
 spec:
   capacity:
     storage: 10Gi
@@ -41,13 +43,66 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: win11-installer
+  name: win11-iso-source
   namespace: windows
 spec:
   accessModes:
     - ReadOnlyMany
   storageClassName: ""
-  volumeName: win11-installer-pv
+  volumeName: win11-iso-source-pv
   resources:
     requests:
       storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: win11-installer-disk
+  namespace: windows
+spec:
+  storageClassName: truenas-iscsi
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 12Gi
+---
+# Copies the ISO onto win11-installer-disk as disk.img (the name KubeVirt expects
+# on a filesystem PVC). Skips the copy when the sizes already match.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: win11-installer-import
+  namespace: windows
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: copy
+          image: oven/bun:1.2-alpine
+          command:
+            - sh
+            - -ec
+            - |
+              src=/src/disk.img dst=/dst/disk.img
+              if [ -f "$dst" ] && [ "$(stat -c %s "$src")" = "$(stat -c %s "$dst")" ]; then
+                echo "installer already imported"; exit 0
+              fi
+              cp "$src" "$dst.part" && mv "$dst.part" "$dst"
+              echo "imported $(stat -c %s "$dst") bytes"
+          volumeMounts:
+            - name: src
+              mountPath: /src
+              readOnly: true
+            - name: dst
+              mountPath: /dst
+      volumes:
+        - name: src
+          persistentVolumeClaim:
+            claimName: win11-iso-source
+            readOnly: true
+        - name: dst
+          persistentVolumeClaim:
+            claimName: win11-installer-disk
