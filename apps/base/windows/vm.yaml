@@ -106,7 +106,6 @@ spec:
         - name: installer
           persistentVolumeClaim:
             claimName: win11-installer-disk
-            readOnly: true
         - name: sysprep
           sysprep:
             configMap:
