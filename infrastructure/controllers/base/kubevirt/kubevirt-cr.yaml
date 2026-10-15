@@ -13,9 +13,10 @@ spec:
   configuration:
     developerConfiguration:
       useEmulation: false
-    # Persistent vTPM + EFI vars (Windows 11 needs both) live on a small PVC
-    # per VM; iSCSI so they are not tied to one node.
-    vmStateStorageClass: truenas-iscsi
+    # Persistent vTPM + EFI vars (Windows 11 needs both) live on a small PVC per
+    # VM in the cluster default class (truenas-iscsi). Do NOT set
+    # vmStateStorageClass: an explicit class makes KubeVirt request
+    # ReadWriteMany, which iSCSI rejects; the default class gets ReadWriteOnce.
   infra:
     replicas: 1
   workloads:
