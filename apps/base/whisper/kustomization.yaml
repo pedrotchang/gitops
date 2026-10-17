@@ -7,3 +7,5 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - externalsecret.yaml
+  - networkpolicy.yaml

@@ -176,12 +176,16 @@ spec:
       EMAIL_SMTP_PORT: "587"
       # Speech-to-text backend → self-hosted Whisper (Speaches) in the `whisper` ns.
       # provider=openai (set in config.stt) + this base_url route STT to the in-cluster
-      # service; the key is a dummy (Speaches has no auth).
+      # service. Speaches requires a bearer key: VOICE_TOOLS_OPENAI_KEY comes from the
+      # ExternalSecret (KV whisper-api-key) via envFrom — do NOT set it here, an explicit
+      # env entry would override envFrom.
+      # WARNING: Hermes falls back to https://api.openai.com/v1 if this is unset —
+      # never remove it, or voice memos leave the cluster.
       STT_OPENAI_BASE_URL: "http://whisper.whisper.svc.cluster.local:8000/v1"
       # Fallback model default only — the actual model is pinned via config.stt.openai.model
-      # above, which shadows this env. Kept in sync so both agree on the baked model.
-      STT_OPENAI_MODEL: "Systran/faster-whisper-small"
-      VOICE_TOOLS_OPENAI_KEY: "sk-not-needed-self-hosted"
+      # above, which shadows this env. Kept in sync so both agree on the only model on
+      # the whisper PVC (Speaches runs HF_HUB_OFFLINE, so anything else 404s).
+      STT_OPENAI_MODEL: "deepdml/faster-whisper-large-v3-turbo-ct2"
       # Only process mail FROM these senders — forward flights/events from these accounts.
       EMAIL_ALLOWED_USERS: "pedrotychang@gmail.com,hanna.jeon12@gmail.com"
 
