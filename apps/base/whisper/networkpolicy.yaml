@@ -1,0 +1,30 @@
+# Whisper is local-GPU only: audio may arrive only from approved callers, and the
+# pod may reach NOTHING (no internet, no Hugging Face, not even DNS — Speaches runs
+# its routes in-process and the model lives on the whisper-models PVC).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: whisper
+spec:
+  endpointSelector:
+    matchLabels:
+      app: whisper
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    # Approved callers: Hermes (Telegram voice memos) and the transcribe app.
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+        - matchLabels:
+            io.kubernetes.pod.namespace: transcribe
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # Kubelet tcpSocket probes.
+    - fromEntities:
+        - host
+        - remote-node
+  # No egress rules on purpose: enableDefaultDeny.egress drops all outbound traffic.

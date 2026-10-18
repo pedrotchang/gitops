@@ -52,6 +52,21 @@ spec:
             # idle state (fanless ITX case); reload from the PVC takes seconds.
             - name: WHISPER__TTL
               value: "300"
+            # Local-only: never fetch from Hugging Face. Only the model already on the
+            # PVC can load; anything else fails instead of downloading. (Egress is
+            # also denied by the CiliumNetworkPolicy — belt and braces.)
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            # Speaches mounts a Gradio UI at / by default, and it bypasses API_KEY.
+            - name: ENABLE_UI
+              value: "false"
+            # Bearer auth on every route (global FastAPI dependency, 403 on mismatch).
+            # Probes are tcpSocket, so they are unaffected.
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: whisper-api-key
+                  key: API_KEY
           startupProbe:
             tcpSocket:
               port: 8000
