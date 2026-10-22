@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: outpost
-          image: ghcr.io/goauthentik/proxy:2026.5.3
+          image: ghcr.io/goauthentik/proxy:2026.8.5
           env:
             - name: AUTHENTIK_HOST
               value: https://auth.seyzahl.com
