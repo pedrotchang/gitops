@@ -9,7 +9,7 @@ image:
   baseRepo: registry.k8s.io
   nfs:
     repository: registry.k8s.io/sig-storage/nfsplugin
-    tag: v4.13.4
+    tag: v4.13.6
     pullPolicy: IfNotPresent
   csiProvisioner:
     repository: registry.k8s.io/sig-storage/csi-provisioner
@@ -20,23 +20,23 @@ image:
     pullPolicy: IfNotPresent
   csiResizer:
     repository: registry.k8s.io/sig-storage/csi-resizer
-    tag: v2.2.1
+    tag: v2.3.0
     pullPolicy: IfNotPresent
   csiSnapshotter:
     repository: registry.k8s.io/sig-storage/csi-snapshotter
-    tag: v8.6.0
+    tag: v8.7.0
     pullPolicy: IfNotPresent
   livenessProbe:
     repository: registry.k8s.io/sig-storage/livenessprobe
-    tag: v2.19.0
+    tag: v2.20.0
     pullPolicy: IfNotPresent
   nodeDriverRegistrar:
     repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
-    tag: v2.17.0
+    tag: v2.18.0
     pullPolicy: IfNotPresent
   externalSnapshotter:
     repository: registry.k8s.io/sig-storage/snapshot-controller
-    tag: v8.6.0
+    tag: v8.7.0
     pullPolicy: IfNotPresent
 
 # Service Account configuration
