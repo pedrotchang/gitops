@@ -1,0 +1,160 @@
+# Roboflow Inference Server, CUDA 13 build: the RTX 5060 is Blackwell (sm_120),
+# which the default -gpu image (CUDA 12.4) predates. Node driver is 595 / CUDA 13.2.
+# Takes the 4th (last) time-slice of the GPU: immich-ml, jellyfin, whisper, this.
+#
+# Hardened for a single in-cluster caller:
+#  - Workflows, custom Python execution, stream API, builder UI: off
+#  - Model Monitoring (METRICS_ENABLED) off: no inference data leaves the cluster
+#  - Only CLIP enabled; egress limited to Roboflow (weights) by CiliumNetworkPolicy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboflow-inference
+  labels:
+    app: roboflow-inference
+spec:
+  replicas: 1
+  # One GPU slice: stop the old pod before starting the new one.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: roboflow-inference
+  template:
+    metadata:
+      labels:
+        app: roboflow-inference
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inference
+          # ~10 GB image; pinned by digest. Mirror via supply-chain later (#177).
+          image: roboflow/roboflow-inference-server-gpu-cu13:1.8.3@sha256:3bc0aef1e0e820d156ddde4fbe3b4abfabba5514796c0fd7bfd94a364a6c2f3d
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9001
+          env:
+            - name: ROBOFLOW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: roboflow-api-key
+                  key: ROBOFLOW_API_KEY
+            - name: HOME
+              value: /tmp
+            - name: MODEL_CACHE_DIR
+              value: /cache
+            - name: CLIP_VERSION_ID
+              value: ViT-B-16
+            - name: CLIP_MAX_BATCH_SIZE
+              value: "16"
+            - name: PRELOAD_MODELS
+              value: clip/ViT-B-16
+            - name: NUM_WORKERS
+              value: "1"
+            # --- attack surface ---
+            - name: DISABLE_WORKFLOW_ENDPOINTS
+              value: "true"
+            - name: ALLOW_CUSTOM_PYTHON_EXECUTION_IN_WORKFLOWS
+              value: "false"
+            - name: ENABLE_STREAM_API
+              value: "false"
+            - name: ENABLE_BUILDER
+              value: "false"
+            - name: CORE_MODEL_SAM_ENABLED
+              value: "false"
+            - name: CORE_MODEL_SAM2_ENABLED
+              value: "false"
+            - name: CORE_MODEL_SAM3_ENABLED
+              value: "false"
+            - name: CORE_MODEL_PE_ENABLED
+              value: "false"
+            - name: CORE_MODEL_GAZE_ENABLED
+              value: "false"
+            - name: CORE_MODEL_DOCTR_ENABLED
+              value: "false"
+            - name: CORE_MODEL_EASYOCR_ENABLED
+              value: "false"
+            - name: CORE_MODEL_TROCR_ENABLED
+              value: "false"
+            - name: CORE_MODEL_PPOCR_ENABLED
+              value: "false"
+            - name: CORE_MODEL_GROUNDINGDINO_ENABLED
+              value: "false"
+            - name: CORE_MODEL_YOLO_WORLD_ENABLED
+              value: "false"
+            # --- privacy: family photos never leave the cluster ---
+            - name: METRICS_ENABLED
+              value: "false"
+            - name: DISABLE_VERSION_CHECK
+              value: "true"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 60  # CUDA init + first-time weight download
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 6Gi
+              nvidia.com/gpu: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: inference-cache
+        - name: tmp
+          emptyDir:
+            sizeLimit: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboflow-inference
+  labels:
+    app: roboflow-inference
+spec:
+  selector:
+    app: roboflow-inference
+  ports:
+    - name: http
+      port: 9001
+      targetPort: http

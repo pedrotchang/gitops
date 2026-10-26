@@ -1,0 +1,7 @@
+# Immich library triage: Roboflow Inference (CLIP on the RTX 5060) + a CronJob
+# that sorts photos into Receipts / Screenshots / Safe to Delete albums.
+# App source: https://forgejo.seyzahl.com/platform-infrastructure/roboflow-immich-analyzer
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: roboflow-immich-analyzer
