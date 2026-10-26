@@ -1,0 +1,86 @@
+# Default-deny both workloads; allow only what the data flow needs:
+#   analyzer ──► roboflow-inference:9001   (embeddings)
+#   analyzer ──► immich-server:2283        (asset list, previews, albums)
+#   inference ──► *.roboflow.com / GCS     (one-time CLIP weight download)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: roboflow-inference
+spec:
+  endpointSelector:
+    matchLabels:
+      app: roboflow-inference
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: immich-analyzer
+      toPorts:
+        - ports:
+            - port: "9001"
+              protocol: TCP
+    # Kubelet httpGet probes.
+    - fromEntities:
+        - host
+        - remote-node
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toFQDNs:
+        - matchName: roboflow.com
+        - matchPattern: "*.roboflow.com"
+        - matchName: storage.googleapis.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: immich-analyzer
+spec:
+  endpointSelector:
+    matchLabels:
+      app: immich-analyzer
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEndpoints:
+        - matchLabels:
+            app: roboflow-inference
+      toPorts:
+        - ports:
+            - port: "9001"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: immich
+            app.kubernetes.io/name: server
+      toPorts:
+        - ports:
+            - port: "2283"
+              protocol: TCP

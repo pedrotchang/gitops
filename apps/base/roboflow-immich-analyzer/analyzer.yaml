@@ -1,0 +1,85 @@
+# Polls Immich every 10 min. First run (empty state PVC) = full backfill reading
+# preview JPEGs off the read-only NFS mount; later runs = incremental over the
+# Immich API (assets uploaded after the stored watermark). Forbid keeps a long
+# backfill from overlapping the next tick. Non-destructive: only adds to albums.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-analyzer
+  labels:
+    app: immich-analyzer
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      # A first backfill of ~100k photos takes ~1h; leave lots of headroom.
+      activeDeadlineSeconds: 43200
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: immich-analyzer
+        spec:
+          restartPolicy: Never
+          enableServiceLinks: false
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: analyzer
+              image: forgejo.seyzahl.com/platform-infrastructure/roboflow-immich-analyzer:6bd0204360de61667eac5e5e3443ad14f182db16@sha256:b2fbf2c3b00ee12b176b44b7aa75ef0ddd819c4d911eea81a2f03d58c1468a7c
+              args: ["run"]
+              env:
+                - name: IMMICH_URL
+                  value: http://immich-server.immich.svc.cluster.local:2283
+                - name: INFERENCE_URL
+                  value: http://roboflow-inference:9001
+                - name: LIBRARY_ROOT
+                  value: /library
+                - name: STATE_PATH
+                  value: /state/analyzer.sqlite3
+                - name: BATCH_SIZE
+                  value: "16"
+                - name: CONCURRENCY
+                  value: "4"
+                - name: IMMICH_API_KEYS
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-analyzer-api-keys
+                      key: IMMICH_API_KEYS
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  memory: 2Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: library
+                  mountPath: /library
+                  readOnly: true
+                - name: state
+                  mountPath: /state
+          volumes:
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library-ro
+                readOnly: true
+            - name: state
+              persistentVolumeClaim:
+                claimName: analyzer-state

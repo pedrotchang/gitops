@@ -1,0 +1,67 @@
+# Read-only view of the Immich library export on TrueNAS. A PV binds to exactly
+# one PVC, so this is a second static PV for the same export as
+# immich/immich-library-pv — read-only at the NFS, PV and mount level.
+# The analyzer only reads thumbs/<owner>/xx/yy/<id>-preview.jpeg.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-library-ro-pv
+spec:
+  capacity:
+    storage: 8Ti
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: roboflow-immich-analyzer
+    name: immich-library-ro
+  nfs:
+    server: 192.168.7.14
+    path: /mnt/tank/photos
+    readOnly: true
+  mountOptions:
+    - nfsvers=4.2
+    - hard
+    - nolock
+    - ro
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library-ro
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  volumeName: immich-library-ro-pv
+  resources:
+    requests:
+      storage: 8Ti
+---
+# Roboflow model weights (CLIP ViT-B-16 ~350 MB + TensorRT/ONNX caches):
+# downloaded once, survive restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inference-cache
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Analyzer state: SQLite with per-asset embeddings, labels, album sync flags and
+# the incremental watermark. ~2 KB/asset → 100k photos ≈ 250 MB.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: analyzer-state
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 2Gi
