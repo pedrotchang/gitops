@@ -26,6 +26,22 @@ spec:
             app: immich-analyzer
         spec:
           restartPolicy: Never
+          # CPU-only, but it lives next to the inference server it streams
+          # batches to (and talos-0pt-t35 is CPU-saturated). Prefer the GPU
+          # node; tolerate its taint without requesting a GPU.
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions:
+                      - key: nvidia.com/gpu.present
+                        operator: In
+                        values: ["true"]
           enableServiceLinks: false
           automountServiceAccountToken: false
           securityContext:
@@ -37,7 +53,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: analyzer
-              image: forgejo.seyzahl.com/platform-infrastructure/roboflow-immich-analyzer:6bd0204360de61667eac5e5e3443ad14f182db16@sha256:b2fbf2c3b00ee12b176b44b7aa75ef0ddd819c4d911eea81a2f03d58c1468a7c
+              image: forgejo.seyzahl.com/platform-infrastructure/roboflow-immich-analyzer:2cd44fbded1aa3a84f4494dfc4bcccdc572d2d48@sha256:f4a4787bd9f84259d24d07511f79a97398ad951568872f1f4c0dcaa349ec0384
               args: ["run"]
               env:
                 - name: IMMICH_URL
