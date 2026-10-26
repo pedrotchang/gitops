@@ -8,3 +8,4 @@ resources:
   - inference.yaml
   - analyzer.yaml
   - networkpolicy.yaml
+  - monitoring.yaml

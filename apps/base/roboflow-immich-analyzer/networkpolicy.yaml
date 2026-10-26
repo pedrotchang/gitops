@@ -21,6 +21,15 @@ spec:
         - ports:
             - port: "9001"
               protocol: TCP
+    # Prometheus scrapes /metrics on the same port.
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: prometheus
+      toPorts:
+        - ports:
+            - port: "9001"
+              protocol: TCP
     # Kubelet httpGet probes.
     - fromEntities:
         - host

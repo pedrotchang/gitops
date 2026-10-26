@@ -1,0 +1,92 @@
+# SLOs for the photo-triage pipeline (see PR description for rationale).
+#
+#   Availability  roboflow-inference answers /readiness        99% over 7d
+#   Freshness     a new upload is triaged within 30 min        CronJob success ≤ 30m old
+#                 (10-min schedule → 3 consecutive misses = breach)
+#
+# Note: no Alertmanager on tachtit yet — these fire in Prometheus/Grafana only.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: roboflow-inference
+  labels:
+    app: roboflow-inference
+spec:
+  selector:
+    matchLabels:
+      app: roboflow-inference
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: roboflow-immich-analyzer
+spec:
+  groups:
+    - name: roboflow-immich-analyzer.slo
+      rules:
+        - record: roboflow_inference:up:avg_7d
+          expr: avg_over_time(up{namespace="roboflow-immich-analyzer", job="roboflow-inference"}[7d])
+        - record: immich_analyzer:seconds_since_success
+          # completion_time is only set on succeeded Jobs (this KSM version has
+          # no kube_cronjob_status_last_successful_time).
+          expr: |
+            time() - max by (namespace) (
+              kube_job_status_completion_time{namespace="roboflow-immich-analyzer", job_name=~"immich-analyzer-.*"}
+            )
+    - name: roboflow-immich-analyzer.alerts
+      rules:
+        - alert: RoboflowInferenceDown
+          expr: |
+            up{namespace="roboflow-immich-analyzer", job="roboflow-inference"} == 0
+              or absent(up{namespace="roboflow-immich-analyzer", job="roboflow-inference"})
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Roboflow Inference server is down or not scraped
+            description: |
+              No healthy scrape of roboflow-inference for 10m. Check the GPU
+              time-slice (nvidia.com/gpu on the Aorus node), the roboflow-api-key
+              secret, and `kubectl -n roboflow-immich-analyzer logs deploy/roboflow-inference`.
+        - alert: RoboflowInferenceAvailabilitySLOBurn
+          # 99% over 7d = 100m of budget; alert when the last 6h burned >10% of it.
+          expr: avg_over_time(up{namespace="roboflow-immich-analyzer", job="roboflow-inference"}[6h]) < 0.97
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Inference availability is burning the 7d error budget fast
+        - alert: ImmichAnalyzerStale
+          # Freshness SLO breached; a long first backfill (Forbid, no success yet)
+          # is excluded while a job is still running.
+          expr: |
+            immich_analyzer:seconds_since_success > 1800
+              unless on(namespace) (kube_job_status_active{namespace="roboflow-immich-analyzer"} > 0)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: New Immich photos are not being triaged
+            description: |
+              immich-analyzer has not completed successfully for
+              {{ $value | humanizeDuration }}. Inspect the last Job's logs (JSON).
+        - alert: ImmichAnalyzerJobFailed
+          expr: |
+            kube_job_status_failed{namespace="roboflow-immich-analyzer", job_name=~"immich-analyzer-.*"} > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "immich-analyzer Job {{ $labels.job_name }} failed"
+        - alert: ImmichAnalyzerRunTooLong
+          # Backfill of ~100k photos should take ~1h; 6h means it's wedged.
+          expr: |
+            (time() - kube_job_status_start_time{namespace="roboflow-immich-analyzer"}) > 21600
+              and on(job_name) (kube_job_status_active{namespace="roboflow-immich-analyzer"} > 0)
+          labels:
+            severity: warning
+          annotations:
+            summary: "immich-analyzer Job {{ $labels.job_name }} running for over 6h"
