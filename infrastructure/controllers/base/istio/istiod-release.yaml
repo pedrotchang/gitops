@@ -17,6 +17,14 @@ spec:
         namespace: istio-system
   values:
     pilot:
+      # istiod backs the validating webhook every Flux dry-run of Istio objects
+      # hits; if it can't schedule, the whole `apps` Kustomization stalls.
+      # Let it fall back to the GPU node (2026-10-26: talos-09a-9ch went down,
+      # talos-0pt-t35 was at 100% CPU requests, istiod Pending for 7h).
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
       resources:
         requests:
           cpu: 50m
