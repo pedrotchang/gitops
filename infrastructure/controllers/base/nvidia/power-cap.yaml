@@ -27,7 +27,7 @@ spec:
       containers:
         - name: power-cap
           # Upstream image pinned by digest; mirror via supply-chain later (#177).
-          image: docker.io/library/debian:12-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+          image: docker.io/library/debian:12-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
           env:
             - name: TARGET_WATTS
               value: "90"
