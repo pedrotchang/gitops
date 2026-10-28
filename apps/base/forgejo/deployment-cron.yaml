@@ -31,7 +31,7 @@ spec:
 
       containers:
         - name: forgejo
-          image: data.forgejo.org/forgejo/forgejo:15.0.3-rootless
+          image: data.forgejo.org/forgejo/forgejo:15.0.11-rootless
 
           env:
             - name: USER_UID
