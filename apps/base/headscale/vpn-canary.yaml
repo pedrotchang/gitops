@@ -81,7 +81,7 @@ spec:
         - name: canary
           # Same image as the subnet router; userspace networking needs no
           # capabilities, no tun device, no root privileges.
-          image: ghcr.io/tailscale/tailscale:v1.98.4
+          image: ghcr.io/tailscale/tailscale:v1.104.4
           env:
             - name: TS_AUTHKEY
               valueFrom:
