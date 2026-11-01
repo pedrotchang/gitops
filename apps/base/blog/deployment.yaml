@@ -37,7 +37,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
       - name: blog
-        image: ghcr.io/pedrotchang/blog:build-20261101050301@sha256:34418e72cc209e1bc5c0a2278d72f0977193be017dd4e91ed69ab082efee4205
+        image: ghcr.io/pedrotchang/blog:build-20261101051013@sha256:5153a631b52a70e95063ab6f264112192c637c15a1a1c4a63fd77f0e1b677551
         imagePullPolicy: Always
         ports:
         - containerPort: 80
