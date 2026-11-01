@@ -37,7 +37,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
       - name: blog
-        image: ghcr.io/pedrotchang/blog:build-20260910065746 # {"$imagepolicy": "flux-system:blog"}
+        image: ghcr.io/pedrotchang/blog:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
