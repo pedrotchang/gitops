@@ -8,13 +8,13 @@ resources:
   - homepage
   - immich
   - linkding
-  - media
+  # - media
   - n8n
   - nextcloud
-  - roboflow-immich-analyzer
+  # - roboflow-immich-analyzer
   - headscale
-  - hermes-agent
-  - headroom
-  - home
-  - whisper
+  # - hermes-agent
+  # - headroom
+  # - home
+  # - whisper
   - windows
