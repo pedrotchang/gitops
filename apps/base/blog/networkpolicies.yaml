@@ -1,0 +1,29 @@
+# Namespace-wide default deny (ingress + egress)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: blog
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# blog accepts traffic only from the cloudflared pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cloudflared-to-blog
+  namespace: blog
+spec:
+  podSelector:
+    matchLabels:
+      app: blog
+  policyTypes: ["Ingress"]
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: cloudflared
+    ports:
+    - port: 80
+      protocol: TCP

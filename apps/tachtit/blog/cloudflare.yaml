@@ -1,3 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflared
+  namespace: blog
+automountServiceAccountToken: false
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6,6 +12,12 @@ metadata:
   namespace: blog
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: cloudflared
@@ -14,6 +26,16 @@ spec:
       labels:
         app: cloudflared
     spec:
+      serviceAccountName: cloudflared
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -25,19 +47,38 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
       - name: cloudflared
-        image: cloudflare/cloudflared:2026.6.1
+        image: cloudflare/cloudflared:2026.6.1@sha256:<digest>
+        imagePullPolicy: IfNotPresent
         args:
           - tunnel
           - --config
           - /etc/cloudflared/config/config.yaml
           - run
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
         livenessProbe:
           httpGet:
             path: /ready
             port: 2000
-          failureThreshold: 1
+          failureThreshold: 3
           initialDelaySeconds: 10
           periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
           - name: config
             mountPath: /etc/cloudflared/config
@@ -55,9 +96,57 @@ spec:
         - name: creds
           secret:
             secretName: cloudflared-tunnel
+            defaultMode: 0440
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared
+  namespace: blog
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+---
+# cloudflared: no ingress, egress only to DNS, blog, and Cloudflare's edge
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cloudflared-egress
+  namespace: blog
+spec:
+  podSelector:
+    matchLabels:
+      app: cloudflared
+  policyTypes: ["Ingress", "Egress"]
+  ingress: []
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - { port: 53, protocol: UDP }
+    - { port: 53, protocol: TCP }
+  - to:
+    - podSelector:
+        matchLabels:
+          app: blog
+    ports:
+    - { port: 80, protocol: TCP }
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+    ports:
+    - { port: 7844, protocol: TCP }
+    - { port: 7844, protocol: UDP }
 ---
 # Cloudflare tunnel configuration for public blog access
-# No Zero Trust / Access policies needed - publicly accessible by default
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -82,11 +171,13 @@ metadata:
   name: cloudflared-tunnel
   namespace: blog
 spec:
+  refreshInterval: 1h
   secretStoreRef:
     name: azure-kv-store
     kind: ClusterSecretStore
   target:
     name: cloudflared-tunnel
+    creationPolicy: Owner
   data:
     - secretKey: credentials.json
       remoteRef:
