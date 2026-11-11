@@ -9,7 +9,10 @@ metadata:
   name: descheduler
   namespace: descheduler
 spec:
+  suspend: false
   interval: 1h
+  driftDetection:
+    mode: enabled
   chart:
     spec:
       chart: descheduler
@@ -20,21 +23,48 @@ spec:
         namespace: descheduler
   values:
     kind: Deployment
-    deschedulingInterval: 5m
+    replicas: 1
+    deschedulingInterval: 1m
     deschedulerPolicy:
-      # Bounded: at most 10 evictions per node per 5-minute run, and only one
-      # pod per namespace per run so a single app never loses all replicas.
-      maxNoOfPodsToEvictPerNode: 10
+      # Move at most five pods per run, with at most one per namespace.
+      # PDBs, node fit and normal termination grace periods still apply.
+      maxNoOfPodsToEvictPerNode: 5
       maxNoOfPodsToEvictPerNamespace: 1
+      maxNoOfPodsToEvictTotal: 5
       # Balance only the two general-purpose nodes; the GPU node is overflow,
       # so it must not count as the "empty" node that pods get sent to.
       nodeSelector: "!nvidia.com/gpu.present"
       profiles:
+        # Count pods separately from CPU requests: an application can have
+        # no CPU request and still occupy a slot after failing over.
+        - name: pod-count
+          pluginConfig:
+            - name: DefaultEvictor
+              args:
+                nodeFit: true
+                nodeSelector: "!nvidia.com/gpu.present"
+                minPodAge: 2m
+                podProtections:
+                  defaultDisabled:
+                    - PodsWithLocalStorage
+            - name: LowNodeUtilization
+              args:
+                useDeviationThresholds: true
+                thresholds:
+                  pods: 5
+                targetThresholds:
+                  pods: 5
+          plugins:
+            balance:
+              enabled:
+                - LowNodeUtilization
         - name: default
           pluginConfig:
             - name: DefaultEvictor
               args:
                 nodeFit: true
+                nodeSelector: "!nvidia.com/gpu.present"
+                minPodAge: 2m
                 podProtections:
                   defaultDisabled:
                     - PodsWithLocalStorage
@@ -45,7 +75,8 @@ spec:
             # fixed percentages. Fixed thresholds required a node under 20% on
             # every resource, which the ThinkPad never is, so nothing moved.
             # Over = above mean+10 points, under = below mean-10 (CPU requests).
-            # CPU only: pod count kept the ThinkPad from ever qualifying.
+            # Keep CPU balancing independent of the pod-count profile so
+            # neither resource masks an imbalance in the other.
             - name: LowNodeUtilization
               args:
                 useDeviationThresholds: true

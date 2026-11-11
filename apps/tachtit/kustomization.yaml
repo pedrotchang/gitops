@@ -18,3 +18,37 @@ resources:
   # - home
   # - whisper
   - windows
+  - replicated-app-budgets.yaml
+
+# Stateless frontends can run two instances; single-writer services keep
+# their existing replica counts and storage semantics.
+replicas:
+  - name: homepage
+    count: 2
+  - name: authentik-outpost-homepage
+    count: 2
+
+patches:
+  # Match each Deployment's own app label and ReplicaSet revision. Honor
+  # taints so the reserved GPU node is not an empty spreading target.
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: (blog|forgejo|homepage|authentik-outpost-homepage|cloudflared.*)
+    patch: |-
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            nodeAffinityPolicy: Honor
+            nodeTaintsPolicy: Honor
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: Exists
+            matchLabelKeys:
+              - app
+              - pod-template-hash

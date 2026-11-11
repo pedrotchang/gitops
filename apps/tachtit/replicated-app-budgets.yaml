@@ -1,0 +1,111 @@
+# Keep one ready replica while the replicated frontends are rebalanced.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: immich-server-availability
+  namespace: immich
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: immich
+      app.kubernetes.io/name: server
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared-availability
+  namespace: authentik
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: blog-availability
+  namespace: blog
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: blog
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared-availability
+  namespace: blog
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: forgejo-availability
+  namespace: forgejo
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: forgejo
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: authentik-outpost-homepage-availability
+  namespace: homepage
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: authentik-outpost-homepage
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared-homepage-availability
+  namespace: homepage
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared-homepage
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: homepage-availability
+  namespace: homepage
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homepage
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared-availability
+  namespace: linkding
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudflared-availability
+  namespace: nextcloud
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cloudflared

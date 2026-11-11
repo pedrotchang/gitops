@@ -32,13 +32,32 @@ immich:
 
 server:
   enabled: true
-  # Runs on the Aorus GPU node (household AI node). RollingUpdate with the
-  # default 25% surge = new pod Ready before the old one stops → no downtime.
+  # The web/API server does not request a GPU. Run two replicas across the
+  # general-purpose nodes, retaining the existing GPU overflow toleration.
   controllers:
     main:
+      replicas: 2
       pod:
-        nodeSelector:
-          nvidia.com/gpu.present: "true"
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            nodeAffinityPolicy: Honor
+            nodeTaintsPolicy: Honor
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: immich
+                app.kubernetes.io/name: server
+            matchLabelKeys:
+              - pod-template-hash
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: nvidia.com/gpu.present
+                      operator: DoesNotExist
         tolerations:
           - key: nvidia.com/gpu
             operator: Exists
