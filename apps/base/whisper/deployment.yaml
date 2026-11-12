@@ -67,13 +67,12 @@ spec:
             # egress is denied, so there is no DNS. Talk to itself over loopback.
             - name: LOOPBACK_HOST_URL
               value: "http://127.0.0.1:8000"
-            # Bearer auth on every route (global FastAPI dependency, 403 on mismatch).
-            # Probes are tcpSocket, so they are unaffected.
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: whisper-api-key
-                  key: API_KEY
+            # No API_KEY on purpose (2026-11-12): the 0.8.3 Gradio UI formats the
+            # SecretStr into "Bearer **********" and 403s against its own API.
+            # Access is gated by the CiliumNetworkPolicy (hermes-agent, transcribe,
+            # cilium-gateway) and the VPN in front of the gateway. Hermes still
+            # sends VOICE_TOOLS_OPENAI_KEY; Speaches ignores it. Re-add the key
+            # once a Speaches release reads api_key.get_secret_value() in the UI.
           startupProbe:
             tcpSocket:
               port: 8000
