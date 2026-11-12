@@ -31,26 +31,50 @@ spec:
     strategy:
       type: Recreate
 
-    # Phase 0: chat gateway only (you DM the bot). API server + ingress arrive in
-    # later phases (n8n). Gateway is outbound-only, so no Service/ingress here.
     args:
       - gateway
       - run
 
-    # LLM: direct Anthropic API, Claude Sonnet 4.6 (agentic sweet spot, prompt caching).
-    # Direct model IDs differ from OpenRouter's — verified via Anthropic /v1/models
-    # (2026-06-22): claude-sonnet-4-6. Uses ANTHROPIC_API_KEY (ESO ← anthropic-hermes-api-key);
-    # no base_url so it hits Anthropic's default endpoint.
+    # OpenAI-compatible API server — what Open WebUI (chat.seyzahl.com) talks
+    # to. Advertised as model "hermes"; bearer = API_SERVER_KEY from the
+    # ExternalSecret (KV hermes-api-server-key). Cluster-internal only: the
+    # chart Service is ClusterIP and nothing routes it through the gateway.
+    apiServer:
+      enabled: true
+      host: "0.0.0.0"
+      port: 8642
+      modelName: hermes
+    service:
+      enabled: true
+
+    # LLM: everything goes through the LiteLLM proxy (ns `llm`), which fronts the
+    # local Qwen3-4B-Instruct on the Aorus GPU (`local`) and Claude via the
+    # headroom compression proxy (`claude-sonnet`, `claude-opus`). Default is the
+    # local model: fast, free, fine for simple household tasks and cron jobs.
+    # Escalate per chat with `/model sonnet` (or `opus`), aliases below. `/model`
+    # persists into config.yaml on the PVC, but bootstrap.overwrite=true puts
+    # this file back on every deploy — git stays the source of truth.
+    # Before 2026-11-12 this was provider anthropic → headroom directly.
     config:
       values:
         model:
-          default: claude-sonnet-4-6
-          provider: anthropic
-          # Route through the Headroom compression proxy (own `headroom` namespace),
-          # which forwards to Anthropic and passes ANTHROPIC_API_KEY through. Verified
-          # in-cluster: Hermes → headroom svc → Anthropic returns valid responses.
-          # To bypass Headroom, set this back to https://api.anthropic.com.
-          base_url: "http://headroom.headroom.svc.cluster.local:8787"
+          default: local
+          provider: custom
+          base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
+          api_key: "${LITELLM_MASTER_KEY}"
+        model_aliases:
+          local:
+            model: local
+            provider: custom
+            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
+          sonnet:
+            model: claude-sonnet
+            provider: custom
+            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
+          opus:
+            model: claude-opus
+            provider: custom
+            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
         # Local timezone so "10am" and calendar events resolve to Pedro's zone.
         timezone: America/Los_Angeles
         # Speech-to-text for Telegram voice memos → self-hosted Whisper (own `whisper` ns).
@@ -139,7 +163,11 @@ spec:
         - Email → you watch a dedicated triage inbox (flights, events, bills forwarded
           to it). You do NOT have anyone's full mailbox. Summarize and propose; never
           send or delete mail without explicit confirmation.
-        - Memory → remember useful context across conversations and use it.
+        - Memory → remember useful context across conversations and use it. You
+          are reached from Telegram AND from the household chat site; it is the
+          same you, with the same memory, even though each chat is separate.
+        - Models → you run on a small local model by default. If a task needs
+          real reasoning or long writing, say so and suggest `/model sonnet`.
 
         ## Autonomy & boundaries
         - Default to draft-and-confirm: propose, then act on approval.
