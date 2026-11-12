@@ -62,6 +62,10 @@ spec:
           provider: custom
           base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
           api_key: "${LITELLM_MASTER_KEY}"
+          # Ollama's window for the local model. Hermes cannot learn it from a
+          # custom endpoint (it assumed 256k, then hit a 400 and gave up); with
+          # it set, context compression kicks in before Ollama rejects a turn.
+          context_length: 32768
         model_aliases:
           local:
             model: local
