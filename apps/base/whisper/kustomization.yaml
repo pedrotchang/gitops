@@ -5,6 +5,7 @@ namespace: whisper
 resources:
   - namespace.yaml
   - pvc.yaml
+  - seed-job.yaml
   - deployment.yaml
   - service.yaml
   - externalsecret.yaml

@@ -1,0 +1,75 @@
+# One-shot seed of the model cache. The whisper pod itself runs HF_HUB_OFFLINE
+# with all egress denied, so it can never download anything; when the PVC is
+# recreated (2026-11-12: Flux pruned the namespace while whisper was disabled)
+# every transcription 500s with CacheNotFound. This Job fills the cache instead.
+#
+# Labelled `app: whisper-seed`, so the deny-all CiliumNetworkPolicy (which
+# selects `app: whisper`) does not apply and Hugging Face is reachable.
+# Idempotent: snapshot_download is a no-op when the model is already cached.
+# Pinned to the GPU node because the PVC is RWO and the whisper pod holds it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: whisper-seed
+  labels:
+    app: whisper-seed
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: whisper-seed
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      containers:
+        - name: seed
+          # Same image as the whisper Deployment: ships huggingface_hub in its venv.
+          image: ghcr.io/speaches-ai/speaches:0.8.3-cuda-12.6.3@sha256:c0da392c37e76a01ba479239b43124c67baf8913ae0f491071d6ac544641dad7
+          command:
+            - /home/ubuntu/speaches/.venv/bin/python
+            - -c
+            - |
+              from huggingface_hub import snapshot_download
+              p = snapshot_download("deepdml/faster-whisper-large-v3-turbo-ct2")
+              print("model cached at", p)
+          env:
+            - name: HF_HUB_CACHE
+              value: /models/hub
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+            - name: HOME
+              value: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: whisper-models
+        - name: tmp
+          emptyDir: {}
