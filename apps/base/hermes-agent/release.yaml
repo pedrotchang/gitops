@@ -47,30 +47,26 @@ spec:
     service:
       enabled: true
 
-    # LLM: everything goes through the LiteLLM proxy (ns `llm`), which fronts the
-    # local Qwen3-4B-Instruct on the Aorus GPU (`local`) and Claude via the
-    # headroom compression proxy (`claude-sonnet`, `claude-opus`). Default is the
-    # local model: fast, free, fine for simple household tasks and cron jobs.
-    # Escalate per chat with `/model sonnet` (or `opus`), aliases below. `/model`
-    # persists into config.yaml on the PVC, but bootstrap.overwrite=true puts
-    # this file back on every deploy — git stays the source of truth.
+    # LLM: everything goes through the LiteLLM proxy (ns `llm`), which fronts
+    # Claude via the headroom compression proxy (`claude-sonnet`, `claude-opus`)
+    # and the local Qwen3-4B-Instruct on the Aorus GPU (`local`). Default is
+    # Sonnet. The local model is NOT usable by Hermes today: Hermes refuses any
+    # model under a 64k context window, and 64k of KV cache for the 4B model
+    # (~5 GB resident with the weights) does not fit the shared 8 GB card next
+    # to whisper and Immich ML. `local` stays an Open WebUI model. Revisit with
+    # more VRAM, or by allowing a 64k window with a q4_0 KV cache (Pedro's call).
+    # `/model opus` escalates per chat (alias below); `/model` persists into
+    # config.yaml on the PVC, but bootstrap.overwrite=true puts this file back
+    # on every deploy — git stays the source of truth.
     # Before 2026-11-12 this was provider anthropic → headroom directly.
     config:
       values:
         model:
-          default: local
+          default: claude-sonnet
           provider: custom
           base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
           api_key: "${LITELLM_MASTER_KEY}"
-          # Ollama's window for the local model. Hermes cannot learn it from a
-          # custom endpoint (it assumed 256k, then hit a 400 and gave up); with
-          # it set, context compression kicks in before Ollama rejects a turn.
-          context_length: 32768
         model_aliases:
-          local:
-            model: local
-            provider: custom
-            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
           sonnet:
             model: claude-sonnet
             provider: custom
@@ -170,8 +166,8 @@ spec:
         - Memory → remember useful context across conversations and use it. You
           are reached from Telegram AND from the household chat site; it is the
           same you, with the same memory, even though each chat is separate.
-        - Models → you run on a small local model by default. If a task needs
-          real reasoning or long writing, say so and suggest `/model sonnet`.
+        - Models → you run on Claude Sonnet by default; `/model opus` exists for
+          the rare hard problem.
 
         ## Autonomy & boundaries
         - Default to draft-and-confirm: propose, then act on approval.
