@@ -27,7 +27,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: glances
-          image: docker.io/nicolargo/glances:4.5.5-full
+          image: docker.io/nicolargo/glances:4.5.9-full
           args: ["glances", "-w", "--disable-webui"]
           ports:
             - name: http
