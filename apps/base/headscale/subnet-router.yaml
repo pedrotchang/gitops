@@ -97,8 +97,7 @@ spec:
         policy-type: "app"
     spec:
       serviceAccountName: tailscale-subnet-router
-      # One replica per node; the GPU node is overflow only (tolerated, but
-      # the non-GPU nodes are preferred).
+      # One replica per node.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -106,18 +105,6 @@ spec:
           labelSelector:
             matchLabels:
               app: tailscale-subnet-router
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: nvidia.com/gpu.present
-                    operator: DoesNotExist
       containers:
         - name: tailscale
           image: ghcr.io/tailscale/tailscale:v1.98.4

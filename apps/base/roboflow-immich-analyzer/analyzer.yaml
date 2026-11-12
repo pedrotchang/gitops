@@ -28,11 +28,7 @@ spec:
           restartPolicy: Never
           # CPU-only, but it lives next to the inference server it streams
           # batches to (and talos-0pt-t35 is CPU-saturated). Prefer the GPU
-          # node; tolerate its taint without requesting a GPU.
-          tolerations:
-            - key: nvidia.com/gpu
-              operator: Exists
-              effect: NoSchedule
+          # node without requesting a GPU.
           affinity:
             nodeAffinity:
               preferredDuringSchedulingIgnoredDuringExecution:

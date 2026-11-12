@@ -32,8 +32,7 @@ immich:
 
 server:
   enabled: true
-  # The web/API server does not request a GPU. Run two replicas across the
-  # general-purpose nodes, retaining the existing GPU overflow toleration.
+  # The web/API server does not request a GPU. Run two replicas, one per node.
   controllers:
     main:
       replicas: 2
@@ -50,18 +49,6 @@ server:
                 app.kubernetes.io/name: server
             matchLabelKeys:
               - pod-template-hash
-        affinity:
-          nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
-                    - key: nvidia.com/gpu.present
-                      operator: DoesNotExist
-        tolerations:
-          - key: nvidia.com/gpu
-            operator: Exists
-            effect: NoSchedule
   persistence:
     # Library mounts MUST match the absolute paths stored in the DB:
     #   originalPath -> /usr/src/app/upload/...   (64327 assets)
@@ -87,12 +74,9 @@ machine-learning:
     main:
       pod:
         runtimeClassName: nvidia
+        priorityClassName: gpu-workload
         nodeSelector:
           nvidia.com/gpu.present: "true"
-        tolerations:
-          - key: nvidia.com/gpu
-            operator: Exists
-            effect: NoSchedule
       containers:
         main:
           image:

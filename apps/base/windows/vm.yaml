@@ -23,10 +23,6 @@ spec:
       # Only the Aorus has 16 GB free and runs virt-handler.
       nodeSelector:
         nvidia.com/gpu.present: "true"
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
       terminationGracePeriodSeconds: 120
       domain:
         cpu:

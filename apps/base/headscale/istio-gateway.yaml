@@ -18,7 +18,7 @@ metadata:
   namespace: headscale
 data:
   # Overlay merged by istiod into the generated gateway Deployment: two
-  # replicas, one per node, GPU node as overflow only.
+  # replicas, one per node.
   deployment: |
     spec:
       replicas: 2
@@ -33,18 +33,6 @@ data:
                   gateway.networking.k8s.io/gateway-name: headscale-gateway
               matchLabelKeys:
                 - pod-template-hash
-          tolerations:
-            - key: nvidia.com/gpu
-              operator: Exists
-              effect: NoSchedule
-          affinity:
-            nodeAffinity:
-              preferredDuringSchedulingIgnoredDuringExecution:
-                - weight: 100
-                  preference:
-                    matchExpressions:
-                      - key: nvidia.com/gpu.present
-                        operator: DoesNotExist
   podDisruptionBudget: |
     spec:
       minAvailable: 1

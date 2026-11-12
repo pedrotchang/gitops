@@ -26,12 +26,9 @@ spec:
         app: roboflow-inference
     spec:
       runtimeClassName: nvidia
+      priorityClassName: gpu-workload
       nodeSelector:
         nvidia.com/gpu.present: "true"
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
       enableServiceLinks: false
       automountServiceAccountToken: false
       securityContext:
