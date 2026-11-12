@@ -54,9 +54,14 @@ spec:
             # also denied by the CiliumNetworkPolicy — belt and braces.)
             - name: HF_HUB_OFFLINE
               value: "1"
-            # Speaches mounts a Gradio UI at / by default, and it bypasses API_KEY.
+            # Gradio UI at / (browser upload → transcript) for whisper.seyzahl.com,
+            # reachable only through the cilium-gateway (VPN/LAN). The UI pages
+            # themselves bypass API_KEY; the /v1 API still requires the bearer.
             - name: ENABLE_UI
-              value: "false"
+              value: "true"
+            # Gradio phones home on startup; egress is denied anyway, skip the wait.
+            - name: GRADIO_ANALYTICS_ENABLED
+              value: "0"
             # Bearer auth on every route (global FastAPI dependency, 403 on mismatch).
             # Probes are tcpSocket, so they are unaffected.
             - name: API_KEY

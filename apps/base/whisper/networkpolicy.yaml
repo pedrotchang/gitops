@@ -27,4 +27,11 @@ spec:
     - fromEntities:
         - host
         - remote-node
+    # cilium-gateway (Envoy) for the web UI at whisper.seyzahl.com.
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
   # No egress rules on purpose: enableDefaultDeny.egress drops all outbound traffic.
