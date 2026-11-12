@@ -47,17 +47,6 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: forgejo-availability
-  namespace: forgejo
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: forgejo
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
   name: authentik-outpost-homepage-availability
   namespace: homepage
 spec:
