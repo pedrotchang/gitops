@@ -35,7 +35,7 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: (blog|forgejo|homepage|authentik-outpost-homepage|cloudflared.*)
+      name: (blog|homepage|authentik-outpost-homepage|cloudflared.*)
     patch: |-
       - op: add
         path: /spec/template/spec/topologySpreadConstraints

@@ -8,15 +8,17 @@ metadata:
     app.kubernetes.io/instance: forgejo
     app.kubernetes.io/component: server
 spec:
-  replicas: 2
+  # Single replica on purpose. Two replicas shared one NFS volume and kept
+  # independent ref caches, so a merge landed by one replica was silently
+  # overwritten when the next merge went through the other (PRs #263, #288,
+  # #296 "merged" but lost from main). Recreate (not RollingUpdate) so two
+  # replicas never overlap on the volume even during a rollout.
+  replicas: 1
   selector:
     matchLabels:
       app: forgejo
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    type: Recreate
   template:
     metadata:
       labels:
