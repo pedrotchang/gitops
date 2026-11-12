@@ -1,4 +1,4 @@
-# Ollama — the local model runtime (Qwen3-4B) on the Aorus RTX 5060, shared
+# Ollama — the local model runtime (Qwen3-4B-Instruct) on the Aorus RTX 5060, shared
 # with whisper / Immich ML / Jellyfin via GPU time-slicing. Only LiteLLM talks
 # to it; Open WebUI and Hermes go through LiteLLM. Models live on the
 # ollama-models PVC and are fetched by the ollama-seed Job (this pod has no

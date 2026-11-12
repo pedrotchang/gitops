@@ -1,4 +1,4 @@
-# Ollama model store — qwen3:4b is ~2.4 GB; room for one or two more small models.
+# Ollama model store — Qwen3-4B-Instruct (q4_K_M) is ~2.5 GB; room for a couple more.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
