@@ -13,8 +13,8 @@ resources:
   - nextcloud
   # - roboflow-immich-analyzer
   - headscale
-  # - hermes-agent
-  # - headroom
+  - hermes-agent
+  - headroom
   # - home
   # - whisper
   - windows
