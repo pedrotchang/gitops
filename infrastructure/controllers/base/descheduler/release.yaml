@@ -24,42 +24,24 @@ spec:
   values:
     kind: Deployment
     replicas: 1
-    deschedulingInterval: 1m
+    deschedulingInterval: 10m
     deschedulerPolicy:
       # Move at most five pods per run, with at most one per namespace.
       # PDBs, node fit and normal termination grace periods still apply.
+      # No pod-count profile: two nodes this different in size never reach
+      # equal pod counts, and nodeFit ignores topology spread, so 2026-11-12
+      # it evicted the same spread-pinned replicas every minute (subnet
+      # router 12x/20min). CPU requests only, slow cadence, 30m cooldown.
       maxNoOfPodsToEvictPerNode: 5
       maxNoOfPodsToEvictPerNamespace: 1
       maxNoOfPodsToEvictTotal: 5
       profiles:
-        # Count pods separately from CPU requests: an application can have
-        # no CPU request and still occupy a slot after failing over.
-        - name: pod-count
-          pluginConfig:
-            - name: DefaultEvictor
-              args:
-                nodeFit: true
-                minPodAge: 2m
-                podProtections:
-                  defaultDisabled:
-                    - PodsWithLocalStorage
-            - name: LowNodeUtilization
-              args:
-                useDeviationThresholds: true
-                thresholds:
-                  pods: 5
-                targetThresholds:
-                  pods: 5
-          plugins:
-            balance:
-              enabled:
-                - LowNodeUtilization
         - name: default
           pluginConfig:
             - name: DefaultEvictor
               args:
                 nodeFit: true
-                minPodAge: 2m
+                minPodAge: 30m
                 podProtections:
                   defaultDisabled:
                     - PodsWithLocalStorage
