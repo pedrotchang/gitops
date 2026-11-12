@@ -58,16 +58,19 @@ spec:
             # One model at a time on an 8 GB card shared with whisper and Immich.
             - name: OLLAMA_MAX_LOADED_MODELS
               value: "1"
-            # 16k ≈ 1.2 GB of q8 KV cache + 2.5 GB weights ≈ 3.7 GB when loaded —
-            # fits beside whisper (~2.4 GB peak) and Immich ML on the 8 GB card.
-            # 32k (~5.2 GB) was only for Hermes, which refuses <64k anyway and now
-            # runs on Claude; a 47-min transcript (~10k tokens) still fits in 16k.
+            # 32k so a one-hour transcript (~22k tokens with Open WebUI's file
+            # wrapper; a 47-min one was 17.6k and overflowed 16k) fits with room
+            # to answer. q4_0 KV cache keeps 32k at ~1.2 GB, the same VRAM as 16k
+            # at q8 → ~3.7 GB loaded, which fits beside whisper (~2.4 GB peak) and
+            # Immich ML on the 8 GB card. Trade-off: slightly less precise recall
+            # deep in long contexts. 32k at q8 (~5.2 GB) OOMed whisper.
             - name: OLLAMA_CONTEXT_LENGTH
-              value: "16384"
+              value: "32768"
+            # Quantized KV cache requires flash attention.
             - name: OLLAMA_FLASH_ATTENTION
               value: "1"
             - name: OLLAMA_KV_CACHE_TYPE
-              value: q8_0
+              value: q4_0
           startupProbe:
             httpGet:
               path: /
