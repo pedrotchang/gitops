@@ -23,7 +23,6 @@ patches:
 kind: ControlPlane
 machines:
   - 03560274-043c-05b5-6406-de0700080009
-  - e0824ecc-329b-11b2-a85c-98e59f33df34
   - eac01559-a13a-11e6-9c43-bc0000600000
 ---
 kind: Workers
@@ -50,11 +49,6 @@ patches:
               nvidia.com/gpu.present: "true"
           sysctls:
               net.core.bpf_jit_harden: "1"
----
-kind: Machine
-systemExtensions:
-  - siderolabs/iscsi-tools
-name: e0824ecc-329b-11b2-a85c-98e59f33df34
 ---
 kind: Machine
 name: eac01559-a13a-11e6-9c43-bc0000600000
