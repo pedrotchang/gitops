@@ -5,3 +5,4 @@ resources:
   - repository.yaml
   - release.yaml
   - power-cap.yaml
+  - priority-class.yaml

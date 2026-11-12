@@ -39,11 +39,6 @@ spec:
     nodeAgent:
       podSecurityContext:
         runAsUser: 0
-      # Run on the tainted GPU node too, or fs-backups of its pods fail.
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
     snapshotsEnabled: false
     backupsEnabled: true
   install:

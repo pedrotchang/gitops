@@ -23,12 +23,9 @@ spec:
         app: whisper
     spec:
       runtimeClassName: nvidia
+      priorityClassName: gpu-workload
       nodeSelector:
         nvidia.com/gpu.present: "true"
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

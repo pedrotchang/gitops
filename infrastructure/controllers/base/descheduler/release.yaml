@@ -31,9 +31,6 @@ spec:
       maxNoOfPodsToEvictPerNode: 5
       maxNoOfPodsToEvictPerNamespace: 1
       maxNoOfPodsToEvictTotal: 5
-      # Balance only the two general-purpose nodes; the GPU node is overflow,
-      # so it must not count as the "empty" node that pods get sent to.
-      nodeSelector: "!nvidia.com/gpu.present"
       profiles:
         # Count pods separately from CPU requests: an application can have
         # no CPU request and still occupy a slot after failing over.
@@ -42,7 +39,6 @@ spec:
             - name: DefaultEvictor
               args:
                 nodeFit: true
-                nodeSelector: "!nvidia.com/gpu.present"
                 minPodAge: 2m
                 podProtections:
                   defaultDisabled:
@@ -63,7 +59,6 @@ spec:
             - name: DefaultEvictor
               args:
                 nodeFit: true
-                nodeSelector: "!nvidia.com/gpu.present"
                 minPodAge: 2m
                 podProtections:
                   defaultDisabled:

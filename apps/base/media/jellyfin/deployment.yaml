@@ -20,12 +20,9 @@ spec:
       # CPU transcoding peaked at ~7 cores right before the ThinkPad froze on
       # 2026-10-11, so the GPU does the work and a CPU limit caps fallbacks.
       runtimeClassName: nvidia
+      priorityClassName: gpu-workload
       nodeSelector:
         nvidia.com/gpu.present: "true"
-      tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch

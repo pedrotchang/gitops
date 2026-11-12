@@ -48,8 +48,6 @@ patches:
                   - name: nvidia_modeset
           nodeLabels:
               nvidia.com/gpu.present: "true"
-          nodeTaints:
-              nvidia.com/gpu: present:NoSchedule
           sysctls:
               net.core.bpf_jit_harden: "1"
 ---

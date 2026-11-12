@@ -1,0 +1,12 @@
+# The Aorus is a general-purpose node too (no GPU taint). Pods that request
+# nvidia.com/gpu outrank ordinary workloads there, so when it is full the
+# scheduler preempts non-GPU pods (which can run elsewhere) instead of leaving
+# the GPU idle. Stays well below system-cluster-critical.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gpu-workload
+value: 100000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: Workloads that request nvidia.com/gpu on the Aorus RTX 5060.

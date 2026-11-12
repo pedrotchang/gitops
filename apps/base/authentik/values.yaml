@@ -9,7 +9,7 @@ authentik:
 
 server:
   replicas: 2
-  # One replica per node (hard), GPU node as overflow only. matchLabelKeys
+  # One replica per node (hard). matchLabelKeys
   # keeps rolling updates from counting the old ReplicaSet's pods.
   topologySpreadConstraints:
     - maxSkew: 1
@@ -23,18 +23,6 @@ server:
           app.kubernetes.io/component: server
       matchLabelKeys:
         - pod-template-hash
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
-  affinity:
-    nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
-              - key: nvidia.com/gpu.present
-                operator: DoesNotExist
   pdb:
     enabled: true
     minAvailable: 1
@@ -71,7 +59,7 @@ server:
 
 worker:
   replicas: 2
-  # One replica per node (hard), GPU node as overflow only. matchLabelKeys
+  # One replica per node (hard). matchLabelKeys
   # keeps rolling updates from counting the old ReplicaSet's pods.
   topologySpreadConstraints:
     - maxSkew: 1
@@ -85,18 +73,6 @@ worker:
           app.kubernetes.io/component: worker
       matchLabelKeys:
         - pod-template-hash
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
-  affinity:
-    nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
-              - key: nvidia.com/gpu.present
-                operator: DoesNotExist
   pdb:
     enabled: true
     minAvailable: 1
