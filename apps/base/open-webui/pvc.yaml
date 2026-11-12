@@ -1,0 +1,13 @@
+# Open WebUI state: SQLite DB, uploads (incl. hour-long recordings), caches.
+# Block storage on purpose — SQLite on NFS is a known-bad combination here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 20Gi

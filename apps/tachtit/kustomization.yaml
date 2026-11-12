@@ -18,6 +18,7 @@ resources:
   # - home
   - whisper
   - llm
+  - open-webui
   - windows
   - replicated-app-budgets.yaml
 

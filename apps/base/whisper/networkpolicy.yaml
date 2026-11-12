@@ -14,10 +14,13 @@ spec:
     ingress: true
     egress: true
   ingress:
-    # Approved callers: Hermes (Telegram voice memos) and the transcribe app.
+    # Approved callers: Hermes (Telegram voice memos), Open WebUI (mic input +
+    # attached recordings) and the transcribe app.
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: hermes-agent
+        - matchLabels:
+            io.kubernetes.pod.namespace: open-webui
         - matchLabels:
             io.kubernetes.pod.namespace: transcribe
       toPorts:
