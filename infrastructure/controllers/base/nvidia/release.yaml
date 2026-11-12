@@ -46,7 +46,9 @@ spec:
               timeSlicing:
                 resources:
                   - name: nvidia.com/gpu
-                    replicas: 4
+                    # Slices are a scheduling count, not a VRAM split. Holders:
+                    # jellyfin, immich ML, whisper, roboflow, ollama (+1 spare).
+                    replicas: 6
   install:
     remediation:
       retries: 3

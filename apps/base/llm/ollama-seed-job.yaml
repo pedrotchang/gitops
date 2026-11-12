@@ -1,0 +1,76 @@
+# One-shot pull of the local model into the ollama-models PVC. The ollama pod
+# itself has all egress denied, so it can never download; this Job runs a
+# throwaway CPU-only ollama server with the same model dir and pulls through it.
+#
+# Labelled `app: ollama-seed`, so the deny-all CiliumNetworkPolicy (which
+# selects `app: ollama`) does not apply and registry.ollama.ai is reachable.
+# Idempotent: `ollama pull` is a no-op when the model is already present.
+# Pinned to the GPU node because the PVC is RWO and the ollama pod holds it.
+# To add a model: append it to the pull list and bump the Job name suffix
+# (Jobs are immutable) or delete the finished Job so Flux recreates it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-seed
+  labels:
+    app: ollama-seed
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: ollama-seed
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      containers:
+        - name: seed
+          image: docker.io/ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ollama serve &
+              for i in $(seq 1 30); do ollama list >/dev/null 2>&1 && break; sleep 1; done
+              ollama pull qwen3:4b
+              ollama list
+          env:
+            - name: OLLAMA_HOST
+              value: "127.0.0.1:11435"
+            - name: OLLAMA_MODELS
+              value: /models
+            - name: HOME
+              value: /models
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+        - name: tmp
+          emptyDir: {}

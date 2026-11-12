@@ -1,0 +1,53 @@
+# LiteLLM: callers are Open WebUI and Hermes; it may reach only Ollama (same
+# namespace), headroom (→ Anthropic) and cluster DNS. No direct internet.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: litellm
+spec:
+  endpointSelector:
+    matchLabels:
+      app: litellm
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: open-webui
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+      toPorts:
+        - ports:
+            - port: "4000"
+              protocol: TCP
+    # Kubelet probes.
+    - fromEntities:
+        - host
+        - remote-node
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app: ollama
+      toPorts:
+        - ports:
+            - port: "11434"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: headroom
+            app: headroom
+      toPorts:
+        - ports:
+            - port: "8787"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

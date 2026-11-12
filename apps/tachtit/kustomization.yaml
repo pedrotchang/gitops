@@ -17,6 +17,7 @@ resources:
   - headroom
   # - home
   - whisper
+  - llm
   - windows
   - replicated-app-budgets.yaml
 
