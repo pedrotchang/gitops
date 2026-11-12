@@ -4,6 +4,7 @@ provider:
 policy: upsert-only
 
 excludeDomains:
+  - chat.seyzahl.com
   - immich.seyzahl.com
   - nextcloud.seyzahl.com
   - wallabag.seyzahl.com

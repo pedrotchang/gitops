@@ -1,0 +1,68 @@
+# Open WebUI: reached only through the cilium-gateway; may talk to LiteLLM,
+# whisper, Hermes' API server, cluster DNS and authentik's public host (OIDC
+# discovery/token — the issuer is the public URL, so it goes out and back
+# through Cloudflare like Immich does). Nothing else leaves.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: open-webui
+spec:
+  endpointSelector:
+    matchLabels:
+      app: open-webui
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Kubelet httpGet probes.
+    - fromEntities:
+        - host
+        - remote-node
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: llm
+            app: litellm
+      toPorts:
+        - ports:
+            - port: "4000"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: whisper
+            app: whisper
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # Hermes OpenAI-compatible API server (stage 3).
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+      toPorts:
+        - ports:
+            - port: "8642"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: auth.seyzahl.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

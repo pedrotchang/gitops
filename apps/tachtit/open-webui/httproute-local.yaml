@@ -1,0 +1,29 @@
+# INTERNAL ONLY. Resolves via headscale split-DNS (extra_records) to the
+# cilium-gateway; external-dns must NOT publish it (excludeDomains in the
+# external-dns values — the annotation alone is ignored for gateway routes).
+# Long timeouts: uploading an hour-long recording and waiting for whisper to
+# transcribe it is one HTTP request that can run for minutes.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: open-webui-local
+  namespace: open-webui
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - chat.seyzahl.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      timeouts:
+        request: 900s
+        backendRequest: 900s
+      backendRefs:
+        - name: open-webui
+          port: 8080
