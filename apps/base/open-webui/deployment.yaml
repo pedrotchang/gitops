@@ -77,8 +77,10 @@ spec:
               value: "false"
             - name: ENABLE_OPENAI_API
               value: "true"
+            # Two backends, order matches OPENAI_API_KEYS in the secret:
+            # LiteLLM (local / claude-sonnet / claude-opus) and Hermes (hermes).
             - name: OPENAI_API_BASE_URLS
-              value: http://litellm.llm.svc.cluster.local:4000/v1
+              value: http://litellm.llm.svc.cluster.local:4000/v1;http://hermes-agent.hermes-agent.svc.cluster.local:8642/v1
             - name: DEFAULT_MODELS
               value: local
             # ── Speech-to-text → in-cluster whisper (keyless, CNP-gated) ────
