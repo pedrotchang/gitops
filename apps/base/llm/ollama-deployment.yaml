@@ -49,18 +49,21 @@ spec:
               value: /models
             - name: HOME
               value: /models
-            # Speed over idle power: keep the model resident so the first token
-            # after a pause is not a 5-10s reload. ~3 GB of VRAM held permanently.
+            # Unload after 15 idle minutes. Holding it forever (was "-1") starved
+            # whisper: a 47-min transcription peaks at ~2.4 GB and OOMed next to a
+            # permanently loaded model (2026-11-12). Reload from the PVC is a few
+            # seconds, paid only on the first message after a quiet spell.
             - name: OLLAMA_KEEP_ALIVE
-              value: "-1"
+              value: "15m"
             # One model at a time on an 8 GB card shared with whisper and Immich.
             - name: OLLAMA_MAX_LOADED_MODELS
               value: "1"
-            # Hermes' system prompt + tool schemas alone are ~20k tokens (16k
-            # failed on the first turn). q8 KV cache + flash attention keep 32k
-            # at ~2.4 GB; with the 2.5 GB weights that is ~5 GB of the 8 GB card.
+            # 16k ≈ 1.2 GB of q8 KV cache + 2.5 GB weights ≈ 3.7 GB when loaded —
+            # fits beside whisper (~2.4 GB peak) and Immich ML on the 8 GB card.
+            # 32k (~5.2 GB) was only for Hermes, which refuses <64k anyway and now
+            # runs on Claude; a 47-min transcript (~10k tokens) still fits in 16k.
             - name: OLLAMA_CONTEXT_LENGTH
-              value: "32768"
+              value: "16384"
             - name: OLLAMA_FLASH_ATTENTION
               value: "1"
             - name: OLLAMA_KV_CACHE_TYPE
