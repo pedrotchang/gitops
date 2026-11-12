@@ -45,10 +45,9 @@ patches:
             whenUnsatisfiable: DoNotSchedule
             nodeAffinityPolicy: Honor
             nodeTaintsPolicy: Honor
-            labelSelector:
-              matchExpressions:
-                - key: app
-                  operator: Exists
+            # matchLabelKeys adds this pod's app and revision labels. Those
+            # keys must not also occur in the base labelSelector.
+            labelSelector: {}
             matchLabelKeys:
               - app
               - pod-template-hash
