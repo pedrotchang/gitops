@@ -58,6 +58,9 @@ spec:
         - name: n8n.seyzahl.com
           type: A
           value: "10.104.130.214"
+        - name: whisper.seyzahl.com
+          type: A
+          value: "10.104.130.214"
         - name: wallabag.seyzahl.com
           type: A
           value: "10.104.130.214"
