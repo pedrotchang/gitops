@@ -1,7 +1,7 @@
 # LiteLLM proxy config — the single OpenAI-compatible front door for every LLM
 # call on the cluster. Three names, picked by clients (Open WebUI model list,
 # Hermes `/model`):
-#   local         → Ollama qwen3:4b on the Aorus GPU (fast, free, simple tasks)
+#   local         → Ollama Qwen3-4B-Instruct on the Aorus GPU (fast, free, simple tasks)
 #   claude-sonnet → Anthropic Claude Sonnet via the headroom compression proxy
 #   claude-opus   → Anthropic Claude Opus via headroom (rare, expensive)
 # Model IDs verified against Anthropic /v1/models on 2026-11-12.
@@ -14,11 +14,11 @@ data:
     model_list:
       - model_name: local
         litellm_params:
-          model: ollama_chat/qwen3:4b
+          # The Instruct-2507 build, NOT `qwen3:4b`: that tag is the
+          # Thinking-2507 build, which always reasons and (verified 2026-11-12)
+          # dumps the reasoning into `content` even with think=false.
+          model: ollama_chat/qwen3:4b-instruct-2507-q4_K_M
           api_base: http://ollama.llm.svc.cluster.local:11434
-          # Qwen3 is a hybrid-thinking model; thinking off = fast answers.
-          # Clients that want reasoning can pass reasoning_effort explicitly.
-          think: false
       - model_name: claude-sonnet
         litellm_params:
           model: anthropic/claude-sonnet-5-5

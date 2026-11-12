@@ -6,12 +6,12 @@
 # selects `app: ollama`) does not apply and registry.ollama.ai is reachable.
 # Idempotent: `ollama pull` is a no-op when the model is already present.
 # Pinned to the GPU node because the PVC is RWO and the ollama pod holds it.
-# To add a model: append it to the pull list and bump the Job name suffix
-# (Jobs are immutable) or delete the finished Job so Flux recreates it.
+# To change models: edit the pull list AND bump the Job name suffix (Jobs are
+# immutable; Flux prunes the old one).
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ollama-seed
+  name: ollama-seed-2
   labels:
     app: ollama-seed
 spec:
@@ -43,7 +43,9 @@ spec:
             - |
               ollama serve &
               for i in $(seq 1 30); do ollama list >/dev/null 2>&1 && break; sleep 1; done
-              ollama pull qwen3:4b
+              ollama pull qwen3:4b-instruct-2507-q4_K_M
+              # Drop the Thinking build pulled by the first seed (2.5 GB).
+              ollama rm qwen3:4b || true
               ollama list
           env:
             - name: OLLAMA_HOST
