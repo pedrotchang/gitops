@@ -1,0 +1,41 @@
+# LiteLLM proxy config — the single OpenAI-compatible front door for every LLM
+# call on the cluster. Three names, picked by clients (Open WebUI model list,
+# Hermes `/model`):
+#   local         → Ollama qwen3:4b on the Aorus GPU (fast, free, simple tasks)
+#   claude-sonnet → Anthropic Claude Sonnet via the headroom compression proxy
+#   claude-opus   → Anthropic Claude Opus via headroom (rare, expensive)
+# Model IDs verified against Anthropic /v1/models on 2026-11-12.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+data:
+  config.yaml: |
+    model_list:
+      - model_name: local
+        litellm_params:
+          model: ollama_chat/qwen3:4b
+          api_base: http://ollama.llm.svc.cluster.local:11434
+          # Qwen3 is a hybrid-thinking model; thinking off = fast answers.
+          # Clients that want reasoning can pass reasoning_effort explicitly.
+          think: false
+      - model_name: claude-sonnet
+        litellm_params:
+          model: anthropic/claude-sonnet-5-5
+          api_base: http://headroom.headroom.svc.cluster.local:8787
+          api_key: os.environ/ANTHROPIC_API_KEY
+      - model_name: claude-opus
+        litellm_params:
+          model: anthropic/claude-opus-5-5
+          api_base: http://headroom.headroom.svc.cluster.local:8787
+          api_key: os.environ/ANTHROPIC_API_KEY
+
+    litellm_settings:
+      # Clients send provider-specific params freely; drop what a backend
+      # cannot take instead of erroring.
+      drop_params: true
+      request_timeout: 600
+      telemetry: false
+
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY

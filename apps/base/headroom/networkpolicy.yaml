@@ -13,9 +13,12 @@ spec:
     matchLabels:
       app: headroom
   ingress:
+    # Hermes (direct Anthropic path) and LiteLLM (claude-* models for Open WebUI).
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: hermes-agent
+        - matchLabels:
+            io.kubernetes.pod.namespace: llm
       toPorts:
         - ports:
             - port: "8787"

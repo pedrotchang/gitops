@@ -1,0 +1,106 @@
+# Ollama — the local model runtime (Qwen3-4B) on the Aorus RTX 5060, shared
+# with whisper / Immich ML / Jellyfin via GPU time-slicing. Only LiteLLM talks
+# to it; Open WebUI and Hermes go through LiteLLM. Models live on the
+# ollama-models PVC and are fetched by the ollama-seed Job (this pod has no
+# egress at all, so it can never download anything itself).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  # One GPU slice + RWO volume: stop the old pod before starting the new.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      runtimeClassName: nvidia
+      priorityClassName: gpu-workload
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ollama
+          # Upstream image pinned by digest; registered in custom-images for the
+          # mirror gate — flip to forgejo.seyzahl.com/platform-infrastructure/ollama
+          # once it promotes.
+          image: docker.io/ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
+          ports:
+            - name: http
+              containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_MODELS
+              value: /models
+            - name: HOME
+              value: /models
+            # Speed over idle power: keep the model resident so the first token
+            # after a pause is not a 5-10s reload. ~3 GB of VRAM held permanently.
+            - name: OLLAMA_KEEP_ALIVE
+              value: "-1"
+            # One model at a time on an 8 GB card shared with whisper and Immich.
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: "1"
+            # Hermes' tool-heavy prompts need more than the 4k default. q8 KV
+            # cache + flash attention halves the cache cost (~1.2 GB at 16k).
+            - name: OLLAMA_CONTEXT_LENGTH
+              value: "16384"
+            - name: OLLAMA_FLASH_ATTENTION
+              value: "1"
+            - name: OLLAMA_KV_CACHE_TYPE
+              value: q8_0
+          startupProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 8Gi
+              nvidia.com/gpu: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+        - name: tmp
+          emptyDir: {}

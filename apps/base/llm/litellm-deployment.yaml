@@ -1,0 +1,96 @@
+# LiteLLM proxy — OpenAI-compatible router in front of Ollama (local) and
+# Anthropic-via-headroom (claude-*). No database: config-only, stateless.
+# Spend/trace logging is the LLM-observability backlog item (Langfuse later).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels:
+    app: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+      annotations:
+        # Restart on config change (kustomize does not hash this ConfigMap).
+        checksum/config: "v1"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: litellm
+          # Upstream LTS line pinned by digest; registered in custom-images for the
+          # mirror gate. Flip to the internal ref once it promotes.
+          image: docker.io/litellm/litellm:v1.108.6-lts@sha256:c64fe10f82a1f77906f88574f954317c50f67c617e0c97b70ac8fc61b74d3ec3
+          args:
+            - --config
+            - /config/config.yaml
+            - --port
+            - "4000"
+          env:
+            - name: HOME
+              value: /tmp
+            - name: LITELLM_LOG
+              value: INFO
+            - name: LITELLM_TELEMETRY
+              value: "False"
+            # No DB: keep the proxy from trying to persist models/keys anywhere.
+            - name: STORE_MODEL_IN_DB
+              value: "False"
+          envFrom:
+            - secretRef:
+                name: litellm-secrets
+          ports:
+            - name: http
+              containerPort: 4000
+          startupProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: 4000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+        - name: tmp
+          emptyDir: {}

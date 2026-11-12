@@ -1,0 +1,26 @@
+# Ollama is reachable only from LiteLLM (same namespace) and may reach NOTHING:
+# no internet, no registry, not even DNS. The model is on the PVC, put there by
+# the ollama-seed Job (label app: ollama-seed, outside this selector).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ollama
+spec:
+  endpointSelector:
+    matchLabels:
+      app: ollama
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: litellm
+      toPorts:
+        - ports:
+            - port: "11434"
+              protocol: TCP
+    # Kubelet probes.
+    - fromEntities:
+        - host
+        - remote-node
