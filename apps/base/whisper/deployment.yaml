@@ -62,6 +62,11 @@ spec:
             # Gradio phones home on startup; egress is denied anyway, skip the wait.
             - name: GRADIO_ANALYTICS_ENABLED
               value: "0"
+            # The UI calls the API as an HTTP client. Behind the gateway it would
+            # derive the URL from the request Host (whisper.seyzahl.com) and fail:
+            # egress is denied, so there is no DNS. Talk to itself over loopback.
+            - name: LOOPBACK_HOST_URL
+              value: "http://127.0.0.1:8000"
             # Bearer auth on every route (global FastAPI dependency, 403 on mismatch).
             # Probes are tcpSocket, so they are unaffected.
             - name: API_KEY
