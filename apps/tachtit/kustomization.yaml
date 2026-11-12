@@ -16,7 +16,7 @@ resources:
   - hermes-agent
   - headroom
   # - home
-  # - whisper
+  - whisper
   - windows
   - replicated-app-budgets.yaml
 
