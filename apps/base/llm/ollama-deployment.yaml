@@ -56,10 +56,11 @@ spec:
             # One model at a time on an 8 GB card shared with whisper and Immich.
             - name: OLLAMA_MAX_LOADED_MODELS
               value: "1"
-            # Hermes' tool-heavy prompts need more than the 4k default. q8 KV
-            # cache + flash attention halves the cache cost (~1.2 GB at 16k).
+            # Hermes' system prompt + tool schemas alone are ~20k tokens (16k
+            # failed on the first turn). q8 KV cache + flash attention keep 32k
+            # at ~2.4 GB; with the 2.5 GB weights that is ~5 GB of the 8 GB card.
             - name: OLLAMA_CONTEXT_LENGTH
-              value: "16384"
+              value: "32768"
             - name: OLLAMA_FLASH_ATTENTION
               value: "1"
             - name: OLLAMA_KV_CACHE_TYPE
