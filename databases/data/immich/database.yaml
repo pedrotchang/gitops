@@ -26,8 +26,10 @@ spec:
     shared_preload_libraries:
       - vchord.so
 
-  # 2026-09-07 rebuild: restore from the 2026-07-30 backup (cluster was shut
-  # down 07-30, so that backup is the last live state — no data loss).
+  # Recovery source = the LIVE backups (-r1). The pre-rebuild -v0 backups were
+  # deleted 2026-11-13. bootstrap only runs when the Cluster is first created;
+  # to rebuild from backup, also move backup.serverName below to a fresh -r2
+  # (barman will not archive into a path that already holds WAL).
   bootstrap:
     recovery:
       source: immich-db-prev
@@ -36,7 +38,7 @@ spec:
     - name: immich-db-prev
       barmanObjectStore:
         destinationPath: https://seyzahldata.blob.core.windows.net/immich
-        serverName: immich-db-tachtit-cnpg-v0
+        serverName: immich-db-tachtit-cnpg-v0-r1
         azureCredentials:
           connectionString:
             name: azure-creds
@@ -47,8 +49,7 @@ spec:
   backup:
     barmanObjectStore:
       destinationPath: https://seyzahldata.blob.core.windows.net/immich
-      # Archive under a fresh serverName so the 07-30 backup we are restoring
-      # from stays pristine and re-runnable if this restore needs a retry.
+      # Post-2026-09-07-rebuild archive; also the recovery source above.
       serverName: immich-db-tachtit-cnpg-v0-r1
       azureCredentials:
         connectionString:
