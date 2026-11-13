@@ -31,8 +31,8 @@ spec:
       runtimeClass: nvidia
     migManager:
       enabled: false
-    # Time-slice the single RTX 5060 into 4 schedulable shares so Jellyfin,
-    # Immich ML, whisper and Hermes can each request nvidia.com/gpu: 1. They
+    # Time-slice the single RTX 5060 into schedulable shares so Jellyfin,
+    # Immich ML and the other GPU apps can each request nvidia.com/gpu: 1. They
     # take turns on the card and share its 8 GB VRAM (no memory isolation).
     devicePlugin:
       config:
@@ -47,7 +47,7 @@ spec:
                 resources:
                   - name: nvidia.com/gpu
                     # Slices are a scheduling count, not a VRAM split. Holders:
-                    # jellyfin, immich ML, whisper, roboflow, ollama (+1 spare).
+                    # jellyfin, immich ML, roboflow (whisper + ollama removed 2026-11-13).
                     replicas: 6
   install:
     remediation:

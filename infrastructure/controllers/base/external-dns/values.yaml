@@ -4,16 +4,10 @@ provider:
 policy: upsert-only
 
 excludeDomains:
-  - chat.seyzahl.com
-  # LobeHub trial — app, presigned S3, agent gateway WebSocket.
-  - lobe.seyzahl.com
-  - lobe-s3.seyzahl.com
-  - lobe-gateway.seyzahl.com
   - immich.seyzahl.com
   - nextcloud.seyzahl.com
   - wallabag.seyzahl.com
   - n8n.seyzahl.com
-  - whisper.seyzahl.com
   - git.seyzahl.com
   # Media stack — Headscale-only, must never appear in public DNS. The
   # per-route external-dns exclude annotation is NOT honored for the

@@ -11,8 +11,6 @@ resources:
   - blueprint-home-assistant.yaml
   - blueprint-frigate.yaml
   - blueprint-windows.yaml
-  - blueprint-open-webui.yaml
-  - blueprint-lobehub.yaml
   - repository.yaml
   - release.yaml
 
