@@ -228,19 +228,17 @@ aws s3 ls s3://seyzahl-velero-backups/forgejo/ --region us-west-1
 
 ---
 
-## 5. Cleanup TODO (after 2026-06-25)
+## 5. Legacy Azure backups (done 2026-11-13)
 
-Azure backups stopped on 2026-06-11. The stale container and the ExternalSecret that referenced it can be removed once the 7-day Azure retention window has passed (use 2026-06-25 as the safe date).
+Azure backups for forgejo stopped on 2026-06-11. The stale `forgejo` container in
+`seyzahldata` was deleted on 2026-11-13 and the `azure-creds` ExternalSecret removed from
+`databases/data/forgejo/secrets.yaml`. The `forgejo-connection-string` Key Vault secret is
+unused and can be deleted.
 
-1. Delete Azure container contents:
-   ```bash
-   az storage blob delete-batch \
-     --account-name seyzahldata \
-     --source forgejo
-   ```
-   Container URL: `https://seyzahldata.blob.core.windows.net/forgejo`
-
-2. Remove the `azure-creds` ExternalSecret from `databases/data/forgejo/secrets.yaml`. The `forgejo-connection-string` Azure KV secret it references can be archived or deleted as well once confirmed no other consumers exist.
+`seyzahldata` has blob versioning on, so a deleted backup used to live on forever as a
+hidden previous version. By 2026-11-13 that was 374 of the 400 GB stored. A lifecycle rule
+(`delete-previous-versions-after-7d`, set on the account, not in IaC) now removes previous
+versions 7 days after they were created.
 
 ---
 
