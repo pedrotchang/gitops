@@ -25,7 +25,8 @@ spec:
       # TODO: fix the chart's default image.tag + appVersion upstream.
       tag: "v2026.6.19"
     replicaCount: 1
-    # Run alongside whisper on the Aorus GPU node (the household AI node).
+    # Pinned to the Aorus (historically the household AI node); Hermes itself
+    # needs no GPU.
     nodeSelector:
       nvidia.com/gpu.present: "true"
     strategy:
@@ -35,9 +36,9 @@ spec:
       - gateway
       - run
 
-    # OpenAI-compatible API server — what Open WebUI (chat.seyzahl.com) talks
-    # to. Advertised as model "hermes"; bearer = API_SERVER_KEY from the
-    # ExternalSecret (KV hermes-api-server-key). Cluster-internal only: the
+    # OpenAI-compatible API server for in-cluster callers (Open WebUI used it
+    # until 2026-11-13; n8n can call it). Advertised as model "hermes"; bearer =
+    # API_SERVER_KEY from the ExternalSecret (KV hermes-api-server-key). Cluster-internal only: the
     # chart Service is ClusterIP and nothing routes it through the gateway.
     apiServer:
       enabled: true
@@ -47,49 +48,38 @@ spec:
     service:
       enabled: true
 
-    # LLM: everything goes through the LiteLLM proxy (ns `llm`), which fronts
-    # Claude via the headroom compression proxy (`claude-sonnet`, `claude-opus`)
-    # and the local Qwen3-4B-Instruct on the Aorus GPU (`local`). Default is
-    # Sonnet. The local model is NOT usable by Hermes today: Hermes refuses any
-    # model under a 64k context window, and 64k of KV cache for the 4B model
-    # (~5 GB resident with the weights) does not fit the shared 8 GB card next
-    # to whisper and Immich ML. `local` stays an Open WebUI model. Revisit with
-    # more VRAM, or by allowing a 64k window with a q4_0 KV cache (Pedro's call).
+    # LLM: Anthropic directly, through the headroom compression proxy
+    # (ANTHROPIC_API_KEY from the ExternalSecret; headroom passes x-api-key
+    # through). base_url MUST be set explicitly: Helm deep-merges, and the chart
+    # default is OpenRouter. LiteLLM + the local models were removed 2026-11-13;
+    # 2026-11-12..13 this went through LiteLLM. Model IDs verified against
+    # Anthropic /v1/models (via headroom) on 2026-11-13.
     # `/model opus` escalates per chat (alias below); `/model` persists into
     # config.yaml on the PVC, but bootstrap.overwrite=true puts this file back
     # on every deploy — git stays the source of truth.
-    # Before 2026-11-12 this was provider anthropic → headroom directly.
     config:
       values:
         model:
-          default: claude-sonnet
-          provider: custom
-          base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
-          api_key: "${LITELLM_MASTER_KEY}"
+          default: claude-sonnet-5-5
+          provider: anthropic
+          base_url: "http://headroom.headroom.svc.cluster.local:8787"
         model_aliases:
           sonnet:
-            model: claude-sonnet
-            provider: custom
-            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
+            model: claude-sonnet-5-5
+            provider: anthropic
+            base_url: "http://headroom.headroom.svc.cluster.local:8787"
           opus:
-            model: claude-opus
-            provider: custom
-            base_url: "http://litellm.llm.svc.cluster.local:4000/v1"
+            model: claude-opus-5-5
+            provider: anthropic
+            base_url: "http://headroom.headroom.svc.cluster.local:8787"
         # Local timezone so "10am" and calendar events resolve to Pedro's zone.
         timezone: America/Los_Angeles
-        # Speech-to-text for Telegram voice memos → self-hosted Whisper (own `whisper` ns).
-        # provider=openai points at the in-cluster Speaches service (STT_OPENAI_* env below).
+        # Speech-to-text is OFF: the self-hosted whisper was removed 2026-11-13
+        # and voice memos must never go to a cloud STT. Telegram voice memos are
+        # no longer transcribed. To bring STT back, redeploy a local whisper and
+        # re-add provider/base_url/model (see git history before 2026-11-13).
         stt:
-          enabled: true
-          provider: openai
-          # The image ships a default `openai.model: whisper-1` in config.yaml.
-          # Hermes resolves the STT model as: call-arg → stt.openai.model →
-          # STT_OPENAI_MODEL env. The config key WINS over the env, so without this
-          # override Hermes sends "whisper-1", which Speaches aliases to its built-in
-          # default `Systran/faster-whisper-large-v3` (not baked, HF offline) → 404.
-          # Pin the model Speaches has installed (large-v3-turbo on the GPU).
-          openai:
-            model: deepdml/faster-whisper-large-v3-turbo-ct2
+          enabled: false
         # Phase 1 calendar + tasks — CalDAV/CardDAV/VTODO via the `dav-mcp` npm package
         # as a STDIO MCP server (image ships npx + pod has egress; `-y` auto-installs
         # non-interactively, fetched at runtime → NOT offline-baked, revisit later).
@@ -198,18 +188,11 @@ spec:
       EMAIL_IMAP_PORT: "993"
       EMAIL_SMTP_HOST: "smtp.gmail.com"
       EMAIL_SMTP_PORT: "587"
-      # Speech-to-text backend → self-hosted Whisper (Speaches) in the `whisper` ns.
-      # provider=openai (set in config.stt) + this base_url route STT to the in-cluster
-      # service. Speaches requires a bearer key: VOICE_TOOLS_OPENAI_KEY comes from the
-      # ExternalSecret (KV whisper-api-key) via envFrom — do NOT set it here, an explicit
-      # env entry would override envFrom.
-      # WARNING: Hermes falls back to https://api.openai.com/v1 if this is unset —
-      # never remove it, or voice memos leave the cluster.
+      # STT is disabled (config.stt.enabled=false). Belt and braces: Hermes falls
+      # back to https://api.openai.com/v1 when STT_OPENAI_BASE_URL is unset, so it
+      # stays pinned to the (now removed) in-cluster whisper Service. If STT is
+      # ever switched on by accident it fails closed instead of sending audio out.
       STT_OPENAI_BASE_URL: "http://whisper.whisper.svc.cluster.local:8000/v1"
-      # Fallback model default only — the actual model is pinned via config.stt.openai.model
-      # above, which shadows this env. Kept in sync so both agree on the only model on
-      # the whisper PVC (Speaches runs HF_HUB_OFFLINE, so anything else 404s).
-      STT_OPENAI_MODEL: "deepdml/faster-whisper-large-v3-turbo-ct2"
       # Only process mail FROM these senders — forward flights/events from these accounts.
       EMAIL_ALLOWED_USERS: "pedrotychang@gmail.com,hanna.jeon12@gmail.com"
 

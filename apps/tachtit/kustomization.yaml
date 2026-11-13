@@ -16,10 +16,6 @@ resources:
   - hermes-agent
   - headroom
   # - home
-  - whisper
-  - llm
-  - open-webui
-  - lobehub
   - windows
   - replicated-app-budgets.yaml
 
