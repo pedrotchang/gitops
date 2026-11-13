@@ -26,36 +26,12 @@ spec:
         name: n8n-db-creds
 
 
-  # externalClusters:
-  #   - name: clusterBackup
-  #     barmanObjectStore:
-  #       destinationPath: https://seyzahldata.blob.core.windows.net/n8n
-  #       serverName: n8n-db-tachtit-cnpg-v1
-  #       azureCredentials:
-  #         connectionString:
-  #           name: azure-creds
-  #           key: connection-string-2
-
-  # 2026-09-07: backups were commented out here, so the n8n Azure container was
-  # empty and this database was NOT recoverable after the rebuild — it is the
-  # only one that came back blank. Enabled so that cannot happen again.
-  # 2026-11-13: it still never ran: the key below pointed at
-  # `n8n-connection-string`, which azure-creds never had (archiving failed with
-  # "failed to get envs: cache miss"). Now the shared `connection-string-2`,
-  # like immich and lobehub.
-  backup:
-    barmanObjectStore:
-      destinationPath: https://seyzahldata.blob.core.windows.net/n8n
-      serverName: n8n-db-tachtit-cnpg-v0
-      azureCredentials:
-        connectionString:
-          name: azure-creds
-          key: connection-string-2
-      wal:
-        compression: gzip
-      data:
-        compression: gzip
-    retentionPolicy: "14d"
+  # No backups, on purpose (Pedro, 2026-11-13): n8n is rarely used and its data
+  # is not worth keeping. The Azure container `n8n` was deleted. CNPG skips WAL
+  # archiving when no backup is configured, so WAL does not pile up on disk.
+  # Re-enabling = restore the barmanObjectStore block from git history (it uses
+  # azure-creds key connection-string-2), recreate the container, and add back
+  # scheduled-backups.yaml + the azure-creds ExternalSecret.
 
   resources:
     requests:
