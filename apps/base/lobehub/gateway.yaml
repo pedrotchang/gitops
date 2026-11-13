@@ -1,0 +1,66 @@
+# LobeHub agent gateway (github.com/lobehub/lobehub-gateway). With
+# ENABLE_AGENT_GATEWAY=1 agent runs execute on the server — so they keep going
+# (and scheduled tasks can run) with no browser tab open — and stream to
+# browsers over WebSocket on :8787 (lobe-gateway.seyzahl.com). :8788 is the
+# device gateway for `lh connect` desktop/CLI clients (cluster-internal only).
+# State is in memory: runs in flight are lost if this pod restarts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lobehub-gateway
+  labels:
+    app: lobehub-gateway
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lobehub-gateway
+  template:
+    metadata:
+      labels:
+        app: lobehub-gateway
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: ghcr.io/lobehub/lobehub-gateway:0.5.0@sha256:63647fd8f97407dafd344dd08b509ff74a033b23292cf1d451d804cb09d35759
+          ports:
+            - name: agent
+              containerPort: 8787
+            - name: device
+              containerPort: 8788
+          envFrom:
+            - secretRef:
+                name: lobehub-gateway-secrets
+          env:
+            - name: LOBE_API_BASE_URL
+              value: http://lobehub.lobehub.svc.cluster.local:3210
+          readinessProbe:
+            tcpSocket:
+              port: 8787
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8787
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

@@ -64,6 +64,15 @@ spec:
         - name: chat.seyzahl.com
           type: A
           value: "10.104.130.214"
+        - name: lobe.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: lobe-s3.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: lobe-gateway.seyzahl.com
+          type: A
+          value: "10.104.130.214"
         - name: wallabag.seyzahl.com
           type: A
           value: "10.104.130.214"

@@ -1,5 +1,6 @@
-# LiteLLM: callers are Open WebUI and Hermes; it may reach only Ollama (same
-# namespace), headroom (→ Anthropic) and cluster DNS. No direct internet.
+# LiteLLM: callers are Open WebUI, LobeHub and Hermes; it may reach only Ollama
+# (same namespace), headroom (→ Anthropic), the Hermes API server, whisper and
+# cluster DNS. No direct internet.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -15,6 +16,9 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: open-webui
+        - matchLabels:
+            io.kubernetes.pod.namespace: lobehub
+            app: lobehub
         - matchLabels:
             io.kubernetes.pod.namespace: hermes-agent
       toPorts:
@@ -40,6 +44,21 @@ spec:
       toPorts:
         - ports:
             - port: "8787"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: hermes-agent
+      toPorts:
+        - ports:
+            - port: "8642"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: whisper
+            app: whisper
+      toPorts:
+        - ports:
+            - port: "8000"
               protocol: TCP
     - toEndpoints:
         - matchLabels:

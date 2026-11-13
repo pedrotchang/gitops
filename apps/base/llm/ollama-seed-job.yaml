@@ -11,7 +11,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ollama-seed-2
+  name: ollama-seed-3
   labels:
     app: ollama-seed
 spec:
@@ -46,6 +46,13 @@ spec:
               ollama pull qwen3:4b-instruct-2507-q4_K_M
               # Drop the Thinking build pulled by the first seed (2.5 GB).
               ollama rm qwen3:4b || true
+              # LobeHub embeddings: Qwen3-Embedding-0.6B (1024-dim, matches
+              # LobeHub's vector(1024) columns) wrapped as `lobe-embed` with an
+              # 8k window (not the server-wide 32k) and num_gpu 0, so it runs on
+              # the CPU and never takes VRAM from whisper or `local`.
+              ollama pull qwen3-embedding:0.6b
+              printf 'FROM qwen3-embedding:0.6b\nPARAMETER num_ctx 8192\nPARAMETER num_gpu 0\n' > /tmp/Modelfile.lobe-embed
+              ollama create lobe-embed -f /tmp/Modelfile.lobe-embed
               ollama list
           env:
             - name: OLLAMA_HOST

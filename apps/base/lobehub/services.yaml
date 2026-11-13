@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lobehub
+  labels:
+    app: lobehub
+spec:
+  selector:
+    app: lobehub
+  ports:
+    - name: http
+      port: 3210
+      targetPort: 3210
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lobehub-gateway
+  labels:
+    app: lobehub-gateway
+spec:
+  selector:
+    app: lobehub-gateway
+  ports:
+    - name: agent
+      port: 8787
+      targetPort: 8787
+    - name: device
+      port: 8788
+      targetPort: 8788
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lobehub-rustfs
+  labels:
+    app: lobehub-rustfs
+spec:
+  selector:
+    app: lobehub-rustfs
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lobehub-valkey
+  labels:
+    app: lobehub-valkey
+spec:
+  selector:
+    app: lobehub-valkey
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

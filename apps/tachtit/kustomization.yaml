@@ -19,6 +19,7 @@ resources:
   - whisper
   - llm
   - open-webui
+  - lobehub
   - windows
   - replicated-app-budgets.yaml
 

@@ -15,8 +15,12 @@ spec:
     egress: true
   ingress:
     # Approved callers: Hermes (Telegram voice memos), Open WebUI (mic input +
-    # attached recordings) and the transcribe app.
+    # attached recordings), the transcribe app, and LiteLLM (the `whisper`
+    # model — how LobeHub's dictation and voice messages reach it).
     - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: llm
+            app: litellm
         - matchLabels:
             io.kubernetes.pod.namespace: hermes-agent
         - matchLabels:

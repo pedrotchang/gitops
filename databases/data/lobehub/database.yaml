@@ -1,0 +1,73 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: lobehub-db-tachtit-cnpg-v0
+spec:
+  description: Postgres cluster for LobeHub (pgvector for knowledge base + memory)
+  # CNPG "standard" image = PostgreSQL + pgvector (+ pgaudit, failover slots).
+  # LobeHub's default full-text search is ParadeDB pg_search, which this image
+  # does not have — the app runs with FTS_SEARCH_PROVIDER=pg_like instead.
+  # 17.11 rather than 17.12 (released 2026-11-12) to let the new minor soak.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-standard-trixie@sha256:b310491521ece4ec0f5a44008ac607352e96bff20883833d0acd833d80d26c5b
+  # Single-node data cluster: replicas share one failure domain, so they add
+  # no HA. Read services are disabled (see managed.services below), so they
+  # serve no traffic either. Raise this if data ever gets a second node.
+  instances: 1
+
+  inheritedMetadata:
+    labels:
+      app: lobehub-database
+      policy-type: "database"
+
+  monitoring:
+    enablePodMonitor: true
+
+  bootstrap:
+    initdb:
+      database: lobehub
+      owner: lobehub
+      secret:
+        name: lobehub-db-creds
+      # pgvector is not a trusted extension, so the non-superuser owner cannot
+      # create it; LobeHub's migration 0005 then finds it already present.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
+
+  backup:
+    barmanObjectStore:
+      destinationPath: https://seyzahldata.blob.core.windows.net/lobehub
+      serverName: lobehub-db-tachtit-cnpg-v0
+      azureCredentials:
+        connectionString:
+          name: azure-creds
+          key: connection-string-2
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "14d"
+
+  resources:
+    requests:
+      memory: 256Mi
+  storage:
+    size: 5Gi
+
+  managed:
+    services:
+      ## disable the default services
+      disabledDefaultServices: ["ro", "r"]
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: "lobehub-db-lb"
+              labels:
+                cilium-lb-pool: postgres-pool
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: lobehub-pg.seyzahl.com
+                # Pinned: the tachtit lobehub CiliumNetworkPolicy allows
+                # egress to exactly this address.
+                lbipam.cilium.io/ips: "192.168.4.168"
+            spec:
+              type: LoadBalancer

@@ -1,6 +1,6 @@
 # Open WebUI — the household chat front end at chat.seyzahl.com (VPN/LAN only,
-# authentik OIDC). Backends: LiteLLM (local / claude-sonnet / claude-opus) and,
-# from stage 3, the Hermes API server. Speech-to-text (mic input AND attached
+# authentik OIDC). Backend: LiteLLM (local / claude-sonnet / claude-opus /
+# hermes). Speech-to-text (mic input AND attached
 # recordings) goes to the in-cluster whisper; a one-hour file is transcoded to
 # 16 kHz mono 32 kbps MP3 (~14 MB) by Open WebUI before upload, and anything
 # over its 20 MB cap is split into chunks transcribed in parallel.
@@ -77,10 +77,14 @@ spec:
               value: "false"
             - name: ENABLE_OPENAI_API
               value: "true"
-            # Two backends, order matches OPENAI_API_KEYS in the secret:
-            # LiteLLM (local / claude-sonnet / claude-opus) and Hermes (hermes).
+            # One backend: LiteLLM serves local / claude-sonnet / claude-opus
+            # AND hermes, so Open WebUI and LobeHub share a single model list.
             - name: OPENAI_API_BASE_URLS
-              value: http://litellm.llm.svc.cluster.local:4000/v1;http://hermes-agent.hermes-agent.svc.cluster.local:8642/v1
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            # LiteLLM also exposes `whisper` and `embedding` for app plumbing;
+            # allowlist the chat models so those never show in the picker.
+            - name: OPENAI_API_CONFIGS
+              value: '{"0":{"enable":true,"model_ids":["local","claude-sonnet","claude-opus","hermes"]}}'
             - name: DEFAULT_MODELS
               value: local
             # ── Speech-to-text → in-cluster whisper (keyless, CNP-gated) ────
