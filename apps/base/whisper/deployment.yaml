@@ -67,6 +67,12 @@ spec:
             # egress is denied, so there is no DNS. Talk to itself over loopback.
             - name: LOOPBACK_HOST_URL
               value: "http://127.0.0.1:8000"
+            # Python's allocator keeps freed memory per thread arena, so the
+            # process grew 1.6 GB -> ~3.7 GB across a few long jobs and the next
+            # 47-min transcription (+~3 GB) was OOMKilled at the 6Gi limit
+            # (2026-11-12). Two arenas curb that growth.
+            - name: MALLOC_ARENA_MAX
+              value: "2"
             # No API_KEY on purpose (2026-11-12): the 0.8.3 Gradio UI formats the
             # SecretStr into "Bearer **********" and 403s against its own API.
             # Access is gated by the CiliumNetworkPolicy (hermes-agent, transcribe,
@@ -92,7 +98,9 @@ spec:
               cpu: 500m
               memory: 2Gi
             limits:
-              memory: 6Gi
+              # One hour-long transcription adds ~3 GB of RAM on top of a
+              # 1.6-3.7 GB baseline (measured 2026-11-12); 6Gi was OOMKilled.
+              memory: 10Gi
               nvidia.com/gpu: 1
           securityContext:
             allowPrivilegeEscalation: false
