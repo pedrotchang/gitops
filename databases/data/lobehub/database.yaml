@@ -33,19 +33,11 @@ spec:
       postInitApplicationSQL:
         - CREATE EXTENSION IF NOT EXISTS vector
 
-  backup:
-    barmanObjectStore:
-      destinationPath: https://seyzahldata.blob.core.windows.net/lobehub
-      serverName: lobehub-db-tachtit-cnpg-v0
-      azureCredentials:
-        connectionString:
-          name: azure-creds
-          key: connection-string-2
-      wal:
-        compression: gzip
-      data:
-        compression: gzip
-    retentionPolicy: "14d"
+  # No backups, on purpose (Pedro, 2026-11-13): LobeHub is on trial. CNPG
+  # skips WAL archiving when no backup is configured, so WAL cannot pile up.
+  # Note: this "standard" image has NO barman-cloud, so in-tree
+  # barmanObjectStore cannot work here; to add backups use the barman-cloud
+  # plugin (method: plugin + ObjectStore, like forgejo/authentik/nextcloud).
 
   resources:
     requests:

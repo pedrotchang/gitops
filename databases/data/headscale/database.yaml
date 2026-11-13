@@ -21,9 +21,10 @@ spec:
   storage:
     size: 1Gi
 
-  # 2026-09-07 rebuild: restore from backup. headscale is the one cluster with
-  # a same-day backup (base 20260907T203951 + WAL to 21:15) — it took one on
-  # pod start today because its ScheduledBackup sets immediate: true.
+  # Recovery source = the LIVE backups (-r1). The pre-rebuild -v0 backups were
+  # deleted 2026-11-13. bootstrap only runs when the Cluster is first created;
+  # to rebuild from backup, also move backup.serverName below to a fresh -r2
+  # (barman will not archive into a path that already holds WAL).
   bootstrap:
     recovery:
       source: headscale-db-prev
@@ -32,7 +33,7 @@ spec:
     - name: headscale-db-prev
       barmanObjectStore:
         destinationPath: https://seyzahldata.blob.core.windows.net/headscale
-        serverName: headscale-db-tachtit-cnpg-v0
+        serverName: headscale-db-tachtit-cnpg-v0-r1
         azureCredentials:
           connectionString:
             name: azure-creds
@@ -43,8 +44,7 @@ spec:
   backup:
     barmanObjectStore:
       destinationPath: https://seyzahldata.blob.core.windows.net/headscale
-      # Archive under a fresh serverName so the backup we are restoring from
-      # stays pristine and re-runnable if this restore needs a retry.
+      # Post-2026-09-07-rebuild archive; also the recovery source above.
       serverName: headscale-db-tachtit-cnpg-v0-r1
       azureCredentials:
         connectionString:
