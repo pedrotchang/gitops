@@ -1,0 +1,153 @@
+# RustFS — S3-compatible object store for LobeHub uploads (chat files, images,
+# knowledge base, avatars). Upstream's own compose choice. Browsers PUT/GET
+# objects directly with presigned URLs on lobe-s3.seyzahl.com, so the bucket
+# carries a CORS rule (rustfs-init Job); there is NO anonymous read policy —
+# everything is presigned. Console (:9001) disabled.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lobehub-rustfs-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lobehub-rustfs
+  labels:
+    app: lobehub-rustfs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lobehub-rustfs
+  template:
+    metadata:
+      labels:
+        app: lobehub-rustfs
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rustfs
+          image: docker.io/rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+          ports:
+            - name: s3
+              containerPort: 9000
+          envFrom:
+            - secretRef:
+                name: lobehub-rustfs-secrets
+          env:
+            - name: RUSTFS_VOLUMES
+              value: /data
+            - name: RUSTFS_ADDRESS
+              value: ":9000"
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /logs
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lobehub-rustfs-data
+        - name: logs
+          emptyDir: {}
+---
+# Idempotent bucket bootstrap: create `lobe` and allow browser uploads from
+# lobe.seyzahl.com only. Re-runs harmlessly; bump the name suffix to re-run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lobehub-rustfs-init-1
+  labels:
+    app: lobehub-rustfs-init
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: lobehub-rustfs-init
+    spec:
+      restartPolicy: OnFailure
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init
+          image: docker.io/rustfs/rc:v0.1.36@sha256:ab024bfebee49a750ce886b4c70963ccd9ddaa03f491704a90710641d7a26699
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              rc alias set rustfs http://lobehub-rustfs.lobehub.svc.cluster.local:9000 "$RUSTFS_ACCESS_KEY" "$RUSTFS_SECRET_KEY"
+              rc mb rustfs/lobe --ignore-existing
+              printf '%s' '<CORSConfiguration><CORSRule><AllowedOrigin>https://lobe.seyzahl.com</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>' | rc bucket cors set rustfs/lobe -
+              rc ls rustfs
+          envFrom:
+            - secretRef:
+                name: lobehub-rustfs-secrets
+          env:
+            - name: HOME
+              value: /tmp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

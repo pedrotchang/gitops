@@ -1,5 +1,5 @@
-# Open WebUI: reached only through the cilium-gateway; may talk to LiteLLM,
-# whisper, Hermes' API server, cluster DNS and authentik's public host (OIDC
+# Open WebUI: reached only through the cilium-gateway; may talk to LiteLLM
+# (which also fronts Hermes), whisper, cluster DNS and authentik's public host (OIDC
 # discovery/token — the issuer is the public URL, so it goes out and back
 # through Cloudflare like Immich does). Nothing else leaves.
 apiVersion: cilium.io/v2
@@ -51,14 +51,6 @@ spec:
       toPorts:
         - ports:
             - port: "8000"
-              protocol: TCP
-    # Hermes OpenAI-compatible API server (stage 3).
-    - toEndpoints:
-        - matchLabels:
-            io.kubernetes.pod.namespace: hermes-agent
-      toPorts:
-        - ports:
-            - port: "8642"
               protocol: TCP
     - toFQDNs:
         - matchName: auth.seyzahl.com

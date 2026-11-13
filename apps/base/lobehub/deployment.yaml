@@ -1,0 +1,194 @@
+# LobeHub — second household chat front end at lobe.seyzahl.com, on trial next
+# to Open WebUI (VPN/LAN only, authentik SSO only). Same models as Open WebUI,
+# all through LiteLLM: local, claude-sonnet, claude-opus, hermes — plus LiteLLM's
+# `whisper` (speech-to-text) and `embedding` (knowledge base + memory).
+#
+# Backing services (this namespace unless noted):
+#   Postgres + pgvector  CNPG on the data cluster (lobehub-pg.seyzahl.com)
+#   S3                   RustFS (lobehub-rustfs); browsers upload/preview via
+#                        presigned URLs on lobe-s3.seyzahl.com
+#   Redis                Valkey (lobehub-valkey) — agent runtime + auth cache
+#   Agent gateway        lobehub-gateway; browsers stream agent runs from it
+#                        over WebSocket on lobe-gateway.seyzahl.com
+#   Scheduled tasks      lobehub-tick-* CronJobs (stand-in for Upstash QStash)
+#
+# Locked down like Open WebUI: no internet egress (no marketplace, plugins,
+# web search, update checks). See networkpolicy.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lobehub
+  labels:
+    app: lobehub
+spec:
+  # One replica: the in-process task/goal schedulers keep timers in memory.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lobehub
+  template:
+    metadata:
+      labels:
+        app: lobehub
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: lobehub
+          # Upstream image pinned by digest (v2.3.3, 2026-11-12).
+          image: docker.io/lobehub/lobehub:2.3.3@sha256:0981b4653a233d8d2b226416fdad0bf34875fcabb1dedc7f5c3320d8c8d23c60
+          ports:
+            - name: http
+              containerPort: 3210
+          envFrom:
+            - secretRef:
+                name: lobehub-secrets
+          env:
+            - name: APP_URL
+              value: https://lobe.seyzahl.com
+            # Server-to-self calls (image generation, internal callbacks).
+            - name: INTERNAL_APP_URL
+              value: http://localhost:3210
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            # ── Auth: authentik SSO only ─────────────────────────────────────
+            - name: AUTH_SSO_PROVIDERS
+              value: authentik
+            - name: AUTH_AUTHENTIK_ISSUER
+              value: https://auth.seyzahl.com/application/o/lobehub/
+            - name: AUTH_DISABLE_EMAIL_PASSWORD
+              value: "1"
+            # ── Database ────────────────────────────────────────────────────
+            # CNPG standard image has pgvector but not ParadeDB pg_search.
+            - name: FTS_SEARCH_PROVIDER
+              value: pg_like
+            # ── Models: LiteLLM is the only provider ─────────────────────────
+            - name: OPENAI_PROXY_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            # -all hides OpenAI's catalog; id=Name<context:abilities>.
+            - name: OPENAI_MODEL_LIST
+              value: "-all,+local=Local (Qwen3 4B)<32768:fc>,+claude-sonnet=Claude Sonnet<200000:vision:fc:file>,+claude-opus=Claude Opus<200000:vision:fc:file>,+hermes=Hermes<64000>"
+            - name: ENABLED_OLLAMA
+              value: "0"
+            - name: ENABLED_FAL
+              value: "0"
+            - name: ENABLED_COMFYUI
+              value: "0"
+            # Background jobs (topic titles, translation, …) on the free local
+            # model; speech-to-text on whisper via LiteLLM.
+            - name: SYSTEM_AGENT
+              value: default=openai/local,asr=openai/whisper
+            # Knowledge base embeddings (1024-dim, CPU) via LiteLLM.
+            - name: DEFAULT_FILES_CONFIG
+              value: embedding_model=openai/embedding
+            # Memory: local screens a topic, Sonnet extracts/writes, CPU embeds.
+            - name: MEMORY_USER_MEMORY_GATEKEEPER_PROVIDER
+              value: openai
+            - name: MEMORY_USER_MEMORY_GATEKEEPER_MODEL
+              value: local
+            - name: MEMORY_USER_MEMORY_GATEKEEPER_BASE_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            - name: MEMORY_USER_MEMORY_LAYER_EXTRACTOR_PROVIDER
+              value: openai
+            - name: MEMORY_USER_MEMORY_LAYER_EXTRACTOR_MODEL
+              value: claude-sonnet
+            - name: MEMORY_USER_MEMORY_LAYER_EXTRACTOR_BASE_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            - name: MEMORY_USER_MEMORY_PERSONA_WRITER_PROVIDER
+              value: openai
+            - name: MEMORY_USER_MEMORY_PERSONA_WRITER_MODEL
+              value: claude-sonnet
+            - name: MEMORY_USER_MEMORY_PERSONA_WRITER_BASE_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            - name: MEMORY_USER_MEMORY_CONSOLIDATION_PROVIDER
+              value: openai
+            - name: MEMORY_USER_MEMORY_CONSOLIDATION_MODEL
+              value: claude-sonnet
+            - name: MEMORY_USER_MEMORY_CONSOLIDATION_BASE_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            - name: MEMORY_USER_MEMORY_EMBEDDING_PROVIDER
+              value: openai
+            - name: MEMORY_USER_MEMORY_EMBEDDING_MODEL
+              value: embedding
+            - name: MEMORY_USER_MEMORY_EMBEDDING_BASE_URL
+              value: http://litellm.llm.svc.cluster.local:4000/v1
+            # ── Files: RustFS ────────────────────────────────────────────────
+            # Browsers get presigned URLs on S3_ENDPOINT; the server itself
+            # talks to the in-cluster service. Private bucket, no public URLs:
+            # images go to models inline (base64), previews are presigned.
+            - name: S3_ENDPOINT
+              value: https://lobe-s3.seyzahl.com
+            - name: S3_INTERNAL_ENDPOINT
+              value: http://lobehub-rustfs.lobehub.svc.cluster.local:9000
+            - name: S3_BUCKET
+              value: lobe
+            - name: S3_REGION
+              value: us-east-1
+            - name: S3_ENABLE_PATH_STYLE
+              value: "1"
+            - name: S3_SET_ACL
+              value: "0"
+            - name: LLM_VISION_IMAGE_USE_BASE64
+              value: "1"
+            - name: LLM_VISION_VIDEO_USE_BASE64
+              value: "1"
+            # ── Redis (Valkey) ───────────────────────────────────────────────
+            - name: REDIS_URL
+              value: redis://lobehub-valkey.lobehub.svc.cluster.local:6379
+            - name: REDIS_PREFIX
+              value: lobechat
+            - name: REDIS_TLS
+              value: "0"
+            # ── Agent gateway (server-side agent runs, streamed to browsers) ─
+            - name: ENABLE_AGENT_GATEWAY
+              value: "1"
+            - name: AGENT_GATEWAY_URL
+              value: https://lobe-gateway.seyzahl.com
+            - name: AGENT_GATEWAY_INTERNAL_URL
+              value: http://lobehub-gateway.lobehub.svc.cluster.local:8787
+            - name: DEVICE_GATEWAY_URL
+              value: http://lobehub-gateway.lobehub.svc.cluster.local:8788
+            # ── No phoning home (egress is denied anyway) ────────────────────
+            - name: FEATURE_FLAGS
+              value: "-market,-check_updates,-changelog"
+          startupProbe:
+            tcpSocket:
+              port: 3210
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            # First start runs ~215 migrations against a fresh database.
+            failureThreshold: 120
+          readinessProbe:
+            tcpSocket:
+              port: 3210
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3210
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

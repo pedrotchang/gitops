@@ -12,6 +12,7 @@ resources:
   - blueprint-frigate.yaml
   - blueprint-windows.yaml
   - blueprint-open-webui.yaml
+  - blueprint-lobehub.yaml
   - repository.yaml
   - release.yaml
 

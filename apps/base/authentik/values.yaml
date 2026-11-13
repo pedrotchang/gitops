@@ -113,3 +113,4 @@ blueprints:
     - authentik-blueprint-frigate
     - authentik-blueprint-windows
     - authentik-blueprint-open-webui
+    - authentik-blueprint-lobehub

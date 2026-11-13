@@ -18,7 +18,7 @@ spec:
         app: litellm
       annotations:
         # Restart on config change (kustomize does not hash this ConfigMap).
-        checksum/config: "v2"
+        checksum/config: "v3"
     spec:
       securityContext:
         runAsNonRoot: true
