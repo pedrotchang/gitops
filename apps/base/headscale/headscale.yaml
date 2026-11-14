@@ -28,22 +28,25 @@ spec:
           - 1.1.1.1
           - 8.8.8.8
       extra_records:
-        - name: jellyfin.seyzahl.com
+        - name: watch.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: jellyseerr.seyzahl.com
+        - name: request.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: sonarr.seyzahl.com
+        - name: shows.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: radarr.seyzahl.com
+        - name: films.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: prowlarr.seyzahl.com
+        - name: index.seyzahl.com
           type: A
           value: "10.104.130.214"
-        - name: bazarr.seyzahl.com
+        - name: subs.seyzahl.com
+          type: A
+          value: "10.104.130.214"
+        - name: dl.seyzahl.com
           type: A
           value: "10.104.130.214"
         - name: nextcloud.seyzahl.com

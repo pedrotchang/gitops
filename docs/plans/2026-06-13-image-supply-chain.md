@@ -44,7 +44,7 @@ Verification: dispatch with a known-good small image (e.g. `docker.io/library/bu
 
 Inventory (tachtit, 2026-06-12) — apps to review+upgrade, **one PR each through the pipeline**, never bulk:
 - Pinned & behind: commafeed 6.1.1, grafana 11.5.1, homepage v0.10.9, pgadmin 9.11, wallabag 2.6.14, immich v2.5.0 (check release cadence!), authentik 2025.10.3, n8n 2.4.8, suwayomi v2.1.2065, headscale v0.26.0 + headplane 0.6.3, nextcloud `stable` (pin it!), velero v1.18.1, external-secrets v1.3.1, redis 8.0.1 (bitnamilegacy! migrate off bitnami), forgejo-runner 6.4.0.
-- `:latest` offenders to pin + route through pipeline: jellyfin, jellyseerr, bazarr/prowlarr/qbittorrent/radarr/sonarr (lscr.io set), kapowarr, garden, democratic-csi `next`.
+- `:latest` offenders to pin + route through pipeline: the media apps (lscr.io set; now in the private repo), garden, democratic-csi `next`.
 - Per app: read upstream release notes between current→target (breaking changes, migration steps), import target through pipeline, bump manifest, verify app health, then next. Immich and authentik are the two with the strictest upgrade discipline (DB migrations, version-specific steps).
 - Data cluster (CNPG postgres images) handled separately via CNPG minor-version policy — not this pipeline.
 

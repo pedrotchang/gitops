@@ -29,6 +29,11 @@ server:
   envFrom:
     - secretRef:
         name: authentik-env
+    # Env for blueprints that live in the private repo (gitops-private).
+    # Optional so authentik starts without it.
+    - secretRef:
+        name: authentik-private-env
+        optional: true
   env:
     - name: AUTHENTIK_POSTGRESQL__HOST
       value: authentik-pg.seyzahl.com
@@ -51,11 +56,19 @@ server:
     - name: templates
       persistentVolumeClaim:
         claimName: authentik-templates-pvc-nfs
+    # Blueprints from the private repo (gitops-private), discovered like the
+    # chart-mounted ones below. Optional so authentik starts without them.
+    - name: blueprints-private
+      configMap:
+        name: authentik-blueprint-private
+        optional: true
   volumeMounts:
     - name: media
       mountPath: /data/media
     - name: templates
       mountPath: /templates
+    - name: blueprints-private
+      mountPath: /blueprints/mounted/cm-authentik-blueprint-private
 
 worker:
   replicas: 2
@@ -79,6 +92,11 @@ worker:
   envFrom:
     - secretRef:
         name: authentik-env
+    # Env for blueprints that live in the private repo (gitops-private).
+    # Optional so authentik starts without it.
+    - secretRef:
+        name: authentik-private-env
+        optional: true
   env:
     - name: AUTHENTIK_POSTGRESQL__HOST
       value: authentik-pg.seyzahl.com
@@ -99,16 +117,23 @@ worker:
     - name: templates
       persistentVolumeClaim:
         claimName: authentik-templates-pvc-nfs
+    # Blueprints from the private repo (gitops-private), discovered like the
+    # chart-mounted ones below. Optional so authentik starts without them.
+    - name: blueprints-private
+      configMap:
+        name: authentik-blueprint-private
+        optional: true
   volumeMounts:
     - name: media
       mountPath: /data/media
     - name: templates
       mountPath: /templates
+    - name: blueprints-private
+      mountPath: /blueprints/mounted/cm-authentik-blueprint-private
 
 blueprints:
   configMaps:
     - authentik-blueprint-immich
-    - authentik-blueprint-media
     - authentik-blueprint-home-assistant
     - authentik-blueprint-frigate
     - authentik-blueprint-windows

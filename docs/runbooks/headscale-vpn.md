@@ -45,7 +45,7 @@ Each step rules out a layer:
 1. Workstation: `tailscale status` — router peer "active"? `tx >> rx` ⇒
    forwarding wedge (see above).
 2. In-cluster data path:
-   `kubectl -n media exec deploy/sonarr -- curl -sk -o /dev/null -w '%{http_code}' --resolve x.seyzahl.com:443:10.104.130.214 https://x.seyzahl.com/`
+   `kubectl -n <ns> exec deploy/<an app with curl> -- curl -sk -o /dev/null -w '%{http_code}' --resolve x.seyzahl.com:443:10.104.130.214 https://x.seyzahl.com/`
    — gateway serving? (any HTTP code = yes)
 3. Route approvals:
    `kubectl -n headscale exec headscale-0 -- headscale nodes list-routes`
