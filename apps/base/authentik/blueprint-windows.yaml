@@ -12,10 +12,10 @@ data:
     #   authentik Embedded Outpost    → serves it from authentik-server, so
     #                                   sessions live in Postgres and survive a
     #                                   server pod restart (unlike the
-    #                                   standalone outposts).
-    #
-    # NOTE: this entry sets the embedded outpost's full provider list. Any
-    # provider moved to the embedded outpost later must be added here too.
+    #                                   standalone outposts). Its provider list
+    #                                   lives in the private repo (ConfigMap
+    #                                   authentik-blueprint-private), which
+    #                                   lists every embedded-outpost provider.
     version: 1
     metadata:
       name: windows (GitOps managed)
@@ -52,10 +52,3 @@ data:
         attrs:
           order: 0
 
-      - model: authentik_outposts.outpost
-        state: present
-        identifiers:
-          managed: goauthentik.io/outposts/embedded
-        attrs:
-          providers:
-            - !KeyOf windows-provider

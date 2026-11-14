@@ -8,7 +8,6 @@ resources:
   - homepage
   - immich
   - linkding
-  # - media
   - n8n
   - nextcloud
   # - roboflow-immich-analyzer

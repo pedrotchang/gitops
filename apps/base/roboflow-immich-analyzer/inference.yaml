@@ -1,6 +1,6 @@
 # Roboflow Inference Server, CUDA 13 build: the RTX 5060 is Blackwell (sm_120),
 # which the default -gpu image (CUDA 12.4) predates. Node driver is 595 / CUDA 13.2.
-# Takes the 4th (last) time-slice of the GPU: immich-ml, jellyfin, whisper, this.
+# Takes the 4th (last) time-slice of the GPU: immich-ml, media server, whisper, this.
 #
 # Hardened for a single in-cluster caller:
 #  - Workflows, custom Python execution, stream API, builder UI: off

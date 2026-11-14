@@ -48,7 +48,7 @@ data:
           style: row
           columns: 3
       # Headerless continuation of Home (renders as one seamless "Home"
-      # section). Top Home row is 3-col (HA+Jellyfin+Immich); this
+      # section). Top Home row is 3-col (HA, Immich and an annotated tile); this
       # continuation has 4 tiles, so it's 4-col — each stretches to 1/4
       # width and fills the row edge-to-edge.
       - Home Apps:
@@ -239,16 +239,6 @@ data:
   services.yaml: |
 
     - Home:
-      - Jellyfin:
-            href: https://jellyfin.seyzahl.com
-            icon: jellyfin.png
-            description: Watch
-            widget:
-              type: jellyfin
-              url: http://jellyfin.media.svc.cluster.local:8096
-              key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
-              enableBlocks: true
-              enableNowPlaying: true
       - Immich:
             href: https://immich.seyzahl.com
             icon: immich.png
@@ -304,48 +294,6 @@ data:
       - Omni:
             href: https://pedrotchang.omni.siderolabs.io/
             icon: talos.png
-
-    - Media:
-      - Jellyseerr:
-            href: https://jellyseerr.seyzahl.com
-            icon: jellyseerr.png
-            description: Request
-            widget:
-              type: jellyseerr
-              url: http://jellyseerr.media.svc.cluster.local:5055
-              key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
-      - Sonarr:
-            href: https://sonarr.seyzahl.com
-            icon: sonarr.png
-            description: TV
-            widget:
-              type: sonarr
-              url: http://sonarr.media.svc.cluster.local:8989
-              key: "{{HOMEPAGE_VAR_SONARR_API_KEY}}"
-      - Radarr:
-            href: https://radarr.seyzahl.com
-            icon: radarr.png
-            description: Movies
-            widget:
-              type: radarr
-              url: http://radarr.media.svc.cluster.local:7878
-              key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
-      - Prowlarr:
-            href: https://prowlarr.seyzahl.com
-            icon: prowlarr.png
-            description: Indexers
-            widget:
-              type: prowlarr
-              url: http://prowlarr.media.svc.cluster.local:9696
-              key: "{{HOMEPAGE_VAR_PROWLARR_API_KEY}}"
-      - Bazarr:
-            href: https://bazarr.seyzahl.com
-            icon: bazarr.png
-            description: Subtitles
-            widget:
-              type: bazarr
-              url: http://bazarr.media.svc.cluster.local:6767
-              key: "{{HOMEPAGE_VAR_BAZARR_API_KEY}}"
 
   widgets.yaml: |
 
