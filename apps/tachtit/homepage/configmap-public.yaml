@@ -310,20 +310,14 @@ data:
           memory: true
           showLabel: true
 
-    # Data-cluster node stats via glances DaemonSet
+    # Data-cluster node stats via glances DaemonSet (one node since the
+    # 2026-09-07 rebuild)
     # (monitoring/controllers/data/glances) — homepage's kubernetes widget
     # only sees the cluster it runs in, so data nodes are polled directly.
     - glances:
-        url: http://192.168.4.236:61208
-        version: 4
-        label: data · talos-676-4zu
-        cpu: true
-        mem: true
-
-    - glances:
         url: http://192.168.6.42:61208
         version: 4
-        label: data · talos-otc-2fk
+        label: data · talos-xyz-ebn
         cpu: true
         mem: true
 
