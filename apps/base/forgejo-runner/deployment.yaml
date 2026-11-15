@@ -27,6 +27,13 @@ spec:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
 
+      # The docker cache is a node-local emptyDir (see volumes). Pin to the
+      # Aorus: it has ~1.7 TiB free on its ephemeral partition, while the HP
+      # node has ~56 GiB free and a 50 GiB cache would push it into disk
+      # pressure. The GPU label is just the stable way to select that box.
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
       initContainers:
         - name: register-runner
           image: data.forgejo.org/forgejo/runner:12.12.0
@@ -60,8 +67,8 @@ spec:
           image: docker:29-dind
           args:
             - --tls=false
-            # overlay2 is the default - no need to specify vfs
-            # overlay2 requires local storage (not NFS) for proper layer caching
+            # overlay2 is the default - it needs a local filesystem (not
+            # NFS/iSCSI-over-NAS), which the emptyDir on the node provides.
           env:
             - name: DOCKER_TLS_CERTDIR
               value: ""
@@ -96,14 +103,49 @@ spec:
             - name: config
               mountPath: /config
 
+        # Keeps the docker cache under the emptyDir sizeLimit (exceeding it
+        # gets the pod evicted). Nothing else prunes it: before this, job
+        # leftovers filled 39 of 49 GB. Prunes only when no container is
+        # running, so it never pulls an image out from under an active job;
+        # the act base image is simply re-pulled on the next job.
+        - name: docker-prune
+          image: docker:29-dind # same image as the daemon; only its CLI is used
+          command:
+            - sh
+            - -c
+            - |
+              until docker info >/dev/null 2>&1; do sleep 5; done
+              while true; do
+                if [ -z "$(docker ps -q)" ]; then
+                  echo "$(date -u +%FT%TZ) runner idle, pruning"
+                  docker system prune --all --force
+                  sleep 21600
+                else
+                  sleep 600
+                fi
+              done
+          env:
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+
       restartPolicy: Always
 
       volumes:
         - name: runner-data
           emptyDir: {}
+        # Node-local scratch, deliberately NOT a PVC: a PVC here defaulted to
+        # the truenas-iscsi class, and CI writes (~86 MB/s) saturated the NAS
+        # disks that also serve Forgejo's git data, stalling pushes for minutes.
+        # emptyDir is wiped on pod restart; the cache refills from the first job.
         - name: docker-storage
-          persistentVolumeClaim:
-            claimName: forgejo-runner-docker-cache
+          emptyDir:
+            sizeLimit: 50Gi
         - name: config
           configMap:
             name: forgejo-runner-config

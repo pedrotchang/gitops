@@ -18,7 +18,8 @@ data:
         DOCKER_HOST: tcp://localhost:2375
       labels:
         # act-22.04 (~1.5GB) includes Docker CLI and full toolchain
-        # With overlay2 + local-path storage, image is cached after first pull
+        # Cached in the node-local docker emptyDir after the first pull (until
+        # pod restart or the docker-prune sidecar's next idle prune)
         - "docker:docker://ghcr.io/catthehacker/ubuntu:act-22.04"
         - "ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-22.04"
         - "hugo:docker://floryn90/hugo:0.145.0-ext-alpine"
