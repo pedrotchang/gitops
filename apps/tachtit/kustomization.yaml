@@ -23,8 +23,10 @@ resources:
 replicas:
   - name: homepage
     count: 2
-  - name: authentik-outpost-homepage
-    count: 2
+  # authentik-outpost-homepage stays at 1: a standalone proxy outpost keeps
+  # login sessions in its own memory (/dev/shm), so with 2 replicas a login on
+  # one pod is unknown to the other and the browser loops back to login.
+  # For HA, move the provider to the embedded outpost (sessions in Postgres).
 
 patches:
   # Match each Deployment's own app label and ReplicaSet revision. Honor
