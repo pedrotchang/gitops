@@ -14,5 +14,4 @@ resources:
   - istio
   - velero
   - nvidia
-  - kubevirt
   # - newt
