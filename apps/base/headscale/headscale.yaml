@@ -79,7 +79,10 @@ spec:
         - openid
         - profile
         - email
-      expiry: "180d"
+      # "0" = a login never expires (Pedro, 2026-11-17). With 180d, family
+      # devices silently dropped off the VPN twice a year. Only applies to new
+      # logins; existing nodes' expiry was cleared in the DB at the same time.
+      expiry: "0"
     policy:
       mode: database
   acl_policy:
