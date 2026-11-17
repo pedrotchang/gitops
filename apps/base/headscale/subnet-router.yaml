@@ -56,8 +56,9 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "update", "patch"]
-    # one state Secret per StatefulSet replica (TS_KUBE_SECRET = pod name)
-    resourceNames: ["tailscale-subnet-router-0", "tailscale-subnet-router-1"]
+    # The router's single state Secret (node key). The "-0" name is left over
+    # from the StatefulSet era and kept so the node keeps its identity.
+    resourceNames: ["tailscale-subnet-router-0"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -74,19 +75,25 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
-# Two routers advertising the same routes: headscale keeps one primary and
-# fails over to the other when it goes offline. A StatefulSet gives each
-# replica a stable node identity (hostname + state Secret = pod name).
-kind: StatefulSet
+# ONE router (2026-11-17). A second router never covered the failure that
+# actually happens: when forwarding wedges, the node still looks online, so
+# headscale does not fail over. vpn-canary.yaml heals wedges instead.
+#
+# A Deployment and not a StatefulSet: if the node dies, a StatefulSet never
+# recreates its pod elsewhere (VPN down until a human clears the node). A
+# Deployment's ReplicaSet does, once the dead node's pod is evicted.
+kind: Deployment
 metadata:
   name: tailscale-subnet-router
   namespace: headscale
   labels:
     app: tailscale-subnet-router
 spec:
-  serviceName: tailscale-subnet-router
   replicas: 1
-  podManagementPolicy: Parallel
+  # Recreate: never run two pods at once. Both would load the same state
+  # Secret and fight over one node key.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: tailscale-subnet-router
@@ -97,14 +104,19 @@ spec:
         policy-type: "app"
     spec:
       serviceAccountName: tailscale-subnet-router
-      # One replica per node.
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              app: tailscale-subnet-router
+      # tailscaled exits in ~1 s on SIGTERM; keep any overlap with a
+      # replacement pod (eviction, node drain) short.
+      terminationGracePeriodSeconds: 5
+      # Move off a dead node after 60 s instead of the default 300 s.
+      tolerations:
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 60
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 60
       containers:
         - name: tailscale
           image: ghcr.io/tailscale/tailscale:v1.98.4
@@ -127,14 +139,13 @@ spec:
             # and forwarding silently breaks. Force the nftables backend.
             - name: TS_DEBUG_FIREWALL_MODE
               value: nftables
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
+            # Fixed names (not the pod name): the Deployment's pods get random
+            # names, but the router must stay the same headscale node with its
+            # already-approved routes.
             - name: TS_HOSTNAME
-              value: $(POD_NAME)
+              value: tailscale-subnet-router-0
             - name: TS_KUBE_SECRET
-              value: $(POD_NAME)
+              value: tailscale-subnet-router-0
           securityContext:
             capabilities:
               add:

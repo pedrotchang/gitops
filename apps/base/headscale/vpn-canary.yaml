@@ -1,17 +1,22 @@
 # vpn-canary — self-healing watchdog for the VPN data path.
 #
-# The tailscale-subnet-router's forwarding state can wedge (observed
-# 2026-07-03: tunnel up, routes approved, router egress fine, yet tunneled
-# traffic blackholed — tx>>rx from clients; a pod bounce fixed it instantly).
+# The tailscale-subnet-router's forwarding state can wedge (2026-07-03,
+# 11-12, 11-15, 11-16: tunnel up, routes approved, yet tunneled traffic
+# blackholed — tx>>rx on clients; a pod bounce fixes it instantly). Headscale
+# does not fail over on this, because the router still looks online.
+#
 # This canary joins the tailnet as a real client (userspace networking, no
-# privileges) and dials the cluster gateway THROUGH the subnet router's
-# advertised route — the exact path real Headscale clients use. On 3
-# consecutive failures it logs evidence and deletes the router pod (scoped
-# RBAC), turning a human-noticed outage into a ~2-minute self-heal.
+# privileges) and dials the cluster gateway THROUGH the subnet route, the
+# same path real clients use. On a failure streak it:
+#   1. rejoins ITSELF first (fresh node, fresh peer list). A stale peer list
+#      in the canary once caused 17 h of false alarms;
+#   2. if it still fails and the gateway answers when dialed directly (so
+#      the gateway is fine and the router is to blame), it evicts the router
+#      pod. The router Deployment starts a fresh one within seconds.
 #
 # The auth key is an EPHEMERAL reusable headscale preauth key (user
-# vpn-canary, KV: headscale-canary-authkey) — ephemeral nodes vanish from
-# headscale when they disconnect, so canary restarts don't accumulate nodes.
+# vpn-canary, KV: headscale-canary-authkey): ephemeral nodes vanish from
+# headscale after they go offline, so rejoins don't pile up nodes.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -41,10 +46,13 @@ metadata:
   name: vpn-canary
   namespace: headscale
 rules:
-  # list to find the current subnet-router pod, delete to bounce it.
+  # list to find the current subnet-router pod, evict to bounce it.
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["get", "list", "delete"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -92,50 +100,93 @@ spec:
           args:
             - |
               set -u
-              echo "starting tailscaled (userspace, in-memory state)"
-              tailscaled --state=mem: --tun=userspace-networking --socks5-server=localhost:1055 &
-              sleep 5
-              # login-server: in-cluster URL on purpose — the canary's control
-              # connection must NOT depend on the tunnel path it is testing.
-              until tailscale up --login-server=http://headscale.headscale.svc.cluster.local:8080 \
-                    --authkey="${TS_AUTHKEY}" --hostname=vpn-canary --accept-routes; do
-                echo "tailscale up failed; retrying in 30s"; sleep 30
-              done
-              echo "joined tailnet; probing gateway 10.104.130.214:443 via subnet route every 60s"
               GATEWAY="10.104.130.214"
+              SA=/var/run/secrets/kubernetes.io/serviceaccount
+              API="https://kubernetes.default.svc/api/v1/namespaces/headscale"
+              TSD=""
+
+              # (Re)start tailscaled and join. In-memory state: every join is
+              # a fresh ephemeral node with a fresh peer list.
+              #
+              # login-server must be the public https URL, the same one real
+              # clients use. With the in-cluster http://...:8080 URL the client
+              # retries a dropped control connection over TLS on that plain
+              # HTTP port, which can never succeed: after any headscale
+              # restart the canary stayed offline and probed with a stale
+              # peer list. Control traffic still bypasses the subnet route
+              # (userspace mode only routes tailnet traffic).
+              join() {
+                if [ -n "$TSD" ]; then kill "$TSD" 2>/dev/null; wait "$TSD" 2>/dev/null; fi
+                tailscaled --state=mem: --tun=userspace-networking &
+                TSD=$!
+                sleep 5
+                until timeout 60 tailscale up --login-server=https://headscale.seyzahl.com \
+                      --authkey="${TS_AUTHKEY}" --hostname=vpn-canary --accept-routes; do
+                  echo "tailscale up failed; retrying in 30s"; sleep 30
+                done
+                echo "joined tailnet"
+              }
+
+              # Evict the router pod. BusyBox wget can only GET and POST, and
+              # an Eviction is a POST. It verifies TLS against SSL_CERT_FILE.
+              # Pod names look like tailscale-subnet-router-<rs>-<id>.
+              bounce_router() {
+                T=$(cat "$SA/token")
+                POD=$(SSL_CERT_FILE="$SA/ca.crt" wget -qO- -T 10 \
+                    --header "Authorization: Bearer $T" \
+                    "$API/pods?labelSelector=app%3Dtailscale-subnet-router" \
+                  | grep -o '"name": *"tailscale-subnet-router-[a-z0-9]*-[a-z0-9]*"' \
+                  | head -1 | cut -d'"' -f4)
+                if [ -z "$POD" ]; then
+                  echo "no subnet-router pod found (API or RBAC error?)"; return
+                fi
+                if SSL_CERT_FILE="$SA/ca.crt" wget -qO- -T 10 \
+                    --header "Authorization: Bearer $T" \
+                    --header "Content-Type: application/json" \
+                    --post-data "{\"apiVersion\":\"policy/v1\",\"kind\":\"Eviction\",\"metadata\":{\"name\":\"$POD\",\"namespace\":\"headscale\"}}" \
+                    "$API/pods/$POD/eviction" >/dev/null; then
+                  echo "evicted $POD"
+                else
+                  echo "EVICTION FAILED for $POD (check RBAC)"
+                fi
+              }
+
+              join
+              echo "probing $GATEWAY:443 through the subnet route every 30s"
               FAILS=0
+              REJOINED=0
               while true; do
                 # `tailscale nc` dials through tailscaled -> WG tunnel ->
                 # subnet-router forwarding -> gateway: the exact client path.
                 if timeout 8 tailscale nc "$GATEWAY" 443 </dev/null >/dev/null 2>&1; then
-                  if [ "$FAILS" -gt 0 ]; then echo "RECOVERED after $FAILS failed probes"; fi
+                  if [ "$FAILS" -gt 0 ] || [ "$REJOINED" -eq 1 ]; then
+                    echo "RECOVERED (fails=$FAILS rejoined=$REJOINED)"
+                  fi
                   FAILS=0
+                  REJOINED=0
                 else
                   FAILS=$((FAILS+1))
                   echo "probe FAIL #$FAILS: cannot reach $GATEWAY:443 through the VPN route"
                   if [ "$FAILS" -ge 3 ]; then
-                    echo "== EVIDENCE (before self-heal) =="
-                    tailscale status 2>&1 | head -12
-                    tailscale netcheck 2>&1 | head -12
-                    echo "== SELF-HEAL: deleting wedged subnet-router pod =="
-                    TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-                    CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-                    POD=$(wget -qO- --ca-certificate=$CA --header="Authorization: Bearer $TOKEN" \
-                      "https://kubernetes.default.svc/api/v1/namespaces/headscale/pods?labelSelector=app%3Dtailscale-subnet-router" \
-                      | grep -o '"name":"tailscale-subnet-router[^"]*"' | head -1 | cut -d'"' -f4)
-                    if [ -n "$POD" ]; then
-                      wget -qO- --method=DELETE --ca-certificate=$CA --header="Authorization: Bearer $TOKEN" \
-                        "https://kubernetes.default.svc/api/v1/namespaces/headscale/pods/$POD" >/dev/null 2>&1 \
-                        && echo "deleted $POD" || echo "DELETE FAILED for $POD (check RBAC)"
-                    else
-                      echo "no subnet-router pod found to delete"
-                    fi
                     FAILS=0
-                    echo "cooling down 180s for the router to come back"
-                    sleep 180
+                    echo "== EVIDENCE =="
+                    tailscale status 2>&1 | head -12
+                    if [ "$REJOINED" -eq 0 ]; then
+                      echo "== rejoining the canary before blaming the router =="
+                      REJOINED=1
+                      join
+                    elif ! nc -z -w 5 "$GATEWAY" 443; then
+                      echo "== gateway is down even when dialed directly; not the router, not bouncing it =="
+                    else
+                      echo "== SELF-HEAL: still failing after a rejoin, gateway is up; evicting the router =="
+                      bounce_router
+                      echo "cooling down 120s, then rejoining for a fresh peer list"
+                      sleep 120
+                      join
+                    fi
                   fi
                 fi
-                sleep 60
+                sleep 30
               done
           resources:
             requests:
