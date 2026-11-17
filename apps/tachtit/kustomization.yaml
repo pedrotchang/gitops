@@ -13,7 +13,6 @@ resources:
   # - roboflow-immich-analyzer
   - headscale
   # - home
-  - windows
 
 # Every app runs ONE replica (2026-11-17). Two replicas caused real bugs:
 # - homepage: each pod hashes its own start time into /api/hash, so the

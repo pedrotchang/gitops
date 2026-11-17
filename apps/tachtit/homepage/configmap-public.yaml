@@ -46,15 +46,15 @@ data:
       - Home:
           header: true
           style: row
-          columns: 3
+          columns: 2
       # Headerless continuation of Home (renders as one seamless "Home"
-      # section). Top Home row is 3-col (HA, Immich and an annotated tile); this
-      # continuation has 4 tiles, so it's 4-col — each stretches to 1/4
-      # width and fills the row edge-to-edge.
+      # section). Top Home row is Immich plus the annotated Watch tile; this
+      # continuation is Nextcloud and Linkding. Both rows are 2-col so each
+      # tile fills half the row edge-to-edge.
       - Home Apps:
           header: false
           style: row
-          columns: 4
+          columns: 2
       - Professional:
           header: true
           style: row
@@ -244,10 +244,6 @@ data:
             icon: immich.png
 
     - Home Apps:
-      - Frigate:
-            href: https://frigate.seyzahl.com
-            icon: frigate.png
-            description: Baby camera (NVR)
       - Nextcloud:
             href: https://nextcloud.seyzahl.com
             icon: nextcloud.png

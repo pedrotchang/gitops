@@ -9,7 +9,6 @@ resources:
   - blueprint-immich.yaml
   - blueprint-home-assistant.yaml
   - blueprint-frigate.yaml
-  - blueprint-windows.yaml
   - repository.yaml
   - release.yaml
 

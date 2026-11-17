@@ -136,4 +136,3 @@ blueprints:
     - authentik-blueprint-immich
     - authentik-blueprint-home-assistant
     - authentik-blueprint-frigate
-    - authentik-blueprint-windows
