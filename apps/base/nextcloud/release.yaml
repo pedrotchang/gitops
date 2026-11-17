@@ -47,8 +47,8 @@ spec:
               'auto_provision' => true,
             ),
           );
-        # Allow the in-cluster service hostname as a trusted domain so Hermes can
-        # reach CalDAV pod->service directly (http://nextcloud.nextcloud.svc:8080),
+        # Allow the in-cluster service hostname as a trusted domain so in-cluster
+        # clients can reach Nextcloud pod->service directly (http://nextcloud.nextcloud.svc:8080),
         # bypassing the Cloudflare Tunnel whose WAF blocks CalDAV clients (err 1010).
         # Full explicit list so the public domain is never dropped by config merge.
         trusteddomains.config.php: |-

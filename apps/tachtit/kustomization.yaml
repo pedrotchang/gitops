@@ -12,8 +12,6 @@ resources:
   - nextcloud
   # - roboflow-immich-analyzer
   - headscale
-  - hermes-agent
-  - headroom
   # - home
   - windows
   - replicated-app-budgets.yaml
