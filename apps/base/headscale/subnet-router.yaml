@@ -85,7 +85,7 @@ metadata:
     app: tailscale-subnet-router
 spec:
   serviceName: tailscale-subnet-router
-  replicas: 2
+  replicas: 1
   podManagementPolicy: Parallel
   selector:
     matchLabels:

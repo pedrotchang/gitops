@@ -17,11 +17,11 @@ metadata:
   name: headscale-gateway-options
   namespace: headscale
 data:
-  # Overlay merged by istiod into the generated gateway Deployment: two
-  # replicas, one per node.
+  # Overlay merged by istiod into the generated gateway Deployment: one
+  # replica (rollouts surge a second pod first, so no gap).
   deployment: |
     spec:
-      replicas: 2
+      replicas: 1
       template:
         spec:
           topologySpreadConstraints:
@@ -33,9 +33,11 @@ data:
                   gateway.networking.k8s.io/gateway-name: headscale-gateway
               matchLabelKeys:
                 - pod-template-hash
+  # maxUnavailable (not minAvailable): at 1 replica, minAvailable 1 would
+  # block every node drain. Kept as a key so istiod updates its PDB in place.
   podDisruptionBudget: |
     spec:
-      minAvailable: 1
+      maxUnavailable: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway

@@ -32,10 +32,10 @@ immich:
 
 server:
   enabled: true
-  # The web/API server does not request a GPU. Run two replicas, one per node.
+  # The web/API server does not request a GPU. One replica, like every app.
   controllers:
     main:
-      replicas: 2
+      replicas: 1
       pod:
         topologySpreadConstraints:
           - maxSkew: 1
