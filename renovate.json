@@ -34,32 +34,6 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "KubeVirt operator: bump every virt-operator image ref AND the KUBEVIRT_VERSION env together",
-      "managerFilePatterns": [
-        "/(^|/)infrastructure/controllers/base/kubevirt/kubevirt-operator\\.ya?ml$/"
-      ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "kubevirt/kubevirt",
-      "matchStrings": [
-        "quay\\.io/kubevirt/virt-operator:(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)",
-        "name: KUBEVIRT_VERSION\\s+value:\\s*(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
-      ]
-    },
-    {
-      "customType": "regex",
-      "description": "CDI operator: bump every cdi-* image ref AND the OPERATOR_VERSION env together",
-      "managerFilePatterns": [
-        "/(^|/)infrastructure/controllers/base/cdi/cdi-operator\\.ya?ml$/"
-      ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "kubevirt/containerized-data-importer",
-      "matchStrings": [
-        "quay\\.io/kubevirt/cdi-[a-z]+:(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)",
-        "name: OPERATOR_VERSION\\s+value:\\s*(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
-      ]
-    },
-    {
-      "customType": "regex",
       "description": "Track the pinned sig-storage driver/sidecar images in csi-driver-nfs values.yaml (repository:/tag: pairs) so Renovate bumps them alongside the chart instead of letting them skew.",
       "managerFilePatterns": [
         "/(^|/)infrastructure/controllers/base/csi-driver-nfs/values\\.yaml$/"
@@ -133,17 +107,6 @@
       "registryUrls": [
         "https://helm.cilium.io"
       ]
-    },
-    {
-      "description": "KubeVirt & CDI operator versions are owned by the customManagers above (image + every env value move as one). Disable the kubernetes manager on these files so it cannot open a partial-update PR that bumps only image: and breaks the operator.",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchFileNames": [
-        "infrastructure/controllers/base/kubevirt/kubevirt-operator.yaml",
-        "infrastructure/controllers/base/cdi/cdi-operator.yaml"
-      ],
-      "enabled": false
     },
     {
       "description": "CloudNativePG Postgres engine MAJOR upgrades are disruptive and not trivially reversible. Hold them behind explicit Dependency Dashboard approval so they never open/merge unattended; minor and patch still flow as normal PRs.",
