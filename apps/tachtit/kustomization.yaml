@@ -76,5 +76,10 @@ patches:
           httpGet:
             path: /api/healthcheck
             port: 3000
+            # Homepage 400s any Host not in HOMEPAGE_ALLOWED_HOSTS, and the
+            # kubelet sends the pod IP. localhost:3000 is always allowed.
+            httpHeaders:
+              - name: Host
+                value: localhost:3000
           periodSeconds: 5
           failureThreshold: 2
