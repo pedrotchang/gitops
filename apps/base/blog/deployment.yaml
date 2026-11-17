@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/instance: blog
     app.kubernetes.io/component: web
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:

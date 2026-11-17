@@ -14,17 +14,15 @@ resources:
   - headscale
   # - home
   - windows
-  - replicated-app-budgets.yaml
 
-# Stateless frontends can run two instances; single-writer services keep
-# their existing replica counts and storage semantics.
-replicas:
-  - name: homepage
-    count: 2
-  # authentik-outpost-homepage stays at 1: a standalone proxy outpost keeps
-  # login sessions in its own memory (/dev/shm), so with 2 replicas a login on
-  # one pod is unknown to the other and the browser loops back to login.
-  # For HA, move the provider to the embedded outpost (sessions in Postgres).
+# Every app runs ONE replica (2026-11-17). Two replicas caused real bugs:
+# - homepage: each pod hashes its own start time into /api/hash, so the
+#   browser saw a "config change" on every load and reloaded forever;
+# - standalone authentik outpost: login sessions live in pod memory;
+# - forgejo: two pods on one volume lost merged refs.
+# Rollouts still overlap: Deployments default to maxSurge 1 / maxUnavailable 0
+# at 1 replica, so the new pod is Ready before the old one stops. Do NOT add
+# minAvailable PodDisruptionBudgets: at 1 replica they block node drains.
 
 patches:
   # Match each Deployment's own app label and ReplicaSet revision. Honor
@@ -49,3 +47,34 @@ patches:
             matchLabelKeys:
               - app
               - pod-template-hash
+  # Readiness gates the 1-replica rollout overlap: without it the new pod is
+  # "Ready" the instant it starts and the old one is killed before the new
+  # tunnel has connected to Cloudflare / before homepage can serve.
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: cloudflared.*
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet:
+            path: /ready
+            port: 2000
+          periodSeconds: 5
+          failureThreshold: 2
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: homepage
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet:
+            path: /api/healthcheck
+            port: 3000
+          periodSeconds: 5
+          failureThreshold: 2

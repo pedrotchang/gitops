@@ -8,8 +8,8 @@ authentik:
     secretName: authentik-env
 
 server:
-  replicas: 2
-  # One replica per node (hard). matchLabelKeys
+  replicas: 1
+  # Spread kept for if replicas is raised again. matchLabelKeys
   # keeps rolling updates from counting the old ReplicaSet's pods.
   topologySpreadConstraints:
     - maxSkew: 1
@@ -24,7 +24,7 @@ server:
       matchLabelKeys:
         - pod-template-hash
   pdb:
-    enabled: true
+    enabled: false
     minAvailable: 1
   envFrom:
     - secretRef:
@@ -71,8 +71,8 @@ server:
       mountPath: /blueprints/mounted/cm-authentik-blueprint-private
 
 worker:
-  replicas: 2
-  # One replica per node (hard). matchLabelKeys
+  replicas: 1
+  # Spread kept for if replicas is raised again. matchLabelKeys
   # keeps rolling updates from counting the old ReplicaSet's pods.
   topologySpreadConstraints:
     - maxSkew: 1
@@ -87,7 +87,7 @@ worker:
       matchLabelKeys:
         - pod-template-hash
   pdb:
-    enabled: true
+    enabled: false
     minAvailable: 1
   envFrom:
     - secretRef:
