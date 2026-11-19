@@ -28,7 +28,6 @@ spec:
     ttl: 168h0m0s
     includedNamespaces:
       - headscale
-      - home
       - linkding
       - media
       - monitoring
