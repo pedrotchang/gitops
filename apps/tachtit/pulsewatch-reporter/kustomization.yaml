@@ -1,0 +1,18 @@
+# Reports tachtit's Velero backups, Flux and nodes to pulsewatch on the data cluster,
+# over the public tunnel (the push API is bearer-key protected).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - ../../base/pulsewatch-reporter
+patches:
+  - target:
+      kind: CronJob
+      name: pulsewatch-reporter
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: https://status.seyzahl.com
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/value
+        value: tachtit

@@ -1,0 +1,98 @@
+# Public status page: status.seyzahl.com -> pulsewatch via its own tunnel (no Access policy).
+# Tunnel "pulsewatch" (64998837-d175-4531-825e-fe6053ee837a); DNS CNAME created with
+# `cloudflared tunnel route dns`. Credentials live in Key Vault.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: pulsewatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.6.1
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - run
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared
+            items:
+              - key: config.yaml
+                path: config.yaml
+        - name: creds
+          secret:
+            secretName: cloudflared-tunnel
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared
+  namespace: pulsewatch
+data:
+  config.yaml: |
+    tunnel: pulsewatch
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:2000
+    no-autoupdate: true
+    ingress:
+    - hostname: status.seyzahl.com
+      service: http://pulsewatch.pulsewatch.svc.cluster.local:80
+    - service: http_status:404
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-tunnel
+  namespace: pulsewatch
+spec:
+  secretStoreRef:
+    name: azure-kv-store
+    kind: ClusterSecretStore
+  target:
+    name: cloudflared-tunnel
+  data:
+    - secretKey: credentials.json
+      remoteRef:
+        key: pulsewatch-cloudflare-tunnel-credentials
