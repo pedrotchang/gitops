@@ -46,6 +46,8 @@ spec:
           envFrom:
             - secretRef:
                 name: brick-building-db-creds
+            - secretRef:
+                name: brick-building-app-secrets
           ports:
             - name: http
               containerPort: 3000
