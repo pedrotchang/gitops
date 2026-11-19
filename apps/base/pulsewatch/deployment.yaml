@@ -29,7 +29,7 @@ spec:
       containers:
         - name: pulsewatch
           # Published by platform-infrastructure/pulsewatch CI; bump <sha>@<digest> per release.
-          image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:dede2697651fac0c4730318621a65a8f5c220a84@sha256:87336857c3f41cc42c728352b270fda0fd87c0ec746828303893030eb861cf66
+          image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:f4c7a92099ea5d1d982b742392165042acd5b184@sha256:644db950082ea5b2d3480b88d914effac917e9a5951c63462ea09d3a645404cc
           env:
             - name: PULSEWATCH_BASE_URL
               value: https://status.seyzahl.com
