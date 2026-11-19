@@ -1,0 +1,26 @@
+# Only authentik-server (embedded outpost: authenticates, then proxies to this
+# Service) and the kubelet for probes may reach the app. The HTTPRoute never
+# points at this Service directly, so there is no unauthenticated path.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: brick-building
+spec:
+  endpointSelector:
+    matchLabels:
+      app: brick-building
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: authentik
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP

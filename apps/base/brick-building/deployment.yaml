@@ -1,0 +1,85 @@
+# Bun web app. Non-root + read-only root fs; Bun's runtime caches go to /tmp.
+# Postgres lives on the data cluster (databases/data/brick-building), reached
+# through its LoadBalancer hostname; PG* env vars are read natively by Bun.sql.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brick-building
+  labels:
+    app: brick-building
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: brick-building
+  template:
+    metadata:
+      labels:
+        app: brick-building
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: brick-building
+          # Published by pedrotchang/brick-building CI via platform-infrastructure/actions build-and-push.
+          image: forgejo.seyzahl.com/platform-infrastructure/brick-building:b55d2468303f715d7343b8d3e7c11012c705fa8d@sha256:08e23a33c35d3e9e90251bd18fd93aac9dcea632b42ac8d9e570c3cbec96d3e8
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "3000"
+            - name: HOME
+              value: /tmp
+            - name: PGHOST
+              value: brick-building-pg.seyzahl.com
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: brick_building
+          envFrom:
+            - secretRef:
+                name: brick-building-db-creds
+          ports:
+            - name: http
+              containerPort: 3000
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

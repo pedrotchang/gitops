@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - authentik
   - blog
+  - brick-building
   - forgejo
   - forgejo-runner
   - homepage
