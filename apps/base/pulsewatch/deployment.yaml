@@ -1,0 +1,84 @@
+# pulsewatch status page + uptime monitor (platform-infrastructure/pulsewatch).
+# Single replica + Recreate: SQLite has exactly one writer.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pulsewatch
+  namespace: pulsewatch
+  labels:
+    app: pulsewatch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pulsewatch
+  template:
+    metadata:
+      labels:
+        app: pulsewatch
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pulsewatch
+          # Published by platform-infrastructure/pulsewatch CI; bump <sha>@<digest> per release.
+          image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:2dad4fafed452266987555f28d8cd8e24bf8221c@sha256:f3339c90a93a41d07cf69696986c3ca20e545ff109643ec46d992249fe937e1e
+          env:
+            - name: PULSEWATCH_BASE_URL
+              value: https://status.seyzahl.com
+            - name: PULSEWATCH_SEED
+              value: /config/seed.toml
+          envFrom:
+            - secretRef:
+                name: pulsewatch
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: seed
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pulsewatch-data
+        - name: seed
+          configMap:
+            name: pulsewatch-seed
+            optional: true

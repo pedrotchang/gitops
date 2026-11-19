@@ -1,0 +1,193 @@
+# Imported once, on pulsewatch's first start (empty database). After that the admin UI
+# (status.seyzahl.com/admin) is the source of truth; export from Settings to refresh this file.
+# Backups, Flux and nodes are not listed: the pulsewatch-reporter CronJobs register them.
+title = "seyzahl"
+
+# ---- Services (public URLs) ----
+[[check]]
+name = "Blog"
+kind = "http"
+target = "https://pedrotchang.dev/"
+
+[[check]]
+name = "Forgejo"
+kind = "http"
+target = "https://forgejo.seyzahl.com/api/healthz"
+
+[[check]]
+name = "Authentik (SSO)"
+kind = "http"
+target = "https://auth.seyzahl.com/-/health/live/"
+
+[[check]]
+name = "Nextcloud"
+kind = "http"
+target = "https://nextcloud.seyzahl.com/status.php"
+expect_text = "\"maintenance\":false"
+
+[[check]]
+name = "Linkding"
+kind = "http"
+target = "https://linkding.seyzahl.com/health"
+
+[[check]]
+name = "Homepage"
+kind = "http"
+target = "https://homepage.seyzahl.com/"
+
+# ---- Services reachable only over the VPN: probed through the tachtit gateway ----
+[[check]]
+name = "Immich"
+kind = "http"
+target = "https://immich.seyzahl.com/api/server/ping"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "n8n"
+kind = "http"
+target = "https://n8n.seyzahl.com/healthz"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Jellyfin"
+group = "Media"
+kind = "http"
+target = "https://watch.seyzahl.com/health"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Jellyseerr"
+group = "Media"
+kind = "http"
+target = "https://request.seyzahl.com/"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Sonarr"
+group = "Media"
+kind = "http"
+target = "https://shows.seyzahl.com/"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Radarr"
+group = "Media"
+kind = "http"
+target = "https://films.seyzahl.com/"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Prowlarr"
+group = "Media"
+kind = "http"
+target = "https://index.seyzahl.com/"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "Bazarr"
+group = "Media"
+kind = "http"
+target = "https://subs.seyzahl.com/"
+connect_to = "192.168.4.221"
+
+[[check]]
+name = "qBittorrent"
+group = "Media"
+kind = "http"
+target = "https://dl.seyzahl.com/"
+connect_to = "192.168.4.221"
+public = false
+
+[[check]]
+name = "brick-building"
+kind = "http"
+target = "https://brick-building.seyzahl.com/"
+connect_to = "192.168.4.221"
+public = false
+
+# ---- Databases (CNPG load balancers on the data cluster) ----
+[[check]]
+name = "Forgejo DB"
+group = "Databases"
+kind = "tcp"
+target = "forgejo-pg.seyzahl.com:5432"
+
+[[check]]
+name = "Immich DB"
+group = "Databases"
+kind = "tcp"
+target = "immich-pg.seyzahl.com:5432"
+
+[[check]]
+name = "Nextcloud DB"
+group = "Databases"
+kind = "tcp"
+target = "nextcloud-pg.seyzahl.com:5432"
+
+[[check]]
+name = "Authentik DB"
+group = "Databases"
+kind = "tcp"
+target = "authentik-pg.seyzahl.com:5432"
+
+[[check]]
+name = "Headscale DB"
+group = "Databases"
+kind = "tcp"
+target = "headscale-pg.seyzahl.com:5432"
+
+[[check]]
+name = "n8n DB"
+group = "Databases"
+kind = "tcp"
+target = "n8n-pg.seyzahl.com:5432"
+
+[[check]]
+name = "Linkding DB"
+group = "Databases"
+kind = "tcp"
+target = "linkding-pg.seyzahl.com:5432"
+
+[[check]]
+name = "brick-building DB"
+group = "Databases"
+kind = "tcp"
+target = "brick-building-pg.seyzahl.com:5432"
+public = false
+
+# ---- Infrastructure ----
+[[check]]
+name = "VPN (Headscale)"
+group = "Infrastructure"
+kind = "http"
+target = "https://headscale.seyzahl.com/health"
+
+[[check]]
+name = "TrueNAS storage"
+group = "Infrastructure"
+kind = "tcp"
+target = "192.168.7.14:443"
+
+[[check]]
+name = "Gateway certificate"
+group = "Infrastructure"
+kind = "tls"
+target = "forgejo.seyzahl.com"
+
+[[check]]
+name = "Cloudflare edge certificate"
+group = "Infrastructure"
+kind = "tls"
+target = "auth.seyzahl.com"
+
+[[check]]
+name = "seyzahl.com registration"
+group = "Infrastructure"
+kind = "domain"
+target = "seyzahl.com"
+
+[[check]]
+name = "pedrotchang.dev registration"
+group = "Infrastructure"
+kind = "domain"
+target = "pedrotchang.dev"

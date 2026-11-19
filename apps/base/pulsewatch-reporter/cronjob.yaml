@@ -1,0 +1,55 @@
+# Pushes CNPG/Velero backup, Flux and node heartbeats to pulsewatch every 5 minutes.
+# Overlays set REPORT_CLUSTER and PULSEWATCH_URL.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pulsewatch-reporter
+  namespace: pulsewatch
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: pulsewatch-reporter
+        spec:
+          serviceAccountName: pulsewatch-reporter
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: reporter
+              image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:2dad4fafed452266987555f28d8cd8e24bf8221c@sha256:f3339c90a93a41d07cf69696986c3ca20e545ff109643ec46d992249fe937e1e
+              args: ["report-k8s"]
+              env:
+                - name: PULSEWATCH_URL
+                  value: http://pulsewatch.pulsewatch.svc.cluster.local
+                - name: REPORT_CLUSTER
+                  value: cluster
+                - name: REPORT_PUBLIC
+                  value: "1"
+              envFrom:
+                - secretRef:
+                    name: pulsewatch-reporter
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]

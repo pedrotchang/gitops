@@ -11,6 +11,7 @@ resources:
   - linkding
   - n8n
   - nextcloud
+  - pulsewatch-reporter
   # - roboflow-immich-analyzer
   - headscale
   # - home

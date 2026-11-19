@@ -1,0 +1,12 @@
+# SQLite needs local/block storage with a single writer (not NFS).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pulsewatch-data
+  namespace: pulsewatch
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi

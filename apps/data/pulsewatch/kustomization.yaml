@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/pulsewatch
+  - ../../base/pulsewatch-reporter
+  - cloudflare.yaml
+configMapGenerator:
+  - name: pulsewatch-seed
+    namespace: pulsewatch
+    files:
+      - seed.toml
+patches:
+  - target:
+      kind: CronJob
+      name: pulsewatch-reporter
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/value
+        value: data
