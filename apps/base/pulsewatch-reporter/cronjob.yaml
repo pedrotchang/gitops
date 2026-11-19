@@ -30,7 +30,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: reporter
-              image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:2dad4fafed452266987555f28d8cd8e24bf8221c@sha256:f3339c90a93a41d07cf69696986c3ca20e545ff109643ec46d992249fe937e1e
+              image: forgejo.seyzahl.com/platform-infrastructure/pulsewatch:dede2697651fac0c4730318621a65a8f5c220a84@sha256:87336857c3f41cc42c728352b270fda0fd87c0ec746828303893030eb861cf66
               args: ["report-k8s"]
               env:
                 - name: PULSEWATCH_URL
