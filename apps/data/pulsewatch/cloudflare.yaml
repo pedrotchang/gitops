@@ -33,8 +33,8 @@ spec:
             httpGet:
               path: /ready
               port: 2000
-            failureThreshold: 1
-            initialDelaySeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 30
             periodSeconds: 10
           resources:
             requests:
@@ -76,6 +76,8 @@ data:
     credentials-file: /etc/cloudflared/creds/credentials.json
     metrics: 0.0.0.0:2000
     no-autoupdate: true
+    # QUIC (UDP 7844) never completes from the data cluster network; TCP 443 works.
+    protocol: http2
     ingress:
     - hostname: status.seyzahl.com
       service: http://pulsewatch.pulsewatch.svc.cluster.local:80
