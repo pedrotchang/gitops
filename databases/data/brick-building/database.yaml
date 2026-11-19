@@ -1,0 +1,46 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: brick-building-db-tachtit-cnpg-v0
+spec:
+  description: Postgres cluster for the brick-building application
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  # Single-node data cluster: a replica would share the same failure domain.
+  instances: 1
+  inheritedMetadata:
+    labels:
+      app: brick-building-database
+      policy-type: "database"
+  monitoring:
+    enablePodMonitor: true
+  bootstrap:
+    initdb:
+      database: brick_building
+      owner: brick_building
+      secret:
+        name: brick-building-db-creds
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: brick-building-aws-store
+        serverName: brick-building-db-tachtit-cnpg-v0
+  resources:
+    requests:
+      memory: 100Mi
+  storage:
+    size: 1Gi
+  managed:
+    services:
+      disabledDefaultServices: ["ro", "r"]
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: "brick-building-db-lb"
+              labels:
+                cilium-lb-pool: postgres-pool
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: brick-building-pg.seyzahl.com
+            spec:
+              type: LoadBalancer
