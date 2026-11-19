@@ -1,0 +1,33 @@
+# Headscale-only host (extra_records + external-dns excludeDomains). Every
+# request goes to authentik-server, whose embedded outpost authenticates and
+# then proxies to the app (provider + ReferenceGrant live in gitops-private).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: brick-building
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+    # homepage v1 Gateway API discovery; tile merges into the static
+    # "Home Apps" group. href is set explicitly since the backend is authentik.
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: brick-building
+    gethomepage.dev/group: Home Apps
+    gethomepage.dev/icon: mdi-toy-brick
+    gethomepage.dev/href: https://brick-building.seyzahl.com
+    gethomepage.dev/description: Personal tool
+    gethomepage.dev/pod-selector: app=brick-building
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - brick-building.seyzahl.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
