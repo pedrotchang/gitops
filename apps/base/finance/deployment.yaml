@@ -1,0 +1,90 @@
+# Bun web app. Non-root + read-only root fs; Bun's runtime caches go to /tmp.
+# Postgres lives on the data cluster (databases/data/finance), reached
+# through its LoadBalancer hostname; PG* env vars are read natively by Bun.sql.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finance
+  labels:
+    app: finance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finance
+  template:
+    metadata:
+      labels:
+        app: finance
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: finance
+          # Published by family/finance CI via platform-infrastructure/actions build-and-push.
+          image: forgejo.seyzahl.com/platform-infrastructure/finance:7175b81e35846f654be87e8a0635b72e24bf224f@sha256:c77d40c322149d2d14affbc6bf2098a80cb213bc00e4b2cc7d93b47bf8430c9b
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "3000"
+            - name: HOME
+              value: /tmp
+            - name: PGHOST
+              value: finance-pg.seyzahl.com
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: finance
+            # Defense in depth behind the Authentik policy: the household only.
+            - name: ALLOWED_USERS
+              value: seyza,hanna
+          envFrom:
+            - secretRef:
+                name: finance-db-creds
+            - secretRef:
+                name: finance-app-secrets
+          ports:
+            - name: http
+              containerPort: 3000
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

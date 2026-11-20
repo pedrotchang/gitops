@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - authentik
   - brick-building
+  - finance
   - forgejo
   - immich
   - linkding

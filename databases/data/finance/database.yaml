@@ -1,0 +1,46 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: finance-db-tachtit-cnpg-v0
+spec:
+  description: Postgres cluster for the finance application
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  # Single-node data cluster: a replica would share the same failure domain.
+  instances: 1
+  inheritedMetadata:
+    labels:
+      app: finance-database
+      policy-type: "database"
+  monitoring:
+    enablePodMonitor: true
+  bootstrap:
+    initdb:
+      database: finance
+      owner: finance
+      secret:
+        name: finance-db-creds
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: finance-aws-store
+        serverName: finance-db-tachtit-cnpg-v0
+  resources:
+    requests:
+      memory: 100Mi
+  storage:
+    size: 1Gi
+  managed:
+    services:
+      disabledDefaultServices: ["ro", "r"]
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: "finance-db-lb"
+              labels:
+                cilium-lb-pool: postgres-pool
+              annotations:
+                external-dns.alpha.kubernetes.io/hostname: finance-pg.seyzahl.com
+            spec:
+              type: LoadBalancer

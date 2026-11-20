@@ -10,6 +10,7 @@ excludeDomains:
   - n8n.seyzahl.com
   - git.seyzahl.com
   - brick-building.seyzahl.com
+  - finance.seyzahl.com
   # Private-repo hosts — Headscale-only, must never appear in public DNS. The
   # per-route external-dns exclude annotation is NOT honored for the
   # gateway-httproute source, so exclusion must live here.
