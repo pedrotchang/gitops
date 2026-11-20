@@ -1,0 +1,33 @@
+# Headscale-only host (extra_records + external-dns excludeDomains). Every
+# request goes to authentik-server, whose embedded outpost authenticates and
+# then proxies to the app (provider + ReferenceGrant live in gitops-private).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: finance
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: "true"
+    # homepage v1 Gateway API discovery; tile merges into the static
+    # "Home Apps" group. href is set explicitly since the backend is authentik.
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: finance
+    gethomepage.dev/group: Home Apps
+    gethomepage.dev/icon: mdi-cash-multiple
+    gethomepage.dev/href: https://finance.seyzahl.com
+    gethomepage.dev/description: Household finances
+    gethomepage.dev/pod-selector: app=finance
+spec:
+  parentRefs:
+    - name: cilium-gateway
+      namespace: default
+  hostnames:
+    - finance.seyzahl.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: authentik-server
+          namespace: authentik
+          port: 80

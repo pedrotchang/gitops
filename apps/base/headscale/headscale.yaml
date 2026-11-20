@@ -67,6 +67,9 @@ spec:
         - name: brick-building.seyzahl.com
           type: A
           value: "10.104.130.214"
+        - name: finance.seyzahl.com
+          type: A
+          value: "10.104.130.214"
         - name: git.seyzahl.com
           type: A
           value: "10.111.51.228"

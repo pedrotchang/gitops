@@ -4,6 +4,7 @@ resources:
   - authentik
   - blog
   - brick-building
+  - finance
   - forgejo
   - forgejo-runner
   - homepage
