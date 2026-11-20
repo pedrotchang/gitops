@@ -27,7 +27,7 @@ spec:
       containers:
         - name: finance
           # Published by family/finance CI via platform-infrastructure/actions build-and-push.
-          image: forgejo.seyzahl.com/platform-infrastructure/finance:165828e498234ee0a116b0efca2e0ecea8d46b9e@sha256:664496286a36f363c49e859d099b04f2458fccf383e43d4b3a7d3ffc68ad08a7
+          image: forgejo.seyzahl.com/platform-infrastructure/finance:d4905a35dc8133e8b1f8adb630b3f14c811dd16e@sha256:7fefe44bcb02dbe466579c04813fbb8db2bc7da318b373a94b217f5884545ce0
           env:
             - name: NODE_ENV
               value: production
