@@ -27,6 +27,15 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # Browsers kept showing an old page after a deploy (the calendar fix of
+      # 2026-11-21 didn't show): make them check for a new version on every
+      # load (unchanged files answer 304).
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Cache-Control
+                value: no-cache
       backendRefs:
         - name: authentik-server
           namespace: authentik
