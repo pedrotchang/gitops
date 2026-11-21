@@ -27,6 +27,14 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # Browsers (iPhone Safari especially) kept showing an old page after a deploy:
+      # make them check for a new version on every load (unchanged files answer 304).
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Cache-Control
+                value: no-cache
       backendRefs:
         - name: authentik-server
           namespace: authentik
