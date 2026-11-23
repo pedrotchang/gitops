@@ -22,33 +22,9 @@ patches:
 ---
 kind: ControlPlane
 machines:
-  - 03560274-043c-05b5-6406-de0700080009
   - eac01559-a13a-11e6-9c43-bc0000600000
 ---
 kind: Workers
----
-kind: Machine
-systemExtensions:
-  - siderolabs/iscsi-tools
-  - siderolabs/nvidia-open-gpu-kernel-modules-production
-  - siderolabs/nvidia-container-toolkit-production
-name: 03560274-043c-05b5-6406-de0700080009
-patches:
-  - idOverride: 400-cm-03560274-043c-05b5-6406-de0700080009-nvidia-gpu
-    annotations:
-      name: nvidia-gpu
-    inline: |
-      machine:
-          kernel:
-              modules:
-                  - name: nvidia
-                  - name: nvidia_uvm
-                  - name: nvidia_drm
-                  - name: nvidia_modeset
-          nodeLabels:
-              nvidia.com/gpu.present: "true"
-          sysctls:
-              net.core.bpf_jit_harden: "1"
 ---
 kind: Machine
 name: eac01559-a13a-11e6-9c43-bc0000600000
