@@ -27,12 +27,10 @@ spec:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
 
-      # The docker cache is a node-local emptyDir (see volumes). Pin to the
-      # Aorus: it has ~1.7 TiB free on its ephemeral partition, while the HP
-      # node has ~56 GiB free and a 50 GiB cache would push it into disk
-      # pressure. The GPU label is just the stable way to select that box.
-      nodeSelector:
-        nvidia.com/gpu.present: "true"
+      # No node pin: tachtit is a single 4-core / 16 GiB node. The docker
+      # cache is a node-local emptyDir (see volumes) capped well below the
+      # node's free ephemeral space, and the daemon is CPU/memory-limited so
+      # a CI build can't starve the apps sharing the node.
 
       initContainers:
         - name: register-runner
@@ -77,6 +75,13 @@ spec:
               protocol: TCP
           securityContext:
             privileged: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 3Gi
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker
@@ -143,9 +148,11 @@ spec:
         # the truenas-iscsi class, and CI writes (~86 MB/s) saturated the NAS
         # disks that also serve Forgejo's git data, stalling pushes for minutes.
         # emptyDir is wiped on pod restart; the cache refills from the first job.
+        # 20Gi: the node has ~55 GiB free ephemeral space shared with every
+        # pod's images and logs; exceeding the limit evicts only this pod.
         - name: docker-storage
           emptyDir:
-            sizeLimit: 50Gi
+            sizeLimit: 20Gi
         - name: config
           configMap:
             name: forgejo-runner-config

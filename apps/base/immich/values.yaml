@@ -68,22 +68,23 @@ valkey:
 
 machine-learning:
   enabled: true
-  # CUDA build on the time-sliced RTX 5060 (smart search / face recognition).
-  # Tag must track the server's image.tag (+ "-cuda").
+  # CPU build (smart search / face recognition). tachtit has no GPU node, and
+  # everything shares one 4-core / 16 GiB node, so ML is capped: slower jobs,
+  # but a big face/CLIP backlog can't starve or OOM the rest of the cluster.
+  # Tag must track the server's image.tag.
   controllers:
     main:
-      pod:
-        runtimeClassName: nvidia
-        priorityClassName: gpu-workload
-        nodeSelector:
-          nvidia.com/gpu.present: "true"
       containers:
         main:
           image:
-            tag: v3.2.4-cuda
+            tag: v3.2.4
           resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
             limits:
-              nvidia.com/gpu: 1
+              cpu: "2"
+              memory: 2560Mi
   persistence:
     cache:
       enabled: true
