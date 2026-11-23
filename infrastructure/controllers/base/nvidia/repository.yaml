@@ -1,8 +1,0 @@
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: nvidia
-  namespace: nvidia
-spec:
-  interval: 24h
-  url: https://helm.ngc.nvidia.com/nvidia
