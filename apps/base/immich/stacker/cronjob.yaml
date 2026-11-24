@@ -30,7 +30,7 @@ spec:
           containers:
             - name: stack
               # Org-built bun image (custom-images), same one the other bun jobs use.
-              image: forgejo.seyzahl.com/platform-infrastructure/media-tools:1.4.4-mkv
+              image: forgejo.seyzahl.com/platform-infrastructure/media-tools:1.4.4-mkv@sha256:be8a411eddf634cbb9c0d817e9317d5e61db95a7f7130284bb385e4302e90b5b
               command: ["bun", "run", "/app/stack-duplicates.ts"]
               envFrom:
                 - secretRef:
