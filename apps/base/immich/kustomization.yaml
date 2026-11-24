@@ -9,6 +9,7 @@ resources:
   - storage-nfs.yaml
   - repository.yaml
   - release.yaml
+  - stacker
 
 configMapGenerator:
   - name: immich-values
