@@ -52,7 +52,13 @@ server:
   persistence:
     # Library mounts MUST match the absolute paths stored in the DB:
     #   originalPath -> /usr/src/app/upload/...   (64327 assets)
-    #   external lib -> /external/...             (38435 assets, subPath upload)
+    #   external lib -> /external/...             (subPath upload)
+    # /external is READ-ONLY on purpose. The "New External Library" scans
+    # Immich's own upload dir, so external assets can point at the SAME file as
+    # an upload. Purging a trashed (non-offline) asset deletes its originalPath
+    # whatever library it is in, so trashing an external copy would delete the
+    # upload's original. Read-only makes that delete fail and the file survives.
+    # Cost: XMP sidecar writes for external assets fail (DB edits still apply).
     data:
       # Chart 0.13 validates values against a schema: the library volume must
       # name its type + claim explicitly (0.12 inferred them from immich.persistence).
@@ -62,6 +68,7 @@ server:
         - path: /usr/src/app/upload
         - path: /external
           subPath: upload
+          readOnly: true
 
 valkey:
   enabled: true

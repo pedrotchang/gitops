@@ -1,0 +1,78 @@
+# Stacks Immich duplicate groups every night (see stack-duplicates.ts).
+# Non-destructive: it only creates stacks and clears the duplicate flag.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-stack-duplicates
+spec:
+  schedule: "30 3 * * *"
+  timeZone: America/Los_Angeles
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 10800
+      template:
+        metadata:
+          labels:
+            app: immich-stack-duplicates
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: stack
+              # Org-built bun image (custom-images), same one the other bun jobs use.
+              image: forgejo.seyzahl.com/platform-infrastructure/media-tools:1.4.4-mkv
+              command: ["bun", "run", "/app/stack-duplicates.ts"]
+              envFrom:
+                - secretRef:
+                    name: immich-stacker
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              volumeMounts:
+                - name: script
+                  mountPath: /app
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 64Mi
+                limits:
+                  memory: 512Mi
+          volumes:
+            - name: script
+              configMap:
+                name: immich-stacker-script
+            - name: tmp
+              emptyDir: {}
+---
+# One least-privilege Immich API key per user (duplicate.read, stack.create,
+# asset.update), comma-separated in KV `immich-stacker-api-keys`.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: immich-stacker
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: azure-kv-store
+    kind: ClusterSecretStore
+  target:
+    name: immich-stacker
+    creationPolicy: Owner
+  data:
+    - secretKey: IMMICH_API_KEYS
+      remoteRef:
+        key: immich-stacker-api-keys
