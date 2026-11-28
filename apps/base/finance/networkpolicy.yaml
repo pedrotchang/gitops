@@ -60,3 +60,10 @@ spec:
         - ports:
             - port: "443"
               protocol: TCP
+    # Gmail over IMAP: Amazon order emails (src/amazon/mail.ts, Gmail app password).
+    - toFQDNs:
+        - matchName: imap.gmail.com
+      toPorts:
+        - ports:
+            - port: "993"
+              protocol: TCP
