@@ -27,7 +27,7 @@ spec:
       containers:
         - name: brick-building
           # Published by pedrotchang/brick-building CI via platform-infrastructure/actions build-and-push.
-          image: forgejo.seyzahl.com/platform-infrastructure/brick-building:1888a819afe3a04fc0576bb606517472658aa741@sha256:519b4f3730821ec0298b85b35f54f5b584c48fdd416e208e4170676dddcaa869
+          image: forgejo.seyzahl.com/platform-infrastructure/brick-building:86195862fa8978253637ba217f81e4a3b082ab91@sha256:5858d0006d124de2caa53e3376ff819f54f993f1a3e6dcddef3ff97164da5456
           env:
             - name: NODE_ENV
               value: production
