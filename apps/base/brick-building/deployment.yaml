@@ -17,6 +17,8 @@ spec:
       labels:
         app: brick-building
     spec:
+      # The app never talks to the Kubernetes API.
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -43,6 +45,11 @@ spec:
               value: "5432"
             - name: PGDATABASE
               value: brick_building
+            # Encrypted to the data cluster; channel binding makes a man in the middle fail the login.
+            - name: PGSSLMODE
+              value: require
+            - name: PGCHANNELBINDING
+              value: require
           envFrom:
             - secretRef:
                 name: brick-building-db-creds

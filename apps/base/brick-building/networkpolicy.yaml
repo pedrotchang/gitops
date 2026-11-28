@@ -1,6 +1,10 @@
-# Only authentik-server (embedded outpost: authenticates, then proxies to this
-# Service) and the kubelet for probes may reach the app. The HTTPRoute never
-# points at this Service directly, so there is no unauthenticated path.
+# Locked down both ways.
+# In: only authentik-server (embedded outpost: authenticates, then proxies to
+# this Service) and this node's kubelet for probes. The HTTPRoute never points
+# at this Service directly, so there is no unauthenticated path.
+# Out: DNS, the app's own Postgres on the data cluster, and the HTTPS APIs the
+# code calls. Anything else (say, a compromised dependency phoning home) is
+# dropped. A new integration needs its host added here.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -9,6 +13,9 @@ spec:
   endpointSelector:
     matchLabels:
       app: brick-building
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
     - fromEndpoints:
         - matchLabels:
@@ -17,10 +24,41 @@ spec:
         - ports:
             - port: "3000"
               protocol: TCP
+    # Kubelet httpGet probes.
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "3000"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # Postgres (CNPG on the data cluster); TLS with channel binding, see the Deployment env.
+    - toFQDNs:
+        - matchName: brick-building-pg.seyzahl.com
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    # Schwab, Alpaca (news + market calendar), Massive (closes), SEC EDGAR, Anthropic.
+    - toFQDNs:
+        - matchName: api.schwabapi.com
+        - matchName: api.alpaca.markets
+        - matchName: data.alpaca.markets
+        - matchName: api.massive.com
+        - matchName: www.sec.gov
+        - matchName: api.anthropic.com
+      toPorts:
+        - ports:
+            - port: "443"
               protocol: TCP
