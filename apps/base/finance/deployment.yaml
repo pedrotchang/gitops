@@ -17,6 +17,8 @@ spec:
       labels:
         app: finance
     spec:
+      # The app never talks to the Kubernetes API.
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -43,6 +45,11 @@ spec:
               value: "5432"
             - name: PGDATABASE
               value: finance
+            # Encrypted to the data cluster; channel binding makes a man in the middle fail the login.
+            - name: PGSSLMODE
+              value: require
+            - name: PGCHANNELBINDING
+              value: require
             # Defense in depth behind the Authentik policy: the household only.
             - name: ALLOWED_USERS
               value: seyza,hanna
