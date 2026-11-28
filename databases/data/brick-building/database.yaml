@@ -25,6 +25,11 @@ spec:
       parameters:
         barmanObjectName: brick-building-aws-store
         serverName: brick-building-db-tachtit-cnpg-v0
+  postgresql:
+    pg_hba:
+      # TLS only: CNPG's catch-all "host all all all scram-sha-256" comes after
+      # this line, so a login without TLS never reaches it.
+      - hostnossl all all all reject
   resources:
     requests:
       memory: 100Mi
