@@ -1,0 +1,41 @@
+# Postgres for brick-building: the LoadBalancer (brick-building-pg.seyzahl.com) answers the
+# whole LAN, so only these may connect:
+# - the brick-building app on tachtit, seen as the tachtit node (192.168.7.80/32; the
+#   LB keeps the client address). If that node's IP changes, update it here.
+# - the CNPG operator and the barman-cloud plugin (cnpg-system), pods in this
+#   namespace (CNPG jobs), and this node's kubelet (probes on 8000).
+# Egress is untouched: backups still go to S3.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: brick-building-db-tachtit-cnpg-v0
+spec:
+  endpointSelector:
+    matchLabels:
+      cnpg.io/cluster: brick-building-db-tachtit-cnpg-v0
+  enableDefaultDeny:
+    ingress: true
+    egress: false
+  ingress:
+    - fromCIDR:
+        - 192.168.7.80/32
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    # pulsewatch's "brick-building DB" TCP check (status page).
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: pulsewatch
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: cnpg-system
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: brick-building
+    - fromEntities:
+        - host

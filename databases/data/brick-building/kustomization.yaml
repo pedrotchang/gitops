@@ -4,6 +4,7 @@ namespace: brick-building
 resources:
   - namespace.yaml
   - database.yaml
+  - networkpolicy.yaml
   - objectstore.yaml
   - scheduled-backups.yaml
   - secrets.yaml
